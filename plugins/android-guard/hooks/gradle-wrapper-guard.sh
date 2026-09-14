@@ -18,11 +18,11 @@ BASE=$(basename "$FILE_PATH")
 
 case "$BASE" in
   gradle-wrapper.jar)
-    echo "gradle-wrapper.jar는 저장소에 커밋된 실행 바이너리다. 직접 편집하거나 덮어쓰지 않는다. 래퍼를 갱신하려면 ./gradlew wrapper --gradle-version=<버전> 을 쓴다 — jar, 스크립트, properties를 Gradle이 함께 맞춰 준다." >&2
+    echo "gradle-wrapper.jar는 저장소에 커밋된 실행 바이너리입니다. 직접 편집하거나 덮어쓰지 않습니다. 래퍼를 갱신하려면 ./gradlew wrapper --gradle-version=<버전> 을 씁니다 — jar, 스크립트, properties를 Gradle이 함께 맞춰 줍니다." >&2
     exit 2
     ;;
   gradlew | gradlew.bat)
-    echo "$BASE 는 Gradle이 생성하는 래퍼 스크립트다. 직접 편집하지 않는다. ./gradlew wrapper --gradle-version=<버전> 으로 재생성한다. 빌드 인자를 바꾸고 싶으면 gradle.properties의 org.gradle.jvmargs 같은 설정을 쓴다." >&2
+    echo "$BASE 는 Gradle이 생성하는 래퍼 스크립트입니다. 직접 편집하지 않습니다. ./gradlew wrapper --gradle-version=<버전> 으로 재생성합니다. 빌드 인자를 바꾸고 싶으면 gradle.properties의 org.gradle.jvmargs 같은 설정을 씁니다." >&2
     exit 2
     ;;
   gradle-wrapper.properties) ;;
@@ -46,7 +46,7 @@ while IFS= read -r line; do
   url="${url#"${url%%[![:space:]]*}"}"
   [[ -n "$url" ]] || continue
   if [[ ! "$url" =~ ^https://(services|downloads)\.gradle\.org/ ]]; then
-    echo "distributionUrl이 https://services.gradle.org/ 또는 https://downloads.gradle.org/ 가 아니다: $url — 모든 빌드가 여기서 Gradle 배포본을 받아 실행한다. 사내 미러를 의도한 것이라면 사용자에게 확인받고 이 훅을 끈다(ANDROID_GUARD_DISABLE_GRADLE_WRAPPER=1)." >&2
+    echo "distributionUrl이 https://services.gradle.org/ 또는 https://downloads.gradle.org/ 가 아니다: $url — 모든 빌드가 여기서 Gradle 배포본을 받아 실행합니다. 사내 미러를 의도한 것이라면 사용자에게 확인받고 이 훅을 끈다(ANDROID_GUARD_DISABLE_GRADLE_WRAPPER=1)." >&2
     exit 2
   fi
 done <<< "$NEW"

@@ -57,16 +57,16 @@ while IFS= read -r line; do
   fi
 
   cat >&2 <<'MSG'
-서명 password를 파일에 문자열 리터럴로 쓰지 않는다. 한 번 커밋되면 히스토리에서 지우기 어렵고,
-저장소를 읽을 수 있는 모두에게 노출된다.
+서명 password를 파일에 문자열 리터럴로 쓰지 않습니다. 한 번 커밋되면 히스토리에서 지우기 어렵고,
+저장소를 읽을 수 있는 모두에게 노출됩니다.
 
-간접 참조를 쓴다.
+간접 참조를 씁니다.
   Kotlin DSL : storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
   Groovy     : storePassword System.getenv('RELEASE_KEYSTORE_PASSWORD')
   Gradle API : providers.environmentVariable("RELEASE_KEYSTORE_PASSWORD").orNull
 
-실제 값은 CI 변수(GitLab CI/CD Variables, GitHub Actions secrets)에만 둔다.
-로컬에서 서명이 필요한 개발자는 각자 local.properties에 두되 그 파일은 커밋하지 않는다.
+실제 값은 CI 변수(GitLab CI/CD Variables, GitHub Actions secrets)에만 둡니다.
+로컬에서 서명이 필요한 개발자는 각자 local.properties에 두되 그 파일은 커밋하지 않습니다.
 MSG
   exit 2
 done <<< "$NEW"

@@ -28,17 +28,17 @@ add() { FOUND="${FOUND:+$FOUND
 
 # 런처 Activity의 exported는 필수다. 추가된 내용에 LAUNCHER가 함께 있으면 넘어간다.
 if [[ "$NEW" == *'android:exported="true"'* && "$NEW" != *"android.intent.category.LAUNCHER"* ]]; then
-  add 'android:exported="true" — 다른 앱이 이 컴포넌트를 직접 호출할 수 있다. 받는 Intent의 extra를 신뢰하지 않는지, permission으로 좁힐 수 있는지 본다.'
+  add 'android:exported="true" — 다른 앱이 이 컴포넌트를 직접 호출할 수 있습니다. 받는 Intent의 extra를 신뢰하지 않는지, permission으로 좁힐 수 있는지 봅니다.'
 fi
 [[ "$NEW" == *'android:debuggable="true"'* ]] && \
-  add 'android:debuggable="true" — release에 들어가면 안 된다. 빌드 타입별로 갈리는지 확인한다.'
+  add 'android:debuggable="true" — release에 들어가면 안 됩니다. 빌드 타입별로 갈리는지 확인합니다.'
 [[ "$NEW" == *'android:usesCleartextTraffic="true"'* ]] && \
-  add 'android:usesCleartextTraffic="true" — 평문 HTTP가 열린다. 특정 도메인만 필요하면 networkSecurityConfig로 좁힌다.'
+  add 'android:usesCleartextTraffic="true" — 평문 HTTP가 열립니다. 특정 도메인만 필요하면 networkSecurityConfig로 좁힙니다.'
 [[ "$NEW" == *'android:allowBackup="true"'* ]] && \
-  add 'android:allowBackup="true" — 토큰·사용자 식별자가 백업에 실릴 수 있다. dataExtractionRules / fullBackupContent에서 제외되는지 본다.'
+  add 'android:allowBackup="true" — 토큰·사용자 식별자가 백업에 실릴 수 있습니다. dataExtractionRules / fullBackupContent에서 제외되는지 봅니다.'
 
 [[ -n "$FOUND" ]] || exit 0
 
-MSG="AndroidManifest에 보안 민감 속성이 추가됐다. 의도된 것인지 확인한다.
+MSG="AndroidManifest에 보안 민감 속성이 추가됐습니다. 의도된 것인지 확인합니다.
 $FOUND"
 jq -n --arg ctx "$MSG" '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $ctx}}'

@@ -30,27 +30,27 @@ block() {
 $1
 
 보호 브랜치: $PATTERNS
-브랜치를 따서 MR/PR을 만든다.
+브랜치를 따서 MR/PR을 만듭니다.
 
   git switch -c <type>/<subject>
   git push -u origin <type>/<subject>
 
-의도한 것이라면 사용자가 직접 실행하거나, 이 훅을 끈다.
+의도한 것이라면 사용자가 직접 실행하거나, 이 훅을 끕니다.
   GIT_GUARD_DISABLE_PROTECTED_BRANCH=1
-보호 목록을 바꾸려면 GIT_GUARD_PROTECTED_BRANCHES 를 쉼표로 구분해 설정한다.
+보호 목록을 바꾸려면 GIT_GUARD_PROTECTED_BRANCHES 를 쉼표로 구분해 설정합니다.
 MSG
   exit 2
 }
 
 if ((PUSH_ALL)); then
-  block "git push --all / --mirror 은 보호 브랜치까지 함께 밀어 올린다."
+  block "git push --all / --mirror 은 보호 브랜치까지 함께 밀어 올립니다."
 fi
 
 if ((${#PUSH_REFS[@]} == 0)); then
   # refspec이 없다 — 현재 브랜치로 나간다.
   branch=$(git_current_branch)
   if git_is_protected "$branch"; then
-    block "현재 브랜치 '$branch' 는 보호 브랜치다. 직접 push 하지 않는다."
+    block "현재 브랜치가 보호 대상입니다: '$branch'. 직접 push 하지 않습니다."
   fi
   exit 0
 fi
@@ -61,9 +61,9 @@ for ref in ${PUSH_REFS[@]+"${PUSH_REFS[@]}"}; do
   git_is_protected "$dst" || continue
 
   if ((PUSH_DELETE)) || [[ "$ref" == :* ]]; then
-    block "보호 브랜치 '$dst' 를 원격에서 삭제하려 한다. 복구가 어렵고 다른 사람의 작업 기준이 사라진다."
+    block "원격에서 보호 브랜치를 삭제하려 합니다: '$dst'. 복구가 어렵고 다른 사람의 작업 기준이 사라집니다."
   fi
-  block "'$dst' 는 보호 브랜치다. 직접 push 하지 않는다."
+  block "보호 브랜치입니다: '$dst'. 직접 push 하지 않습니다."
 done
 
 exit 0

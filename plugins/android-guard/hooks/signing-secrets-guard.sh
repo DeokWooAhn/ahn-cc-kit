@@ -43,15 +43,15 @@ for s in "$FILE_PATH" "$COMMAND" "$SEARCH_PATH"; do
   [[ -n "$s" ]] || continue
 
   if [[ "$s" =~ $TEXT_RE ]]; then
-    block "local.properties / keystore.properties 계열은 서명 password와 key alias를 평문으로 담는다. 읽거나 편집하거나 출력하지 않는다. SDK 경로가 필요하면 sdk.dir 대신 \$ANDROID_HOME을 쓴다. 서명 값이 실제로 필요하면 사용자에게 묻는다 — 배포 서명 값은 CI 변수에만 둔다."
+    block "local.properties / keystore.properties 계열은 서명 password와 key alias를 평문으로 담습니다. 읽거나 편집하거나 출력하지 않습니다. SDK 경로가 필요하면 sdk.dir 대신 \$ANDROID_HOME을 씁니다. 서명 값이 실제로 필요하면 사용자에게 묻습니다 — 배포 서명 값은 CI 변수에만 둡니다."
   fi
 
   if [[ "$s" =~ $SA_RE ]]; then
-    block "Play 서비스 계정 JSON은 배포 권한이 있는 개인 키를 담는다. 읽거나 편집하거나 출력하지 않는다. 업로드 자동화가 필요하면 CI 변수로 주입한다."
+    block "Play 서비스 계정 JSON은 배포 권한이 있는 개인 키를 담습니다. 읽거나 편집하거나 출력하지 않습니다. 업로드 자동화가 필요하면 CI 변수로 주입합니다."
   fi
 
   if [[ "$TOOL" != "Grep" && "$s" =~ $BIN_RE ]]; then
-    block "키스토어 파일(.jks/.keystore/.p12/.pepk)은 서명 개인 키다. 읽거나 복사하거나 옮기지 않는다. 경로가 필요하면 Glob으로 찾는다 — 그건 막히지 않는다."
+    block "키스토어 파일(.jks/.keystore/.p12/.pepk)은 서명 개인 킵니다. 읽거나 복사하거나 옮기지 않습니다. 경로가 필요하면 Glob으로 찾습니다 — 그건 막히지 않습니다."
   fi
 done
 

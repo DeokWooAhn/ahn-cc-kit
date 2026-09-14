@@ -31,14 +31,14 @@ done
 ((FORCED)) || exit 0
 
 cat >&2 <<'MSG'
---force push를 쓰지 않는다. 마지막 fetch 이후 원격에 올라온 커밋이 있으면 말없이 사라진다.
+--force push를 쓰지 않습니다. 마지막 fetch 이후 원격에 올라온 커밋이 있으면 말없이 사라집니다.
 
---force-with-lease 를 쓴다. 원격이 내가 아는 상태와 다르면 거절하고 멈춘다.
+--force-with-lease 를 씁니다. 원격이 내가 아는 상태와 다르면 거절하고 멈춥니다.
 
   git push --force-with-lease origin <branch>
 
 refspec 앞의 + (예: origin +main) 도 같은 force다.
-정말로 무조건 덮어써야 한다면 사용자가 직접 실행하거나, 이 훅을 끈다.
+정말로 무조건 덮어써야 한다면 사용자가 직접 실행하거나, 이 훅을 끕니다.
   GIT_GUARD_DISABLE_FORCE_PUSH=1
 MSG
 exit 2
