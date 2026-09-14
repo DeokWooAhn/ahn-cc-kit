@@ -82,38 +82,54 @@ Orbit을 쓰면서 `Channel<UiEffect>`를 따로 만드는 코드가 대표적�
 Kotlin, Coroutine, ViewModel, Compose, Compose 성능, 자원 수명, Hilt, Network/Data,
 Gradle, Manifest 항목이 있다.
 
-## Gradle·R8·플랫폼 정책 변경은 Google 스킬을 먼저 본다
+## Gradle·R8·플랫폼 정책 변경은 Google 공식 스킬을 먼저 본다
 
 diff가 AGP 업그레이드, R8/keep rule, targetSdk 상향과 edge-to-edge, intent/exported 보안,
-Play 정책·빌링에 걸리면 **직접 조사하기 전에** Google이 배포하는 공식 스킬이 있는지 확인한다.
+Play 정책·빌링에 걸리면 **직접 조사하기 전에** Google이 배포하는 스킬이 있는지 확인한다.
 `android` CLI가 설치돼 있어야 한다.
 
 ```bash
 android skills list
 ```
 
-해당하는 스킬이 있으면 대상 저장소에 설치하고 그 `SKILL.md`를 읽은 뒤 리뷰를 이어간다.
+키워드로 찾을 수도 있다.
 
 ```bash
-android skills add <skill-name> --project <repo-root>
+android skills find <keyword>
 ```
 
-- 인자는 **positional**이다. 문서에 나오는 `--skill` 플래그는 CLI에 없다.
-- `.claude/` 디렉터리가 있으면 `.claude/skills/`에 설치되고 Claude Code가 프로젝트 스킬로 바로 읽는다.
-  다른 하네스용 사본이 함께 생길 수 있으니, 쓰지 않으면 지운다.
-- **필요한 1~3개만, 프로젝트 범위로만 설치한다.** `--all`이나 user scope는 쓰지 않는다.
-- 설치는 저장소에 추적 파일을 추가한다. 리뷰 보고에 그 사실을 적는다.
+해당하는 스킬이 있으면 대상 저장소에 설치하고, 설치된 `SKILL.md`를 읽은 뒤 리뷰를 이어간다.
+
+```bash
+android skills add <skill> --project=<repo-root>
+```
+
+- `<skill>`은 **positional 인자**다. `android skills add --help`로 확인할 수 있다.
+- `--project=<path>`로 저장소 범위를 지정한다. 생략하면 감지된 에이전트 환경 전체에 설치된다.
+- `--agent=<list>`로 대상 에이전트를 좁힐 수 있다.
+- **필요한 1~3개만 설치한다.** `--all`은 쓰지 않는다 — 스킬 description은 매 세션 컨텍스트에
+  올라가므로, 안 쓰는 스킬까지 깔면 그만큼 다른 것을 밀어낸다.
+- 설치는 저장소에 파일을 추가한다. 리뷰 보고에 그 사실을 적는다.
 - 애매하게 걸치는 정도면 설치하지 말고 그냥 진행한다.
 
-## Gradle 캐시 관련 오류를 만나면
+리뷰에서 자주 걸리는 것들: `agp-9-upgrade`, `r8-analyzer`, `edge-to-edge`,
+`android-intent-security`, `play-policy-insights`, `play-billing-library-version-upgrade`,
+`camerax`, `android-profiler`, `testing-setup`.
 
-리뷰 중 빌드를 돌리다 캐시 오류(`Could not read workspace metadata from …/metadata.bin`,
-플러그인 해석 중 null `FileLock`, 빌드마다 다른 캐시가 사라짐)를 만나면 캐시 손상이 아니라
-**캐시 변경 전에 뜬 오래된 데몬**이 원인인 경우가 대부분이다.
+## 빌드 환경이 이상하면 캐시보다 데몬을 먼저 본다
 
-`./gradlew --stop`으로 먼저 정리한다. 이 명령은 wrapper가 쓰는 버전의 데몬만 멈추므로,
-남는 게 있으면 `pkill -f GradleDaemon`을 쓴다. **`~/.gradle/caches`를 지우지 않는다.**
-IDE는 별도의 Gradle 데몬을 자기 버전으로 띄우고 `--stop`이 닿지 않으니, 원인 후보에서 빼지 않는다.
+리뷰 중 빌드를 돌리다 환경이 이상하게 굴면, 캐시를 지우기 전에 데몬을 확인한다.
+Gradle 공식 문서 기준이다.
+
+- `./gradlew --stop`은 **같은 Gradle 버전의 데몬만** 멈춘다. 다른 버전으로 뜬 데몬은 남는다.
+- `./gradlew --status`도 현재 버전만 보여준다. 전부 보려면 `jps`를 쓴다.
+- IDE는 자기 Gradle 버전으로 별도 데몬을 띄우므로 wrapper의 `--stop`이 닿지 않는다.
+- `JAVA_HOME`, toolchain 설정, IDE의 JDK가 서로 어긋나면 기존 데몬과 호환되지 않아
+  새 데몬이 계속 뜬다.
+
+`~/.gradle/caches`를 지우는 것은 마지막 수단이다. 재다운로드 비용이 크고, 원인이 데몬이면
+아무것도 해결되지 않는다.
 
 Gradle 캐시 경로를 뒤질 일이 있으면 `echo $GRADLE_USER_HOME`을 먼저 확인한다.
-`~/.gradle`이 아닐 수 있고, 빈 검색 결과를 "의존성이 해석된 적 없음"으로 읽으면 틀린다.
+기본값은 `~/.gradle`이지만 옮겨져 있을 수 있고, 빈 검색 결과를 "의존성이 해석된 적 없음"으로
+읽으면 틀린다.
