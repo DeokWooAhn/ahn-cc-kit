@@ -1,0 +1,13 @@
+{
+  "name": "android-review",
+  "description": "Compose 기반 Android/Kotlin 코드 리뷰 기준. 정확성·회귀 위험·자원 수명 중심으로 diff를 본다.",
+  "version": "0.1.0",
+  "author": {
+    "name": "DeokWooAhn",
+    "url": "https://github.com/DeokWooAhn"
+  },
+  "homepage": "https://github.com/DeokWooAhn/ahn-cc-kit",
+  "repository": "https://github.com/DeokWooAhn/ahn-cc-kit",
+  "license": "MIT",
+  "keywords": ["android", "kotlin", "compose", "code-review", "coroutine", "hilt"]
+}

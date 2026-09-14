@@ -1,0 +1,67 @@
+{
+  "name": "ahn-cc-kit",
+  "owner": {
+    "name": "DeokWooAhn",
+    "url": "https://github.com/DeokWooAhn"
+  },
+  "metadata": {
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "android-review",
+      "source": "android-review",
+      "description": "Compose 기반 Android/Kotlin 코드 리뷰 기준. 정확성·회귀 위험·자원 수명 중심으로 diff를 본다.",
+      "version": "0.1.0",
+      "author": {
+        "name": "DeokWooAhn"
+      },
+      "license": "MIT",
+      "category": "code-quality",
+      "keywords": [
+        "android",
+        "kotlin",
+        "compose",
+        "code-review",
+        "coroutine"
+      ]
+    },
+    {
+      "name": "android-guard",
+      "source": "android-guard",
+      "description": "Android/Gradle 사고 방지 훅. 서명 자격 증명 접근, wrapper 변조, Gradle 캐시 삭제를 막고 서명 없는 release 빌드와 Manifest 노출 변경을 알린다.",
+      "version": "0.1.0",
+      "author": {
+        "name": "DeokWooAhn"
+      },
+      "license": "MIT",
+      "category": "security",
+      "keywords": [
+        "android",
+        "gradle",
+        "hooks",
+        "security",
+        "signing",
+        "guard"
+      ]
+    },
+    {
+      "name": "git-guard",
+      "source": "git-guard",
+      "description": "보호 브랜치 직접 push, --force push, reset --hard·clean -fd 같은 되돌리기 어려운 git 명령을 막는다.",
+      "version": "0.1.0",
+      "author": {
+        "name": "DeokWooAhn"
+      },
+      "license": "MIT",
+      "category": "security",
+      "keywords": [
+        "git",
+        "hooks",
+        "safety",
+        "guard",
+        "branch-protection"
+      ]
+    }
+  ]
+}
