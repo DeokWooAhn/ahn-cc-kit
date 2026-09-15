@@ -92,6 +92,7 @@ p code,td code,li code{background:var(--code);border:1px solid var(--line);borde
 .card:hover{transform:translateY(-3px);box-shadow:var(--glow-hi);background:var(--card-hi)}
 .card h3{margin:0 0 8px;font-size:15.5px;font-family:"JetBrains Mono",monospace;color:var(--clay)}
 .card p{margin:0 0 14px;font-size:14.5px;color:var(--muted);line-height:1.68}
+.tag.scope{border-color:rgba(184,85,46,.35);color:var(--clay);background:rgba(184,85,46,.06)}
 .tag{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:99px;
   border:1px solid var(--line);color:var(--muted);margin:0 6px 0 0;background:rgba(255,255,255,.6)}
 
@@ -221,27 +222,27 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
 <section id="plugins" class="rise">
   <p class="eyebrow" data-i18n="eyebrow.plugins">구성</p>
   <h2 data-i18n="plugins.title">플러그인</h2>
-  <p class="sub" data-i18n="plugins.sub">훅은 하네스가 실행합니다 — 모델이 우회할 수 없고 컨텍스트도 쓰지 않습니다. 스킬은 모델이 필요할 때 읽습니다.</p>
+  <p class="sub" data-i18n="plugins.sub">훅은 하네스가 실행합니다 — 모델이 우회할 수 없고 컨텍스트도 쓰지 않습니다. 스킬은 모델이 필요할 때 읽습니다. 넷 중 셋은 Android·Gradle을 전제하고, <code>git-guard</code>만 플랫폼과 무관합니다.</p>
   <div class="cards">
     <div class="card">
       <h3>android-review</h3>
       <p data-i18n="plugins.review">Compose 기준 코드 리뷰. 정확성 → 회귀 위험 → 범위 이탈 → 보안 → 테스트 누락 순으로 봅니다. 코드를 고치지 않고 설명만 냅니다.</p>
-      <span class="tag" data-i18n="tag.skill">스킬 1</span><span class="tag">~72 tok</span>
+      <span class="tag scope" data-i18n="scope.android">Android · Compose</span><span class="tag" data-i18n="tag.skill">스킬 1</span><span class="tag">~72 tok</span>
     </div>
     <div class="card">
       <h3>android-guard</h3>
       <p data-i18n="plugins.aguard">서명 자격 증명 접근, wrapper 변조, Gradle 캐시 삭제를 막고, 서명 없는 release 빌드와 Manifest 노출 변경을 알립니다.</p>
-      <span class="tag" data-i18n="tag.hook6">훅 6</span><span class="tag">0 tok</span>
+      <span class="tag scope" data-i18n="scope.gradle">Android · Gradle</span><span class="tag" data-i18n="tag.hook6">훅 6</span><span class="tag">0 tok</span>
     </div>
     <div class="card">
       <h3>git-guard</h3>
       <p data-i18n="plugins.gguard">보호 브랜치 직접 push, <code>--force</code> push, <code>reset --hard</code>·<code>clean -fd</code> 같은 되돌리기 어려운 명령을 막습니다.</p>
-      <span class="tag" data-i18n="tag.hook3">훅 3</span><span class="tag">0 tok</span>
+      <span class="tag scope" data-i18n="scope.any">모든 저장소</span><span class="tag" data-i18n="tag.hook3">훅 3</span><span class="tag">0 tok</span>
     </div>
     <div class="card">
       <h3>android-audit</h3>
       <p data-i18n="plugins.audit">훅이 막는 것과 같은 문제를 <em>이미 들어와 있는</em> 저장소에서 찾습니다. 값은 출력하지 않고 위치만 보고하며, 고치지 않습니다.</p>
-      <span class="tag" data-i18n="tag.skill">스킬 1</span><span class="tag">~70 tok</span>
+      <span class="tag scope" data-i18n="scope.gradle">Android · Gradle</span><span class="tag" data-i18n="tag.skill">스킬 1</span><span class="tag">~70 tok</span>
     </div>
   </div>
 </section>
@@ -313,7 +314,8 @@ const I18N = {
     "hero.step1":"add the marketplace","hero.step2":"install only what you need",
     "hero.req":"Needs <code>bash</code>, <code>jq</code>, and <code>git</code> for git-guard. Nothing else.",
     "plugins.title":"Plugins",
-    "plugins.sub":"Hooks run in the harness — the model cannot route around them and they cost no context. Skills are read by the model when a task needs them.",
+    "plugins.sub":"Hooks run in the harness — the model cannot route around them and they cost no context. Skills are read by the model when a task needs them. Three of the four assume Android and Gradle; only <code>git-guard</code> is platform-agnostic.",
+    "scope.android":"Android · Compose","scope.gradle":"Android · Gradle","scope.any":"Any repo",
     "plugins.review":"Compose-first code review. Correctness → regression risk → scope creep → security → missing tests. It explains; it does not edit your code.",
     "plugins.aguard":"Blocks access to signing credentials, wrapper tampering and Gradle cache deletion. Warns on unsigned release builds and risky Manifest changes.",
     "plugins.audit":"Finds the same problems the hooks block, but in a repo where they are <em>already there</em>. Reports locations, never values, and never fixes.",

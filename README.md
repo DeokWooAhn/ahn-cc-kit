@@ -1,6 +1,19 @@
 # ahn-cc-kit
 
-Claude Code 플러그인 마켓플레이스. 플러그인 하나는 문제 하나만 다룹니다.
+**Android 프로젝트를 위한** Claude Code 플러그인 마켓플레이스. 플러그인 하나는 문제 하나만 다룹니다.
+
+넷 중 셋은 Android·Gradle을 전제합니다. `git-guard`만 플랫폼과 무관합니다 —
+Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
+
+| 플러그인 | 전제 | 이런 저장소에서 |
+| --- | --- | --- |
+| `android-review` | Android · **Compose** | View 시스템(XML·ViewBinding) 항목은 없습니다 |
+| `android-guard` | Android · Gradle | Gradle 프로젝트가 아니면 걸릴 일이 거의 없습니다 |
+| `android-audit` | Android · Gradle | Gradle이 아니면 추적 파일만 보고 나머지는 건너뜁니다 |
+| `git-guard` | **없음** | 어느 언어·플랫폼이든 동작합니다 |
+
+**iOS·웹·서버는 다루지 않습니다.** iOS 프로젝트에서 `android-guard`를 켜 두면 조용히
+있을 뿐 `.p12`나 provisioning profile을 지켜주지는 않습니다.
 
 **<https://deokwooahn.github.io/ahn-cc-kit/>** — 어떤 명령이 막히고 통과하는지 95건을
 표로 볼 수 있습니다. 그 표는 훅 테스트에서 생성되므로 실제 동작과 어긋나지 않습니다.
