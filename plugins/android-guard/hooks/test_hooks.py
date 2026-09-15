@@ -17,6 +17,7 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -33,7 +34,9 @@ BLOCK, PASS, WARN = "block", "pass", "warn"
 def run(hook, payload, env_extra=None, cwd=None):
     """훅을 진짜 파이프 뒤에서 실행한다. (writer_rc, hook_rc, stdout, stderr)."""
     env = dict(os.environ)
-    for var in [k for k in env if k.startswith("ANDROID_GUARD_")]:
+    # 실행하는 사람의 셸에 서명 관련 변수가 있으면 unsigned-release-check 결과가 흔들린다.
+    SIGN = re.compile(r"(STORE_?FILE|STORE_?PASSWORD|KEY_?ALIAS|KEY_?PASSWORD|KEYSTORE_)", re.I)
+    for var in [k for k in env if k.startswith("ANDROID_GUARD_") or SIGN.search(k)]:
         del env[var]
     env.update(env_extra or {})
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
@@ -108,9 +111,19 @@ SUITES = [
         ("키 없는 release 빌드", WARN, payload("Bash", {"command": "./gradlew :app:bundleRelease"}, "BUILD SUCCESSFUL in 2m"), {}),
         ("빌드 실패는 조용히", PASS, payload("Bash", {"command": "./gradlew :app:bundleRelease"}, "BUILD FAILED"), {}),
         ("debug 빌드", PASS, payload("Bash", {"command": "./gradlew :app:assembleDebug"}, "BUILD SUCCESSFUL"), {}),
-        ("환경 변수로 채워짐", PASS, payload("Bash", {"command": "./gradlew assembleRelease"}, "BUILD SUCCESSFUL"), {
-            "RELEASE_KEYSTORE_FILE": "k.jks", "RELEASE_KEYSTORE_PASSWORD": "x",
-            "RELEASE_KEY_ALIAS": "a", "RELEASE_KEY_PASSWORD": "x"}),
+        # 접두사 관례가 제각각이라 이름 목록이 아니라 접미사 패턴으로 본다.
+        ("RELEASE_ 관례", PASS, payload("Bash", {"command": "./gradlew assembleRelease"}, "BUILD SUCCESSFUL"),
+         {"RELEASE_STORE_PASSWORD": "x"}),
+        ("SIGNING_ 관례", PASS, payload("Bash", {"command": "./gradlew assembleRelease"}, "BUILD SUCCESSFUL"),
+         {"SIGNING_STORE_PASSWORD": "x"}),
+        ("ANDROID_ 관례", PASS, payload("Bash", {"command": "./gradlew assembleRelease"}, "BUILD SUCCESSFUL"),
+         {"ANDROID_KEYSTORE_PASSWORD": "x"}),
+        ("접두사 없음", PASS, payload("Bash", {"command": "./gradlew assembleRelease"}, "BUILD SUCCESSFUL"),
+         {"KEY_ALIAS": "x"}),
+        ("camelCase", PASS, payload("Bash", {"command": "./gradlew assembleRelease"}, "BUILD SUCCESSFUL"),
+         {"storePassword": "x"}),
+        ("무관한 변수뿐", WARN, payload("Bash", {"command": "./gradlew assembleRelease"}, "BUILD SUCCESSFUL"),
+         {"IRRELEVANT": "x"}),
     ]),
     ("manifest-risk-check.sh", "ANDROID_GUARD_DISABLE_MANIFEST_RISK", [
         ("exported 추가", WARN, payload("Edit", {

@@ -61,13 +61,33 @@ ANDROID_GUARD_DISABLE_GRADLE_CACHE=1 claude
 없으면 `signingConfig`를 그냥 건너뜁니다. 강제 검증이 없으면 `assembleRelease`는 **성공합니다.**
 빌드가 초록불이라 서명됐다고 착각하기 쉬운데, APK·AAB에는 서명 블록이 없습니다.
 
-훅은 키의 **존재만** 확인합니다. 환경 변수를 보고, 없으면 `local.properties`에 `키 =` 형태가
-있는지 `grep -q`로 봅니다. **값을 읽지도 출력하지도 않습니다.**
+키 **이름**은 프로젝트마다 다릅니다. 접두사는 `RELEASE_` / `SIGNING_` / `ANDROID_` / 없음으로
+제각각이지만 접미사는 일정해서, 정확한 이름 목록 대신 패턴으로 봅니다. 그래서 묻는 질문이
+"정해진 네 개가 다 있나"가 아니라 **"서명 설정이 있기는 한가"** 입니다.
 
-키 이름이 다르면 맞춥니다.
+기본 패턴은 언더스코어를 선택적으로 둬서 두 표기를 함께 덮습니다.
+
+```text
+STORE_?FILE  STORE_?PASSWORD  KEY_?ALIAS  KEY_?PASSWORD
+KEYSTORE_?FILE  KEYSTORE_?PATH  KEYSTORE_?PASSWORD
+```
+
+| 관례 | 예 | 판정 |
+| --- | --- | --- |
+| `RELEASE_` 접두사 | `RELEASE_STORE_PASSWORD` | 조용 |
+| `SIGNING_` 접두사 | `SIGNING_STORE_PASSWORD` | 조용 |
+| `ANDROID_` 접두사 | `ANDROID_KEYSTORE_PASSWORD` | 조용 |
+| 접두사 없음 | `KEY_ALIAS` | 조용 |
+| camelCase | `storePassword` (keystore.properties 표준) | 조용 |
+| 아무것도 없음 | — | **경고** |
+
+찾는 곳은 환경 변수와 `local.properties`, `keystore.properties`, `signing.properties`
+(저장소 루트와 `app/`)입니다. **존재만 확인하고 값은 읽지도 출력하지도 않습니다.**
+
+다른 이름을 쓴다면 정규식으로 지정합니다.
 
 ```bash
-ANDROID_GUARD_SIGNING_KEYS="SIGNING_STORE_FILE,SIGNING_STORE_PASSWORD,SIGNING_KEY_ALIAS,SIGNING_KEY_PASSWORD"
+ANDROID_GUARD_SIGNING_KEYS="MY_SIGN_KEY|MY_SIGN_PASS"
 ```
 
 빌드 출력에 `BUILD FAILED`가 있으면 조용히 넘어갑니다.
