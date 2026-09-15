@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ahn-cc-kit — Claude Code plugins for Android</title>
+<meta name="description" content="Android/Compose 코드 리뷰 기준과, Gradle·서명·git 사고를 막는 Claude Code 훅 모음.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fbfbfa; --panel:#fff; --line:#e4e2dd; --ink:#1a1917; --muted:#6b6862;
+  --accent:#b8552e; --block:#c0392b; --warn:#b8860b; --pass:#2d7a4f;
+  --code-bg:#f4f3f0; --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px -12px rgba(0,0,0,.12);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#16161a; --panel:#1d1d22; --line:#2e2e35; --ink:#e8e6e1; --muted:#9a968e;
+  --accent:#e08050; --block:#e06c5e; --warn:#d9a441; --pass:#5fb083;
+  --code-bg:#232329; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.6);
+}}
+:root[data-theme=dark]{
+  --bg:#16161a; --panel:#1d1d22; --line:#2e2e35; --ink:#e8e6e1; --muted:#9a968e;
+  --accent:#e08050; --block:#e06c5e; --warn:#d9a441; --pass:#5fb083;
+  --code-bg:#232329; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:400 16px/1.7 Inter,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased}
+code,kbd,pre{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+a{color:var(--accent)}
+.wrap{max-width:900px;margin:0 auto;padding:0 24px}
+
+header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:16px;height:60px}
+.brand{font-weight:700;letter-spacing:-.01em;margin-right:auto;text-decoration:none;color:var(--ink)}
+.brand span{color:var(--accent)}
+nav{display:flex;gap:18px;font-size:14px}
+nav a{color:var(--muted);text-decoration:none}
+nav a:hover{color:var(--ink)}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;
+  padding:5px 10px;font:500 13px Inter,sans-serif;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+@media(max-width:760px){nav{display:none}}
+
+section{padding:64px 0;border-bottom:1px solid var(--line)}
+section:last-of-type{border-bottom:0}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.15;letter-spacing:-.025em;margin:0 0 16px}
+h2{font-size:clamp(21px,3vw,27px);letter-spacing:-.02em;margin:0 0 8px}
+h3{font-size:16px;margin:28px 0 8px}
+.lede{color:var(--muted);font-size:17px;margin:0 0 28px;max-width:62ch}
+.sub{color:var(--muted);margin:0 0 28px;max-width:66ch}
+
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;
+  padding:13px 15px;overflow-x:auto;font-size:13.5px;margin:0 0 12px}
+pre .c{color:var(--muted)}
+p code,td code,li code{background:var(--code-bg);border:1px solid var(--line);border-radius:5px;
+  padding:1px 5px;font-size:.88em}
+
+.cards{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:var(--shadow)}
+.card h3{margin:0 0 6px;font-size:15px;font-family:"JetBrains Mono",monospace;color:var(--accent)}
+.card p{margin:0 0 12px;font-size:14.5px;color:var(--muted)}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;
+  border:1px solid var(--line);color:var(--muted);margin-right:6px}
+
+table{width:100%;border-collapse:collapse;font-size:14.5px;margin:0 0 12px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+.scroll{overflow-x:auto}
+/* 좁은 화면에서 열이 한 글자씩 줄바꿈되지 않게 최소 너비를 주고 가로 스크롤로 넘깁니다. */
+.scroll > table{min-width:460px}
+/* 훅 케이스 표는 긴 명령을 줄바꿈하는 편이 읽기 좋으므로 제외합니다. */
+.hook .scroll > table{min-width:0}
+
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px}
+.chip{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:99px;
+  padding:5px 13px;font:500 13px Inter,sans-serif;cursor:pointer}
+.chip[aria-pressed=true]{border-color:var(--accent);color:var(--ink);background:var(--code-bg)}
+
+.hook{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:0 0 14px;overflow:hidden}
+.hook > summary{cursor:pointer;padding:14px 18px;font-weight:600;display:flex;align-items:center;gap:10px;
+  font-family:"JetBrains Mono",monospace;font-size:14px;list-style:none}
+.hook > summary::-webkit-details-marker{display:none}
+.hook > summary::before{content:"▸";color:var(--muted);font-family:Inter,sans-serif}
+.hook[open] > summary::before{content:"▾"}
+.hook .plug{margin-left:auto;font:500 11.5px Inter,sans-serif;color:var(--muted)}
+.hook table{margin:0}
+.hook td:first-child{width:74px}
+.v{font:600 11.5px Inter,sans-serif;padding:2px 8px;border-radius:5px;white-space:nowrap}
+.v-block{color:var(--block);background:color-mix(in srgb,var(--block) 12%,transparent)}
+.v-warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.v-pass{color:var(--pass);background:color-mix(in srgb,var(--pass) 12%,transparent)}
+.cmd{font-family:"JetBrains Mono",monospace;font-size:13px;word-break:break-word}
+.ctx{display:block;color:var(--muted);font-size:12px;margin-top:3px;font-family:Inter,sans-serif}
+
+.note{border-left:3px solid var(--accent);background:var(--panel);border-radius:0 10px 10px 0;
+  padding:14px 18px;margin:20px 0;font-size:14.5px}
+.note strong{color:var(--accent)}
+footer{padding:36px 0 56px;color:var(--muted);font-size:14px}
+footer a{color:var(--muted)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <a class="brand" href="#top">ahn<span>-cc-</span>kit</a>
+  <nav>
+    <a href="#install" data-i18n="nav.install">설치</a>
+    <a href="#plugins" data-i18n="nav.plugins">플러그인</a>
+    <a href="#rules" data-i18n="nav.rules">무엇이 막히나</a>
+    <a href="#optout" data-i18n="nav.optout">끄는 법</a>
+  </nav>
+  <button class="btn" id="lang" type="button">EN</button>
+  <a class="btn" href="https://github.com/DeokWooAhn/ahn-cc-kit">GitHub</a>
+</div></header>
+
+<main class="wrap" id="top">
+
+<section>
+  <h1 data-i18n="hero.title">에이전트가 실수하기 전에 멈춥니다.</h1>
+  <p class="lede" data-i18n="hero.lede">Android·Gradle·git 작업에서 되돌리기 비싼 행동을 막는 Claude Code 훅과, Compose 기준 코드 리뷰 스킬. 플러그인 하나는 문제 하나만 다룹니다.</p>
+<pre><span class="c"># <span data-i18n="hero.step1">마켓플레이스 추가</span></span>
+claude plugin marketplace add DeokWooAhn/ahn-cc-kit
+
+<span class="c"># <span data-i18n="hero.step2">필요한 것만 설치</span></span>
+claude plugin install android-guard@ahn-cc-kit --scope local</pre>
+  <p class="sub" data-i18n="hero.req">필요한 것은 <code>bash</code>, <code>jq</code>, 그리고 git-guard는 <code>git</code>. 그 외 의존성은 없습니다.</p>
+</section>
+
+<section id="plugins">
+  <h2 data-i18n="plugins.title">플러그인</h2>
+  <p class="sub" data-i18n="plugins.sub">훅은 하네스가 실행합니다. 모델이 우회할 수 없고, 모델 컨텍스트도 쓰지 않습니다.</p>
+  <div class="cards">
+    <div class="card">
+      <h3>android-review</h3>
+      <p data-i18n="plugins.review">Compose 기준 코드 리뷰. 정확성 → 회귀 위험 → 범위 이탈 → 보안 → 테스트 누락 순으로 봅니다. 코드를 고치지 않고 설명만 냅니다.</p>
+      <span class="tag" data-i18n="tag.skill">스킬 1</span><span class="tag">~72 tok</span>
+    </div>
+    <div class="card">
+      <h3>android-guard</h3>
+      <p data-i18n="plugins.aguard">서명 자격 증명 접근, wrapper 변조, Gradle 캐시 삭제를 막고, 서명 없는 release 빌드와 Manifest 노출 변경을 알립니다.</p>
+      <span class="tag" data-i18n="tag.hook6">훅 6</span><span class="tag">0 tok</span>
+    </div>
+    <div class="card">
+      <h3>git-guard</h3>
+      <p data-i18n="plugins.gguard">보호 브랜치 직접 push, <code>--force</code> push, <code>reset --hard</code>·<code>clean -fd</code> 같은 되돌리기 어려운 명령을 막습니다.</p>
+      <span class="tag" data-i18n="tag.hook3">훅 3</span><span class="tag">0 tok</span>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <h2 data-i18n="install.title">원하는 프로젝트에서만 켜기</h2>
+  <p class="sub" data-i18n="install.sub">설치할 때 범위를 고릅니다. 기본값인 <code>user</code>로 넣으면 그 머신의 모든 프로젝트에 붙습니다.</p>
+  <div class="scroll"><table>
+    <tr><th data-i18n="install.th1">범위</th><th data-i18n="install.th2">적용</th><th data-i18n="install.th3">기록되는 곳</th></tr>
+    <tr><td><code>user</code></td><td data-i18n="install.r1" >모든 프로젝트</td><td><code>~/.claude/</code></td></tr>
+    <tr><td><code>project</code></td><td data-i18n="install.r2">이 저장소 + 협업자 전체</td><td><code>.claude/settings.json</code></td></tr>
+    <tr><td><code>local</code></td><td data-i18n="install.r3">이 저장소, 나만</td><td><code>.claude/settings.local.json</code></td></tr>
+  </table></div>
+<pre>claude plugin install git-guard@ahn-cc-kit --scope local</pre>
+  <div class="note"><strong data-i18n="install.note.h">jq가 없으면 아무것도 막지 못합니다.</strong>
+    <span data-i18n="install.note.b">입력 파싱이 전부 빈 값이 되어, 입력이 깨졌을 때 통과시키는 경로를 그대로 탑니다. 두 가드 플러그인은 세션 시작 때 한 번 확인하고 없으면 알려 줍니다.</span></div>
+</section>
+
+<section id="rules">
+  <h2 data-i18n="rules.title">무엇이 막히나</h2>
+  <p class="sub" data-i18n="rules.sub">아래 표는 저장소의 훅 테스트에서 그대로 생성됩니다. 사이트와 실제 동작이 어긋날 수 없습니다.</p>
+  <div class="filters">
+    <button class="chip" data-f="block" aria-pressed="true" data-i18n="f.block">차단</button>
+    <button class="chip" data-f="warn" aria-pressed="true" data-i18n="f.warn">경고</button>
+    <button class="chip" data-f="pass" aria-pressed="true" data-i18n="f.pass">통과</button>
+  </div>
+  <div id="hooks"></div>
+</section>
+
+<section id="optout">
+  <h2 data-i18n="optout.title">끄는 법</h2>
+  <p class="sub" data-i18n="optout.sub">훅마다 환경 변수 하나로 끕니다. 끄면 그 훅은 위험한 경우까지 전부 통과시킵니다.</p>
+<pre>ANDROID_GUARD_DISABLE_GRADLE_CACHE=1 claude</pre>
+  <div class="scroll"><table id="optout-table">
+    <tr><th data-i18n="optout.th1">훅</th><th data-i18n="optout.th2">환경 변수</th></tr>
+  </table></div>
+</section>
+
+</main>
+
+<footer class="wrap">
+  MIT · <a href="https://github.com/DeokWooAhn/ahn-cc-kit">GitHub</a>
+  · <a href="https://github.com/DeokWooAhn/ahn-cc-kit/blob/main/CREDITS.md">CREDITS</a>
+</footer>
+
+<script>
+const I18N = {
+  en: {
+    "nav.install":"Install","nav.plugins":"Plugins","nav.rules":"What gets blocked","nav.optout":"Opting out",
+    "hero.title":"Stop the agent before it slips.",
+    "hero.lede":"Claude Code hooks that block expensive mistakes in Android, Gradle and git work, plus a Compose-first code review skill. Each plugin is scoped to one pain.",
+    "hero.step1":"add the marketplace","hero.step2":"install only what you need",
+    "hero.req":"Needs <code>bash</code>, <code>jq</code>, and <code>git</code> for git-guard. Nothing else.",
+    "plugins.title":"Plugins",
+    "plugins.sub":"Hooks run in the harness. The model cannot route around them, and they cost no model context.",
+    "plugins.review":"Compose-first code review. Correctness → regression risk → scope creep → security → missing tests. It explains; it does not edit your code.",
+    "plugins.aguard":"Blocks access to signing credentials, wrapper tampering and Gradle cache deletion. Warns on unsigned release builds and risky Manifest changes.",
+    "plugins.gguard":"Blocks direct pushes to protected branches, <code>--force</code> pushes, and hard-to-undo commands like <code>reset --hard</code> and <code>clean -fd</code>.",
+    "tag.skill":"1 skill","tag.hook6":"6 hooks","tag.hook3":"3 hooks",
+    "install.title":"Turn it on only where you want it",
+    "install.sub":"Pick a scope at install time. The default <code>user</code> scope attaches to every project on the machine.",
+    "install.th1":"Scope","install.th2":"Applies to","install.th3":"Written to",
+    "install.r1":"Every project","install.r2":"This repo, all collaborators","install.r3":"This repo, you only",
+    "install.note.h":"Without jq, nothing is blocked.",
+    "install.note.b":"Every parse returns empty, so the hooks take the same path they take on malformed input — they pass. Both guard plugins check once at session start and tell you.",
+    "rules.title":"What gets blocked",
+    "rules.sub":"This table is generated from the hooks' own test suites, so it cannot drift from real behaviour.",
+    "f.block":"Blocked","f.warn":"Warned","f.pass":"Allowed",
+    "optout.title":"Opting out","optout.sub":"One environment variable per hook. A disabled hook passes everything, including the dangerous cases.",
+    "optout.th1":"Hook","optout.th2":"Environment variable",
+    "ui.cases":" cases","ui.err":"Could not load cases.json."
+  }
+};
+const KO = {};
+document.querySelectorAll("[data-i18n]").forEach(el => KO[el.dataset.i18n] = el.innerHTML);
+KO["ui.cases"] = "건"; KO["ui.err"] = "cases.json 을 읽지 못했습니다.";
+let lang = "ko";
+function apply(){
+  const d = lang === "ko" ? KO : I18N.en;
+  document.querySelectorAll("[data-i18n]").forEach(el => { if(d[el.dataset.i18n]) el.innerHTML = d[el.dataset.i18n]; });
+  document.documentElement.lang = lang;
+  document.getElementById("lang").textContent = lang === "ko" ? "EN" : "한국어";
+  render();
+}
+document.getElementById("lang").onclick = () => { lang = lang === "ko" ? "en" : "ko"; apply(); };
+
+let DATA = null;
+const active = new Set(["block","warn","pass"]);
+document.querySelectorAll(".chip").forEach(c => c.onclick = () => {
+  const f = c.dataset.f;
+  active.has(f) ? active.delete(f) : active.add(f);
+  c.setAttribute("aria-pressed", active.has(f));
+  render();
+});
+
+const VERDICT = { block:{ko:"차단",en:"Blocked"}, warn:{ko:"경고",en:"Warned"}, pass:{ko:"통과",en:"Allowed"} };
+
+function render(){
+  const host = document.getElementById("hooks");
+  if(!DATA){ host.textContent = (lang==="ko"?KO:I18N.en)["ui.err"]; return; }
+  const unit = (lang==="ko"?KO:I18N.en)["ui.cases"];
+  host.innerHTML = "";
+  for(const g of DATA.groups){
+    const rows = g.cases.filter(c => active.has(c.verdict));
+    if(!rows.length) continue;
+    const d = document.createElement("details");
+    d.className = "hook";
+    d.open = true;
+    const body = rows.map(c => {
+      let ctx = "";
+      if(c.env) ctx += `<span class="ctx">env: ${c.env}</span>`;
+      if(c.branch) ctx += `<span class="ctx">${lang==="ko"?"현재 브랜치":"current branch"}: ${c.branch}</span>`;
+      return `<tr><td><span class="v v-${c.verdict}">${VERDICT[c.verdict][lang]}</span></td>
+        <td class="cmd">${esc(c.cmd)}${ctx}</td></tr>`;
+    }).join("");
+    d.innerHTML = `<summary>${g.hook}<span class="plug">${g.plugin} · ${rows.length}${unit}</span></summary>
+      <div class="scroll"><table>${body}</table></div>`;
+    host.appendChild(d);
+  }
+  const t = document.getElementById("optout-table");
+  t.querySelectorAll("tr:not(:first-child)").forEach(r => r.remove());
+  for(const g of DATA.groups){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><code>${g.hook}</code></td><td><code>${g.optout}</code></td>`;
+    t.appendChild(tr);
+  }
+}
+function esc(s){ return s.replace(/[&<>]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+
+fetch("./cases.json").then(r => r.json()).then(d => { DATA = d; render(); })
+  .catch(() => render());
+apply();
+</script>
+</body>
+</html>

@@ -1,0 +1,733 @@
+{
+  "groups": [
+    {
+      "plugin": "android-guard",
+      "hook": "signing-secrets-guard",
+      "optout": "ANDROID_GUARD_DISABLE_SIGNING_SECRETS",
+      "cases": [
+        {
+          "cmd": "Read  local.properties",
+          "verdict": "block",
+          "note": "local.properties 읽기",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Grep  local.properties",
+          "verdict": "block",
+          "note": "local.properties grep",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Read  app/release.jks",
+          "verdict": "block",
+          "note": "keystore 읽기",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Glob  **/*.jks",
+          "verdict": "pass",
+          "note": "keystore glob 은 허용",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Grep  app/release.jks",
+          "verdict": "pass",
+          "note": "keystore grep 은 허용",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "cat local.properties",
+          "verdict": "block",
+          "note": "bash cat 차단",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Read  ci/play-service-account.json",
+          "verdict": "block",
+          "note": "서비스 계정 json",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Read  local.properties.example",
+          "verdict": "pass",
+          "note": "example 는 허용",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Read  local.defaults.properties",
+          "verdict": "pass",
+          "note": "local.defaults 는 허용",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Read  app/build.gradle.kts",
+          "verdict": "pass",
+          "note": "무관한 파일",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "./gradlew assembleDebug",
+          "verdict": "pass",
+          "note": "무관한 명령",
+          "env": "",
+          "branch": ""
+        }
+      ]
+    },
+    {
+      "plugin": "android-guard",
+      "hook": "gradle-wrapper-guard",
+      "optout": "ANDROID_GUARD_DISABLE_GRADLE_WRAPPER",
+      "cases": [
+        {
+          "cmd": "Write  gradle/wrapper/gradle-wrapper.jar",
+          "verdict": "block",
+          "note": "wrapper jar",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Edit  gradlew",
+          "verdict": "block",
+          "note": "gradlew",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  gradle/wrapper/gradle-wrapper.properties   ⟨distributionUrl=https\\://evil.example.com/gradle-8.9-bi…⟩",
+          "verdict": "block",
+          "note": "낯선 distributionUrl",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  gradle/wrapper/gradle-wrapper.properties   ⟨distributionUrl=http\\://services.gradle.org/distributio…⟩",
+          "verdict": "block",
+          "note": "평문 http",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  gradle/wrapper/gradle-wrapper.properties   ⟨distributionUrl=https\\://services.gradle.org/distributi…⟩",
+          "verdict": "pass",
+          "note": "정상 distributionUrl",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  app/build.gradle.kts",
+          "verdict": "pass",
+          "note": "무관한 파일",
+          "env": "",
+          "branch": ""
+        }
+      ]
+    },
+    {
+      "plugin": "android-guard",
+      "hook": "gradle-cache-guard",
+      "optout": "ANDROID_GUARD_DISABLE_GRADLE_CACHE",
+      "cases": [
+        {
+          "cmd": "rm -rf ~/.gradle/caches",
+          "verdict": "block",
+          "note": "홈 캐시 삭제",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "rm -rf \"$GRADLE_USER_HOME/caches\"",
+          "verdict": "block",
+          "note": "GRADLE_USER_HOME 삭제",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "rm -rf app/build",
+          "verdict": "pass",
+          "note": "프로젝트 build 삭제",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "./gradlew clean",
+          "verdict": "pass",
+          "note": "gradlew clean",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "./gradlew --stop",
+          "verdict": "pass",
+          "note": "데몬 정지",
+          "env": "",
+          "branch": ""
+        }
+      ]
+    },
+    {
+      "plugin": "android-guard",
+      "hook": "signing-literal-guard",
+      "optout": "ANDROID_GUARD_DISABLE_SIGNING_LITERAL",
+      "cases": [
+        {
+          "cmd": "Write  app/build.gradle.kts   ⟨storePassword = \"hunter2\"⟩",
+          "verdict": "block",
+          "note": "kts 리터럴",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  app/build.gradle   ⟨keyPassword 'hunter2'⟩",
+          "verdict": "block",
+          "note": "groovy 리터럴",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  gradle.properties   ⟨RELEASE_KEYSTORE_PASSWORD=hunter2⟩",
+          "verdict": "block",
+          "note": "properties 리터럴",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  app/build.gradle.kts   ⟨storePassword = System.getenv(\"RELEASE_KEYSTORE_PASSWORD\")⟩",
+          "verdict": "pass",
+          "note": "getenv",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  app/build.gradle.kts   ⟨storePassword = providers.environmentVariable(\"P\").orNull⟩",
+          "verdict": "pass",
+          "note": "providers",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  gradle.properties   ⟨RELEASE_KEYSTORE_PASSWORD=⟩",
+          "verdict": "pass",
+          "note": "빈 값",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  signing.properties.example   ⟨storePassword = \"changeme\"⟩",
+          "verdict": "pass",
+          "note": "example 면제",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  README.md   ⟨storePassword = \"x\"⟩",
+          "verdict": "pass",
+          "note": "무관한 파일",
+          "env": "",
+          "branch": ""
+        }
+      ]
+    },
+    {
+      "plugin": "android-guard",
+      "hook": "unsigned-release-check",
+      "optout": "ANDROID_GUARD_DISABLE_UNSIGNED_RELEASE",
+      "cases": [
+        {
+          "cmd": "./gradlew :app:bundleRelease",
+          "verdict": "warn",
+          "note": "키 없는 release 빌드",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "./gradlew :app:bundleRelease",
+          "verdict": "pass",
+          "note": "빌드 실패는 조용히",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "./gradlew :app:assembleDebug",
+          "verdict": "pass",
+          "note": "debug 빌드",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "./gradlew assembleRelease",
+          "verdict": "pass",
+          "note": "RELEASE_ 관례",
+          "env": "RELEASE_STORE_PASSWORD",
+          "branch": ""
+        },
+        {
+          "cmd": "./gradlew assembleRelease",
+          "verdict": "pass",
+          "note": "SIGNING_ 관례",
+          "env": "SIGNING_STORE_PASSWORD",
+          "branch": ""
+        },
+        {
+          "cmd": "./gradlew assembleRelease",
+          "verdict": "pass",
+          "note": "ANDROID_ 관례",
+          "env": "ANDROID_KEYSTORE_PASSWORD",
+          "branch": ""
+        },
+        {
+          "cmd": "./gradlew assembleRelease",
+          "verdict": "pass",
+          "note": "접두사 없음",
+          "env": "KEY_ALIAS",
+          "branch": ""
+        },
+        {
+          "cmd": "./gradlew assembleRelease",
+          "verdict": "pass",
+          "note": "camelCase",
+          "env": "storePassword",
+          "branch": ""
+        },
+        {
+          "cmd": "./gradlew assembleRelease",
+          "verdict": "warn",
+          "note": "무관한 변수뿐",
+          "env": "IRRELEVANT",
+          "branch": ""
+        }
+      ]
+    },
+    {
+      "plugin": "android-guard",
+      "hook": "manifest-risk-check",
+      "optout": "ANDROID_GUARD_DISABLE_MANIFEST_RISK",
+      "cases": [
+        {
+          "cmd": "Edit  app/src/main/AndroidManifest.xml   ⟨<activity android:name=\".DeepLink\" android:exported=\"tr…⟩",
+          "verdict": "warn",
+          "note": "exported 추가",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Edit  app/src/main/AndroidManifest.xml   ⟨<activity android:exported=\"true\"><intent-filter><categ…⟩",
+          "verdict": "pass",
+          "note": "런처는 제외",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  app/src/main/AndroidManifest.xml   ⟨<application android:usesCleartextTraffic=\"true\" />⟩",
+          "verdict": "warn",
+          "note": "cleartext",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "Write  app/src/main/res/values/strings.xml   ⟨android:exported=\"true\"⟩",
+          "verdict": "pass",
+          "note": "무관한 파일",
+          "env": "",
+          "branch": ""
+        }
+      ]
+    },
+    {
+      "plugin": "git-guard",
+      "hook": "protected-branch-guard",
+      "optout": "GIT_GUARD_DISABLE_PROTECTED_BRANCH",
+      "cases": [
+        {
+          "cmd": "git push origin main",
+          "verdict": "block",
+          "note": "origin main",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push origin master",
+          "verdict": "block",
+          "note": "origin master",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push -u origin release/1.2",
+          "verdict": "block",
+          "note": "release/1.2",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push origin HEAD:main",
+          "verdict": "block",
+          "note": "HEAD:main",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push origin refs/heads/main",
+          "verdict": "block",
+          "note": "refs/heads/main",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push origin +main",
+          "verdict": "block",
+          "note": "+main (force refspec)",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push origin :main",
+          "verdict": "block",
+          "note": ":main (원격 삭제)",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push --delete origin main",
+          "verdict": "block",
+          "note": "--delete main",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push --all",
+          "verdict": "block",
+          "note": "--all",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git add . && git push origin main",
+          "verdict": "block",
+          "note": "compound && push",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git -C /tmp/x push origin main",
+          "verdict": "block",
+          "note": "git -C 경유",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push origin feature/x",
+          "verdict": "pass",
+          "note": "feature 브랜치",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push -o ci.skip origin feature/x",
+          "verdict": "pass",
+          "note": "-o 값은 refspec 아님",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push",
+          "verdict": "block",
+          "note": "인자 없음 · main 위",
+          "env": "",
+          "branch": "main"
+        },
+        {
+          "cmd": "git push",
+          "verdict": "pass",
+          "note": "인자 없음 · feature 위",
+          "env": "",
+          "branch": "feature/x"
+        },
+        {
+          "cmd": "git push origin main",
+          "verdict": "pass",
+          "note": "보호목록 변경 시 통과",
+          "env": "GIT_GUARD_PROTECTED_BRANCHES",
+          "branch": ""
+        },
+        {
+          "cmd": "git commit -m \"git push origin main 은 금지\"",
+          "verdict": "pass",
+          "note": "커밋 메시지 오탐",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "./gradlew assembleDebug",
+          "verdict": "pass",
+          "note": "git 아닌 명령",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git pull origin main",
+          "verdict": "pass",
+          "note": "git pull",
+          "env": "",
+          "branch": ""
+        }
+      ]
+    },
+    {
+      "plugin": "git-guard",
+      "hook": "force-push-guard",
+      "optout": "GIT_GUARD_DISABLE_FORCE_PUSH",
+      "cases": [
+        {
+          "cmd": "git push --force origin main",
+          "verdict": "block",
+          "note": "--force",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push -f origin feature/x",
+          "verdict": "block",
+          "note": "-f (feature 라도)",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push origin +feature/x",
+          "verdict": "block",
+          "note": "+refspec",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push --force-with-lease origin feature/x",
+          "verdict": "pass",
+          "note": "--force-with-lease",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push --force-if-includes origin feature/x",
+          "verdict": "pass",
+          "note": "--force-if-includes",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push origin feature/x",
+          "verdict": "pass",
+          "note": "평범한 push",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push",
+          "verdict": "pass",
+          "note": "인자 없는 push",
+          "env": "",
+          "branch": "feature/x"
+        }
+      ]
+    },
+    {
+      "plugin": "git-guard",
+      "hook": "destructive-git-guard",
+      "optout": "GIT_GUARD_DISABLE_DESTRUCTIVE",
+      "cases": [
+        {
+          "cmd": "git reset --hard HEAD~1",
+          "verdict": "block",
+          "note": "reset --hard",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git reset --soft HEAD~1",
+          "verdict": "pass",
+          "note": "reset --soft",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git reset",
+          "verdict": "pass",
+          "note": "reset (기본)",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git clean -fd",
+          "verdict": "block",
+          "note": "clean -fd",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git clean -xdf",
+          "verdict": "block",
+          "note": "clean -xdf",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git clean -nd",
+          "verdict": "pass",
+          "note": "clean -nd (dry run)",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git checkout -- .",
+          "verdict": "block",
+          "note": "checkout -- .",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git checkout .",
+          "verdict": "block",
+          "note": "checkout .",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git checkout -f main",
+          "verdict": "block",
+          "note": "checkout -f",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git checkout -- src/Foo.kt",
+          "verdict": "pass",
+          "note": "checkout 파일 지정",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git checkout main",
+          "verdict": "pass",
+          "note": "checkout 브랜치 전환",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git checkout -b feature/x",
+          "verdict": "pass",
+          "note": "checkout -b",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git restore .",
+          "verdict": "block",
+          "note": "restore .",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git restore --staged .",
+          "verdict": "pass",
+          "note": "restore --staged .",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git restore src/Foo.kt",
+          "verdict": "pass",
+          "note": "restore 파일 지정",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git branch -D old",
+          "verdict": "block",
+          "note": "branch -D",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git branch -d old",
+          "verdict": "pass",
+          "note": "branch -d",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git stash drop",
+          "verdict": "block",
+          "note": "stash drop",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git stash clear",
+          "verdict": "block",
+          "note": "stash clear",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git stash push -m wip",
+          "verdict": "pass",
+          "note": "stash push",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git stash list",
+          "verdict": "pass",
+          "note": "stash list",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git gc --prune=now",
+          "verdict": "block",
+          "note": "gc --prune=now",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git gc",
+          "verdict": "pass",
+          "note": "gc",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git reflog expire --expire=now --all",
+          "verdict": "block",
+          "note": "reflog expire",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git reflog",
+          "verdict": "pass",
+          "note": "reflog 조회",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git commit -m \"reset --hard 주의\"",
+          "verdict": "pass",
+          "note": "커밋 메시지 오탐",
+          "env": "",
+          "branch": ""
+        }
+      ]
+    }
+  ],
+  "total": 95
+}
