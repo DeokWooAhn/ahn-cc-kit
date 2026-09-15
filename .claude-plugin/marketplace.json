@@ -63,6 +63,25 @@
         "guard",
         "branch-protection"
       ]
+    },
+    {
+      "name": "android-audit",
+      "source": "android-audit",
+      "description": "이미 저장소에 들어와 있는 서명 자격 증명, 평문 password, gitignore 누락, Manifest 노출 설정을 찾습니다. 값은 출력하지 않고 위치만 보고하며, 고치지 않습니다.",
+      "version": "0.1.0",
+      "author": {
+        "name": "DeokWooAhn"
+      },
+      "license": "MIT",
+      "category": "security",
+      "keywords": [
+        "android",
+        "security",
+        "audit",
+        "secrets",
+        "signing",
+        "gradle"
+      ]
     }
   ]
 }

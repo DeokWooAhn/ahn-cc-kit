@@ -213,7 +213,7 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
 <section id="plugins" class="rise">
   <p class="eyebrow" data-i18n="eyebrow.plugins">구성</p>
   <h2 data-i18n="plugins.title">플러그인</h2>
-  <p class="sub" data-i18n="plugins.sub">훅은 하네스가 실행합니다. 모델이 우회할 수 없고, 모델 컨텍스트도 쓰지 않습니다.</p>
+  <p class="sub" data-i18n="plugins.sub">훅은 하네스가 실행합니다 — 모델이 우회할 수 없고 컨텍스트도 쓰지 않습니다. 스킬은 모델이 필요할 때 읽습니다.</p>
   <div class="cards">
     <div class="card">
       <h3>android-review</h3>
@@ -229,6 +229,11 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
       <h3>git-guard</h3>
       <p data-i18n="plugins.gguard">보호 브랜치 직접 push, <code>--force</code> push, <code>reset --hard</code>·<code>clean -fd</code> 같은 되돌리기 어려운 명령을 막습니다.</p>
       <span class="tag" data-i18n="tag.hook3">훅 3</span><span class="tag">0 tok</span>
+    </div>
+    <div class="card">
+      <h3>android-audit</h3>
+      <p data-i18n="plugins.audit">훅이 막는 것과 같은 문제를 <em>이미 들어와 있는</em> 저장소에서 찾습니다. 값은 출력하지 않고 위치만 보고하며, 고치지 않습니다.</p>
+      <span class="tag" data-i18n="tag.skill">스킬 1</span><span class="tag">~70 tok</span>
     </div>
   </div>
 </section>
@@ -286,9 +291,10 @@ const I18N = {
     "hero.step1":"add the marketplace","hero.step2":"install only what you need",
     "hero.req":"Needs <code>bash</code>, <code>jq</code>, and <code>git</code> for git-guard. Nothing else.",
     "plugins.title":"Plugins",
-    "plugins.sub":"Hooks run in the harness. The model cannot route around them, and they cost no model context.",
+    "plugins.sub":"Hooks run in the harness — the model cannot route around them and they cost no context. Skills are read by the model when a task needs them.",
     "plugins.review":"Compose-first code review. Correctness → regression risk → scope creep → security → missing tests. It explains; it does not edit your code.",
     "plugins.aguard":"Blocks access to signing credentials, wrapper tampering and Gradle cache deletion. Warns on unsigned release builds and risky Manifest changes.",
+    "plugins.audit":"Finds the same problems the hooks block, but in a repo where they are <em>already there</em>. Reports locations, never values, and never fixes.",
     "plugins.gguard":"Blocks direct pushes to protected branches, <code>--force</code> pushes, and hard-to-undo commands like <code>reset --hard</code> and <code>clean -fd</code>.",
     "tag.skill":"1 skill","tag.hook6":"6 hooks","tag.hook3":"3 hooks",
     "install.title":"Turn it on only where you want it",

@@ -23,6 +23,10 @@ claude plugin install android-guard@ahn-cc-kit
 claude plugin install git-guard@ahn-cc-kit
 ```
 
+```bash
+claude plugin install android-audit@ahn-cc-kit
+```
+
 ## 플러그인
 
 | 플러그인 | 내용 | 상태 |
@@ -30,6 +34,7 @@ claude plugin install git-guard@ahn-cc-kit
 | `android-review` | Compose 기반 Android/Kotlin 코드 리뷰 기준 | stable |
 | `android-guard` | Gradle·서명·Manifest 사고 방지 훅 (차단 4 + 경고 2) | stable |
 | `git-guard` | 보호 브랜치·force push·파괴적 git 차단 (차단 3) | stable |
+| `android-audit` | 이미 들어와 있는 시크릿·설정 문제 감사 | stable |
 
 ### android-review
 
@@ -117,6 +122,23 @@ claude plugin uninstall android-guard@ahn-cc-kit
 **`jq`가 없으면 훅이 아무것도 막지 못합니다.** 입력 파싱이 전부 빈 값이 되어, 입력이 깨졌을 때
 통과시키는 경로를 그대로 타기 때문입니다. 그래서 두 플러그인 모두 세션 시작 때 한 번 확인하고
 없으면 알려 줍니다. 이 확인은 `*_DISABLE_DEPS_CHECK=1`로 끌 수 있습니다.
+
+### android-audit
+
+훅은 에이전트의 행동만 봅니다. 훅을 설치하기 전에 들어간 것, 사람이 직접 넣은 것,
+`git add .`로 딸려 들어간 것은 아무도 보지 않습니다. 이 플러그인이 그 빈틈을 메웁니다.
+
+```bash
+android-audit            # 발견 없으면 0, 있으면 1 — CI 에 그대로 걸 수 있습니다
+```
+
+**값을 출력하지 않고 위치만 보고하며, 고치지 않습니다.** 커밋된 시크릿은 파일을 지워도
+히스토리에 남으므로 "정리했다"는 결과가 가장 위험합니다. 자세한 내용은
+[plugins/android-audit/README.md](plugins/android-audit/README.md)에 있습니다.
+
+```bash
+python3 plugins/android-audit/tests/test_audit.py
+```
 
 ## 훅 플러그인을 고칠 때
 
