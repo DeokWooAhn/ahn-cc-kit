@@ -10,100 +10,137 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#fbfbfa; --panel:#fff; --line:#e4e2dd; --ink:#1a1917; --muted:#6b6862;
-  --accent:#b8552e; --block:#c0392b; --warn:#b8860b; --pass:#2d7a4f;
-  --code-bg:#f4f3f0; --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px -12px rgba(0,0,0,.12);
-}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
-  --bg:#16161a; --panel:#1d1d22; --line:#2e2e35; --ink:#e8e6e1; --muted:#9a968e;
-  --accent:#e08050; --block:#e06c5e; --warn:#d9a441; --pass:#5fb083;
-  --code-bg:#232329; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.6);
-}}
-:root[data-theme=dark]{
-  --bg:#16161a; --panel:#1d1d22; --line:#2e2e35; --ink:#e8e6e1; --muted:#9a968e;
-  --accent:#e08050; --block:#e06c5e; --warn:#d9a441; --pass:#5fb083;
-  --code-bg:#232329; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.6);
+  color-scheme: light;
+  --paper:#faf8f5;
+  --card:rgba(255,255,255,.72);
+  --card-hi:rgba(255,255,255,.96);
+  --code:#f4f1ea;
+  --ink:#20242b;
+  --muted:#5d6068;
+  --line:rgba(32,36,44,.09);
+  --clay:#b8552e;
+  --indigo:#25456f;
+  --block:#c2403a;
+  --warn:#9c6f15;
+  --pass:#2f7355;
+  --glow:0 10px 34px -14px rgba(184,85,46,.28), 0 1px 2px rgba(32,36,44,.05);
+  --glow-hi:0 18px 44px -16px rgba(184,85,46,.34), 0 1px 2px rgba(32,36,44,.06);
 }
 *{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:72px}
-body{margin:0;background:var(--bg);color:var(--ink);
-  font:400 16px/1.7 Inter,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",sans-serif;
-  -webkit-font-smoothing:antialiased}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font:400 16px/1.72 Inter,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;position:relative;overflow-x:hidden;
+}
+/* 배경에 아주 옅은 색을 깔아 흰 화면의 밋밋함을 없앱니다. */
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(circle at 50% -5%, rgba(184,85,46,.045) 0%, transparent 55%),
+    radial-gradient(circle at 100% 85%, rgba(37,69,111,.035) 0%, transparent 48%),
+    radial-gradient(circle at 0% 45%, rgba(190,150,70,.03) 0%, transparent 42%);
+}
 code,kbd,pre{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
-a{color:var(--accent)}
-.wrap{max-width:900px;margin:0 auto;padding:0 24px}
+a{color:var(--clay)}
+.wrap{max-width:920px;margin:0 auto;padding:0 24px}
 
-header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);
-  backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-header .wrap{display:flex;align-items:center;gap:16px;height:60px}
-.brand{font-weight:700;letter-spacing:-.01em;margin-right:auto;text-decoration:none;color:var(--ink)}
-.brand span{color:var(--accent)}
-nav{display:flex;gap:18px;font-size:14px}
-nav a{color:var(--muted);text-decoration:none}
+header{position:sticky;top:0;z-index:20;background:rgba(250,248,245,.82);
+  backdrop-filter:saturate(180%) blur(14px);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:16px;height:64px}
+.brand{font-weight:800;font-size:17px;letter-spacing:-.02em;margin-right:auto;text-decoration:none;
+  background:linear-gradient(135deg,var(--clay) 0%,var(--indigo) 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+nav{display:flex;gap:20px;font-size:14px}
+nav a{color:var(--muted);text-decoration:none;transition:color .18s}
 nav a:hover{color:var(--ink)}
-.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;
-  padding:5px 10px;font:500 13px Inter,sans-serif;cursor:pointer}
-.btn:hover{border-color:var(--accent)}
-@media(max-width:760px){nav{display:none}}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;
+  padding:6px 12px;font:600 13px Inter,sans-serif;cursor:pointer;text-decoration:none;
+  transition:border-color .18s,box-shadow .18s,transform .18s}
+.btn:hover{border-color:rgba(184,85,46,.4);box-shadow:var(--glow);transform:translateY(-1px)}
+@media(max-width:820px){nav{display:none}}
 
-section{padding:64px 0;border-bottom:1px solid var(--line)}
-section:last-of-type{border-bottom:0}
-h1{font-size:clamp(30px,5vw,46px);line-height:1.15;letter-spacing:-.025em;margin:0 0 16px}
-h2{font-size:clamp(21px,3vw,27px);letter-spacing:-.02em;margin:0 0 8px}
-h3{font-size:16px;margin:28px 0 8px}
-.lede{color:var(--muted);font-size:17px;margin:0 0 28px;max-width:62ch}
-.sub{color:var(--muted);margin:0 0 28px;max-width:66ch}
+section{padding:80px 0;position:relative}
+section + section::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:min(920px,calc(100% - 48px));height:1px;background:var(--line)}
+h1{font-size:clamp(34px,5.2vw,52px);line-height:1.12;letter-spacing:-.03em;margin:0 0 18px;
+  background:linear-gradient(135deg,var(--ink) 35%,#5d6068 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+h2{font-size:clamp(23px,3vw,32px);letter-spacing:-.025em;margin:0 0 10px}
+.eyebrow{font:700 12px Inter,sans-serif;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--clay);margin:0 0 12px}
+.lede{color:var(--muted);font-size:clamp(16px,1.2vw,18.5px);margin:0 0 30px;max-width:60ch}
+.sub{color:var(--muted);margin:0 0 26px;max-width:66ch}
 
-pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;
-  padding:13px 15px;overflow-x:auto;font-size:13.5px;margin:0 0 12px}
-pre .c{color:var(--muted)}
-p code,td code,li code{background:var(--code-bg);border:1px solid var(--line);border-radius:5px;
-  padding:1px 5px;font-size:.88em}
+pre{background:var(--code);border:1px solid var(--line);border-radius:12px;
+  padding:16px 18px;overflow-x:auto;font-size:13.5px;margin:0 0 14px;line-height:1.75}
+pre .c{color:#8a8578}
+p code,td code,li code{background:var(--code);border:1px solid var(--line);border-radius:6px;
+  padding:1.5px 6px;font-size:.86em}
 
-.cards{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:var(--shadow)}
-.card h3{margin:0 0 6px;font-size:15px;font-family:"JetBrains Mono",monospace;color:var(--accent)}
-.card p{margin:0 0 12px;font-size:14.5px;color:var(--muted)}
-.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;
-  border:1px solid var(--line);color:var(--muted);margin-right:6px}
+/* 히어로 흐름도 — 훅이 어디에 끼어드는지 한눈에 보여 줍니다. */
+.flow{margin:34px 0 0;padding:26px 22px;background:var(--card);border:1px solid var(--line);
+  border-radius:18px;box-shadow:var(--glow);backdrop-filter:blur(6px)}
+.flow svg{width:100%;height:auto;display:block;max-width:660px;margin:0 auto}
 
-table{width:100%;border-collapse:collapse;font-size:14.5px;margin:0 0 12px}
-th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-th{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
-.scroll{overflow-x:auto}
-/* 좁은 화면에서 열이 한 글자씩 줄바꿈되지 않게 최소 너비를 주고 가로 스크롤로 넘깁니다. */
-.scroll > table{min-width:460px}
-/* 훅 케이스 표는 긴 명령을 줄바꿈하는 편이 읽기 좋으므로 제외합니다. */
+.cards{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(255px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;
+  box-shadow:var(--glow);backdrop-filter:blur(6px);transition:transform .22s,box-shadow .22s,background .22s}
+.card:hover{transform:translateY(-3px);box-shadow:var(--glow-hi);background:var(--card-hi)}
+.card h3{margin:0 0 8px;font-size:15.5px;font-family:"JetBrains Mono",monospace;color:var(--clay)}
+.card p{margin:0 0 14px;font-size:14.5px;color:var(--muted);line-height:1.68}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:99px;
+  border:1px solid var(--line);color:var(--muted);margin:0 6px 0 0;background:rgba(255,255,255,.6)}
+
+table{width:100%;border-collapse:collapse;font-size:14.5px;margin:0 0 14px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+tr:last-child td{border-bottom:0}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card);
+  box-shadow:var(--glow)}
+.scroll > table{min-width:460px;margin:0}
+.hook .scroll{border:0;border-radius:0;background:transparent;box-shadow:none}
 .hook .scroll > table{min-width:0}
 
-.filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px}
-.chip{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:99px;
-  padding:5px 13px;font:500 13px Inter,sans-serif;cursor:pointer}
-.chip[aria-pressed=true]{border-color:var(--accent);color:var(--ink);background:var(--code-bg)}
+.filters{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 22px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:99px;
+  padding:7px 16px;font:600 13px Inter,sans-serif;cursor:pointer;transition:all .18s}
+.chip[aria-pressed=true]{border-color:rgba(184,85,46,.45);color:var(--ink);
+  background:var(--card-hi);box-shadow:var(--glow)}
 
-.hook{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:0 0 14px;overflow:hidden}
-.hook > summary{cursor:pointer;padding:14px 18px;font-weight:600;display:flex;align-items:center;gap:10px;
+.hook{background:var(--card);border:1px solid var(--line);border-radius:16px;margin:0 0 16px;
+  overflow:hidden;box-shadow:var(--glow);backdrop-filter:blur(6px)}
+.hook > summary{cursor:pointer;padding:17px 22px;font-weight:700;display:flex;align-items:center;gap:11px;
   font-family:"JetBrains Mono",monospace;font-size:14px;list-style:none}
 .hook > summary::-webkit-details-marker{display:none}
-.hook > summary::before{content:"▸";color:var(--muted);font-family:Inter,sans-serif}
+.hook > summary::before{content:"▸";color:var(--clay);font-family:Inter,sans-serif;transition:transform .2s}
 .hook[open] > summary::before{content:"▾"}
-.hook .plug{margin-left:auto;font:500 11.5px Inter,sans-serif;color:var(--muted)}
-.hook table{margin:0}
-.hook td:first-child{width:74px}
-.v{font:600 11.5px Inter,sans-serif;padding:2px 8px;border-radius:5px;white-space:nowrap}
-.v-block{color:var(--block);background:color-mix(in srgb,var(--block) 12%,transparent)}
-.v-warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
-.v-pass{color:var(--pass);background:color-mix(in srgb,var(--pass) 12%,transparent)}
+.hook .plug{margin-left:auto;font:600 11.5px Inter,sans-serif;color:var(--muted)}
+.hook td:first-child{width:80px}
+.v{font:700 11.5px Inter,sans-serif;padding:3px 9px;border-radius:6px;white-space:nowrap}
+.v-block{color:var(--block);background:rgba(194,64,58,.1)}
+.v-warn{color:var(--warn);background:rgba(156,111,21,.12)}
+.v-pass{color:var(--pass);background:rgba(47,115,85,.1)}
 .cmd{font-family:"JetBrains Mono",monospace;font-size:13px;word-break:break-word}
-.ctx{display:block;color:var(--muted);font-size:12px;margin-top:3px;font-family:Inter,sans-serif}
+.ctx{display:block;color:var(--muted);font-size:12px;margin-top:4px;font-family:Inter,sans-serif}
 
-.note{border-left:3px solid var(--accent);background:var(--panel);border-radius:0 10px 10px 0;
-  padding:14px 18px;margin:20px 0;font-size:14.5px}
-.note strong{color:var(--accent)}
-footer{padding:36px 0 56px;color:var(--muted);font-size:14px}
+.note{border-left:3px solid var(--clay);background:var(--card);border-radius:0 14px 14px 0;
+  padding:18px 22px;margin:24px 0;font-size:14.5px;box-shadow:var(--glow)}
+.note strong{color:var(--clay)}
+footer{padding:44px 0 64px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
 footer a{color:var(--muted)}
 [hidden]{display:none!important}
+
+/* 스크롤에 맞춰 섹션이 올라오게 합니다. 모션을 줄이기로 한 사용자에게는 적용하지 않습니다. */
+.js .rise{opacity:0;transform:translateY(16px)}
+.js .rise.in{animation:rise .55s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){
+  .js .rise{opacity:1;transform:none;animation:none}
+  *{transition:none!important}
+}
 </style>
+<script>document.documentElement.classList.add("js")</script>
 </head>
 <body>
 
@@ -130,9 +167,48 @@ claude plugin marketplace add DeokWooAhn/ahn-cc-kit
 <span class="c"># <span data-i18n="hero.step2">필요한 것만 설치</span></span>
 claude plugin install android-guard@ahn-cc-kit --scope local</pre>
   <p class="sub" data-i18n="hero.req">필요한 것은 <code>bash</code>, <code>jq</code>, 그리고 git-guard는 <code>git</code>. 그 외 의존성은 없습니다.</p>
+
+  <div class="flow">
+    <svg viewBox="0 0 660 210" role="img" aria-labelledby="flow-t">
+      <title id="flow-t" data-i18n="flow.alt">도구 호출이 훅을 거쳐 차단·경고·통과로 나뉘는 흐름</title>
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" fill="#b6b1a6"/>
+        </marker>
+      </defs>
+      <g font-family="Inter,sans-serif" font-size="13">
+        <rect x="4" y="76" width="150" height="58" rx="13" fill="#fff" stroke="rgba(32,36,44,.12)"/>
+        <text x="79" y="99" text-anchor="middle" font-weight="700" fill="#20242b" data-i18n="flow.a1">Claude</text>
+        <text x="79" y="118" text-anchor="middle" fill="#5d6068" font-size="12" data-i18n="flow.a2">도구 호출</text>
+
+        <line x1="160" y1="105" x2="212" y2="105" stroke="#b6b1a6" stroke-width="1.5" marker-end="url(#ar)"/>
+
+        <rect x="218" y="76" width="158" height="58" rx="13" fill="rgba(184,85,46,.07)" stroke="rgba(184,85,46,.45)"/>
+        <text x="297" y="99" text-anchor="middle" font-weight="700" fill="#b8552e" font-family="JetBrains Mono,monospace" font-size="13.5">hook</text>
+        <text x="297" y="118" text-anchor="middle" fill="#5d6068" font-size="12" data-i18n="flow.b2">셸에서 판정</text>
+
+        <path d="M382 100 C 412 100, 412 36, 442 36" fill="none" stroke="#b6b1a6" stroke-width="1.5" marker-end="url(#ar)"/>
+        <line x1="382" y1="105" x2="442" y2="105" stroke="#b6b1a6" stroke-width="1.5" marker-end="url(#ar)"/>
+        <path d="M382 110 C 412 110, 412 174, 442 174" fill="none" stroke="#b6b1a6" stroke-width="1.5" marker-end="url(#ar)"/>
+
+        <rect x="450" y="14" width="200" height="44" rx="11" fill="rgba(194,64,58,.09)" stroke="rgba(194,64,58,.28)"/>
+        <text x="470" y="41" font-weight="700" fill="#c2403a" data-i18n="flow.c1">차단</text>
+        <text x="516" y="41" fill="#5d6068" font-size="12" data-i18n="flow.c1b">실행되지 않습니다</text>
+
+        <rect x="450" y="83" width="200" height="44" rx="11" fill="rgba(156,111,21,.11)" stroke="rgba(156,111,21,.28)"/>
+        <text x="470" y="110" font-weight="700" fill="#9c6f15" data-i18n="flow.c2">경고</text>
+        <text x="516" y="110" fill="#5d6068" font-size="12" data-i18n="flow.c2b">실행 후 알립니다</text>
+
+        <rect x="450" y="152" width="200" height="44" rx="11" fill="rgba(47,115,85,.09)" stroke="rgba(47,115,85,.26)"/>
+        <text x="470" y="179" font-weight="700" fill="#2f7355" data-i18n="flow.c3">통과</text>
+        <text x="516" y="179" fill="#5d6068" font-size="12" data-i18n="flow.c3b">그대로 진행합니다</text>
+      </g>
+    </svg>
+  </div>
 </section>
 
-<section id="plugins">
+<section id="plugins" class="rise">
+  <p class="eyebrow" data-i18n="eyebrow.plugins">구성</p>
   <h2 data-i18n="plugins.title">플러그인</h2>
   <p class="sub" data-i18n="plugins.sub">훅은 하네스가 실행합니다. 모델이 우회할 수 없고, 모델 컨텍스트도 쓰지 않습니다.</p>
   <div class="cards">
@@ -154,7 +230,8 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
   </div>
 </section>
 
-<section id="install">
+<section id="install" class="rise">
+  <p class="eyebrow" data-i18n="eyebrow.install">범위</p>
   <h2 data-i18n="install.title">원하는 프로젝트에서만 켜기</h2>
   <p class="sub" data-i18n="install.sub">설치할 때 범위를 고릅니다. 기본값인 <code>user</code>로 넣으면 그 머신의 모든 프로젝트에 붙습니다.</p>
   <div class="scroll"><table>
@@ -168,7 +245,8 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
     <span data-i18n="install.note.b">입력 파싱이 전부 빈 값이 되어, 입력이 깨졌을 때 통과시키는 경로를 그대로 탑니다. 두 가드 플러그인은 세션 시작 때 한 번 확인하고 없으면 알려 줍니다.</span></div>
 </section>
 
-<section id="rules">
+<section id="rules" class="rise">
+  <p class="eyebrow" data-i18n="eyebrow.rules">판정</p>
   <h2 data-i18n="rules.title">무엇이 막히나</h2>
   <p class="sub" data-i18n="rules.sub">아래 표는 저장소의 훅 테스트에서 그대로 생성됩니다. 사이트와 실제 동작이 어긋날 수 없습니다.</p>
   <div class="filters">
@@ -179,7 +257,8 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
   <div id="hooks"></div>
 </section>
 
-<section id="optout">
+<section id="optout" class="rise">
+  <p class="eyebrow" data-i18n="eyebrow.optout">제어</p>
   <h2 data-i18n="optout.title">끄는 법</h2>
   <p class="sub" data-i18n="optout.sub">훅마다 환경 변수 하나로 끕니다. 끄면 그 훅은 위험한 경우까지 전부 통과시킵니다.</p>
 <pre>ANDROID_GUARD_DISABLE_GRADLE_CACHE=1 claude</pre>
@@ -220,6 +299,13 @@ const I18N = {
     "f.block":"Blocked","f.warn":"Warned","f.pass":"Allowed",
     "optout.title":"Opting out","optout.sub":"One environment variable per hook. A disabled hook passes everything, including the dangerous cases.",
     "optout.th1":"Hook","optout.th2":"Environment variable",
+    "flow.alt":"A tool call passes through a hook and is blocked, warned, or allowed",
+    "flow.a1":"Claude","flow.a2":"tool call","flow.b2":"decides in the shell",
+    "flow.c1":"Block","flow.c1b":"never runs",
+    "flow.c2":"Warn","flow.c2b":"runs, then tells you",
+    "flow.c3":"Allow","flow.c3b":"proceeds untouched",
+    "eyebrow.plugins":"What's inside","eyebrow.install":"Scope",
+    "eyebrow.rules":"Verdicts","eyebrow.optout":"Control",
     "ui.cases":" cases","ui.err":"Could not load cases.json."
   }
 };
@@ -278,6 +364,18 @@ function render(){
   }
 }
 function esc(s){ return s.replace(/[&<>]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+
+// 섹션이 화면에 들어올 때 한 번만 올라오게 합니다.
+if(!matchMedia("(prefers-reduced-motion: reduce)").matches){
+  const io = new IntersectionObserver((es) => es.forEach(e => {
+    if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); }
+  }), { rootMargin: "0px 0px -12% 0px" });
+  document.querySelectorAll(".rise").forEach(el => io.observe(el));
+  // 관찰자가 동작하지 않는 상황에 대비한 안전장치. 내용이 안 보이는 것보다 낫습니다.
+  setTimeout(() => document.querySelectorAll(".rise").forEach(el => el.classList.add("in")), 1500);
+} else {
+  document.querySelectorAll(".rise").forEach(el => el.classList.add("in"));
+}
 
 fetch("./cases.json").then(r => r.json()).then(d => { DATA = d; render(); })
   .catch(() => render());
