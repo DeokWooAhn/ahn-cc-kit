@@ -54,6 +54,9 @@ header .wrap{display:flex;align-items:center;gap:16px;height:64px}
 nav{display:flex;gap:20px;font-size:14px}
 nav a{color:var(--muted);text-decoration:none;transition:color .18s}
 nav a:hover{color:var(--ink)}
+nav a.on{color:var(--ink);font-weight:600}
+nav a.on::after{content:"";display:block;height:2px;margin-top:3px;border-radius:2px;
+  background:linear-gradient(90deg,var(--clay),var(--indigo))}
 .btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;
   padding:6px 12px;font:600 13px Inter,sans-serif;cursor:pointer;text-decoration:none;
   transition:border-color .18s,box-shadow .18s,transform .18s}
@@ -147,8 +150,8 @@ footer a{color:var(--muted)}
 <header><div class="wrap">
   <a class="brand" href="#top">ahn<span>-cc-</span>kit</a>
   <nav>
-    <a href="#install" data-i18n="nav.install">설치</a>
     <a href="#plugins" data-i18n="nav.plugins">플러그인</a>
+    <a href="#install" data-i18n="nav.install">설치 범위</a>
     <a href="#rules" data-i18n="nav.rules">무엇이 막히나</a>
     <a href="#optout" data-i18n="nav.optout">끄는 법</a>
   </nav>
@@ -277,7 +280,7 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
 <script>
 const I18N = {
   en: {
-    "nav.install":"Install","nav.plugins":"Plugins","nav.rules":"What gets blocked","nav.optout":"Opting out",
+    "nav.install":"Scope","nav.plugins":"Plugins","nav.rules":"What gets blocked","nav.optout":"Opting out",
     "hero.title":"Stop the agent before it slips.",
     "hero.lede":"Claude Code hooks that block expensive mistakes in Android, Gradle and git work, plus a Compose-first code review skill. Each plugin is scoped to one pain.",
     "hero.step1":"add the marketplace","hero.step2":"install only what you need",
@@ -375,6 +378,21 @@ if(!matchMedia("(prefers-reduced-motion: reduce)").matches){
   setTimeout(() => document.querySelectorAll(".rise").forEach(el => el.classList.add("in")), 1500);
 } else {
   document.querySelectorAll(".rise").forEach(el => el.classList.add("in"));
+}
+
+// 지금 화면에 있는 섹션을 내비게이션에 표시합니다.
+{
+  const links = [...document.querySelectorAll("nav a")];
+  const spy = new IntersectionObserver((es) => {
+    es.forEach(e => {
+      if(!e.isIntersecting) return;
+      links.forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + e.target.id));
+    });
+  }, { rootMargin: "-64px 0px -62% 0px" });
+  links.forEach(a => {
+    const el = document.getElementById(a.getAttribute("href").slice(1));
+    if(el) spy.observe(el);
+  });
 }
 
 fetch("./cases.json").then(r => r.json()).then(d => { DATA = d; render(); })
