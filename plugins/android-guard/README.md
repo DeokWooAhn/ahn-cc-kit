@@ -8,6 +8,13 @@ claude plugin install android-guard@ahn-cc-kit
 
 필요: `bash`, `jq`.
 
+**`jq`가 없으면 이 훅들은 아무것도 막지 못합니다.** 입력 파싱이 전부 빈 값이 되어,
+입력이 깨졌을 때 통과시키는 경로를 그대로 탑니다. 세션 시작 때 `deps-check.sh`가
+한 번 확인하고 없으면 알려 줍니다(`*_DISABLE_DEPS_CHECK=1`로 끌 수 있습니다).
+
+설치 범위는 [최상위 README](../../README.md#원하는-프로젝트에서만-켜기)를 참고하세요.
+기본값인 user 범위로 넣으면 모든 프로젝트에 붙습니다.
+
 ## 훅
 
 ### 차단 (PreToolUse, exit 2)

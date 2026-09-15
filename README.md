@@ -63,6 +63,58 @@ python3 plugins/android-guard/hooks/test_hooks.py
 python3 plugins/git-guard/hooks/test_hooks.py
 ```
 
+## 원하는 프로젝트에서만 켜기
+
+설치할 때 **범위를 고르면 됩니다.** 기본값인 user 범위로 넣으면 그 머신의 모든 프로젝트에
+훅이 붙습니다. 안드로이드가 아닌 저장소에서도 매 도구 호출마다 돌게 됩니다.
+
+| 범위 | 적용 | 기록되는 곳 |
+| --- | --- | --- |
+| user | 모든 프로젝트 | `~/.claude/` |
+| project | 이 저장소 + 협업자 전체 | 저장소의 `.claude/settings.json` |
+| local | 이 저장소, 나만 | 저장소의 `.claude/settings.local.json` |
+
+`/plugin install`은 설치할 때 이 셋 중 하나를 묻습니다. 셸에서 바로 지정할 수도 있습니다.
+
+```bash
+claude plugin install android-guard@ahn-cc-kit --scope project
+```
+
+혼자 쓸 저장소라면 `--scope local`을 씁니다. 이미 user 범위로 깔았다면 특정 저장소에서
+끄는 대신, 지우고 원하는 범위로 다시 설치하는 편이 깔끔합니다.
+
+```bash
+claude plugin uninstall android-guard@ahn-cc-kit
+```
+
+### 팀에 자동으로 붙이기
+
+저장소의 `.claude/settings.json`에 마켓플레이스를 적어 두면, 팀원이 그 폴더를 신뢰한 뒤부터는
+마켓플레이스가 프롬프트 없이 등록됩니다.
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "ahn-cc-kit": {
+      "source": { "source": "github", "repo": "DeokWooAhn/ahn-cc-kit" }
+    }
+  },
+  "enabledPlugins": ["android-guard@ahn-cc-kit", "git-guard@ahn-cc-kit"]
+}
+```
+
+다만 **등록과 설치는 다릅니다.** GitHub처럼 외부 소스에서 오는 플러그인은 팀원이
+`claude plugin install`을 한 번 실행해야 실제로 로드됩니다. 그전까지 Claude Code는
+설치되지 않았다고 표시하고 실행할 명령을 알려 줍니다.
+
+## 필요한 것
+
+훅 플러그인(`android-guard`, `git-guard`)은 `bash`와 `jq`가 필요합니다. `git-guard`는 `git`도 씁니다.
+
+**`jq`가 없으면 훅이 아무것도 막지 못합니다.** 입력 파싱이 전부 빈 값이 되어, 입력이 깨졌을 때
+통과시키는 경로를 그대로 타기 때문입니다. 그래서 두 플러그인 모두 세션 시작 때 한 번 확인하고
+없으면 알려 줍니다. 이 확인은 `*_DISABLE_DEPS_CHECK=1`로 끌 수 있습니다.
+
 ## 훅 플러그인을 고칠 때
 
 훅 테스트는 **`/bin/bash`로 돌립니다.** macOS 기본 셸은 아직 bash 3.2이고, 3.2는 `set -u`

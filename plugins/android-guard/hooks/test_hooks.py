@@ -129,6 +129,37 @@ SUITES = [
 HUGE = json.dumps({"tool_name": "Write", "tool_input": {"file_path": "/tmp/x.kt", "content": "x" * 200_000}})
 
 
+
+def check_deps_hook(prefix):
+    """SessionStart 의존성 확인 훅. jq가 없을 때만 말하고, 절대 exit 2를 내지 않는다.
+
+    SessionStart에서 exit 2는 세션 시작 자체를 실패시키므로 그 경계를 고정한다.
+    jq 없는 환경은 필요한 실행 파일만 심볼릭 링크한 임시 PATH로 만든다.
+    """
+    import shutil as _sh
+    failures = 0
+    print("\n== deps-check.sh (SessionStart)")
+
+    fake = tempfile.mkdtemp(prefix="no-jq-")
+    for b in ("basename", "dirname", "grep", "sed", "cat", "git", "env"):
+        src = _sh.which(b)
+        if src:
+            os.symlink(src, os.path.join(fake, b))
+    try:
+        for label, env_extra, want_msg in (
+            ("jq 있음 · 무음", {}, False),
+            ("jq 없음 · 경고", {"PATH": fake}, True),
+            ("opt-out · 무음", {"PATH": fake, f"{prefix}_DISABLE_DEPS_CHECK": "1"}, False),
+        ):
+            _, rc, out, _ = run("deps-check.sh", "{}", env_extra)
+            said = "플러그인이 동작하지 않습니다" in out
+            ok = rc == 0 and said == want_msg
+            failures += not ok
+            print(f"  {'ok  ' if ok else 'FAIL'} {label:<24} exit={rc} 경고={said} (want 0/{want_msg})")
+    finally:
+        _sh.rmtree(fake, ignore_errors=True)
+    return failures
+
 def main():
     failures = 0
     for hook, optout, cases in SUITES:
@@ -161,6 +192,8 @@ def main():
         ok = writer_rc == 0 and rc == 0
         failures += not ok
         print(f"  {'ok  ' if ok else 'FAIL'} {'200KB 파이프 소진':<24} writer={writer_rc} hook={rc} (want 0/0)")
+
+    failures += check_deps_hook('ANDROID_GUARD')
 
     print(f"\n{'실패 없음' if not failures else f'실패 {failures}건'}")
     return 1 if failures else 0
