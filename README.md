@@ -2,6 +2,9 @@
 
 Claude Code 플러그인 마켓플레이스. 플러그인 하나는 문제 하나만 다룹니다.
 
+**<https://deokwooahn.github.io/ahn-cc-kit/>** — 어떤 명령이 막히고 통과하는지 95건을
+표로 볼 수 있습니다. 그 표는 훅 테스트에서 생성되므로 실제 동작과 어긋나지 않습니다.
+
 ## 설치
 
 ```bash
@@ -134,6 +137,20 @@ claude --plugin-dir ./plugins
 
 ```
 /reload-plugins
+```
+
+문서 사이트는 `docs/`에 있습니다. GitHub Pages가 `main`의 `/docs`를 그대로 서빙하므로
+빌드 과정이 없습니다. 훅의 판정을 바꿨으면 표를 다시 생성합니다.
+
+```bash
+python3 scripts/gen-cases.py
+```
+
+로컬에서 보려면 정적 서버를 띄웁니다. `cases.json`을 `fetch`로 읽기 때문에 파일을 직접 열면
+안 됩니다.
+
+```bash
+python3 -m http.server 4173 --directory docs
 ```
 
 배포 전 검증합니다. 커뮤니티 마켓플레이스 심사와 같은 검사입니다.
