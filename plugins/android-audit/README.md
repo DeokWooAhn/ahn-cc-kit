@@ -30,6 +30,13 @@ android-audit
 android-audit ~/work/my-app --history
 ```
 
+출력 언어는 로케일을 따릅니다(`LANG`, macOS는 시스템 로케일). 한국어와 영어를 지원합니다.
+
+```bash
+android-audit --lang en
+ANDROID_AUDIT_LANG=en android-audit
+```
+
 | 종료 코드 | 뜻 |
 | --- | --- |
 | 0 | 발견 없음 |

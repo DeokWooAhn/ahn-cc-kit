@@ -6,43 +6,112 @@
 # 고치지 않습니다 — 커밋된 시크릿은 파일을 지워도 히스토리에 남으므로,
 # 자동으로 "고쳤다"고 말하면 안심시키는 거짓말이 됩니다.
 #
-#   android-audit [경로]        기본값은 현재 디렉터리
-#   android-audit --history     히스토리까지 훑습니다(느림)
+#   android-audit [경로] [--history] [--lang ko|en]
 #
 # exit 0 = 발견 없음, 1 = 발견 있음, 2 = 사용법 오류
 
 set -uo pipefail
 
+# ── 언어 결정 ───────────────────────────────────────────────
+# --lang > ANDROID_AUDIT_LANG > LC_ALL/LANG > macOS 로케일 > en
+detect_lang() {
+  local l="${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}"
+  if [[ -z "$l" && "$(uname -s 2>/dev/null)" == "Darwin" ]]; then
+    l=$(defaults read -g AppleLocale 2>/dev/null || true)
+  fi
+  case "$l" in ko* | *_KR* | *ko_KR*) printf 'ko' ;; *) printf 'en' ;; esac
+}
+LANG_SEL="${ANDROID_AUDIT_LANG:-}"
+
 DIR="."
 HISTORY=0
-for a in "$@"; do
-  case "$a" in
+while (($#)); do
+  case "$1" in
     --history) HISTORY=1 ;;
-    -h | --help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    -*) echo "알 수 없는 옵션: $a" >&2; exit 2 ;;
-    *) DIR="$a" ;;
+    --lang) shift; LANG_SEL="${1:-}" ;;
+    --lang=*) LANG_SEL="${1#--lang=}" ;;
+    -h | --help) HELP=1 ;;
+    -*) printf 'unknown option: %s\n' "$1" >&2; exit 2 ;;
+    *) DIR="$1" ;;
   esac
+  shift
 done
-[[ -d "$DIR" ]] || { echo "디렉터리가 없습니다: $DIR" >&2; exit 2; }
+[[ -n "$LANG_SEL" ]] || LANG_SEL=$(detect_lang)
+case "$LANG_SEL" in ko | en) ;; *) printf 'unknown language: %s (use ko or en)\n' "$LANG_SEL" >&2; exit 2 ;; esac
+
+# bash 3.2 에는 연상 배열이 없습니다. case 로 갑니다.
+msg() {
+  if [[ "$LANG_SEL" == "ko" ]]; then
+    case "$1" in
+      usage) printf '사용법: android-audit [경로] [--history] [--lang ko|en]' ;;
+      no_dir) printf '디렉터리가 없습니다' ;;
+      no_git) printf 'git 저장소가 아닙니다' ;;
+      high) printf '높음' ;; med) printf '중간' ;; low) printf '낮음' ;;
+      t_tracked) printf '서명 관련 파일이 git에 추적되고 있습니다.' ;;
+      d_tracked) printf '저장소를 읽을 수 있는 모두에게 노출됩니다. 파일을 지워도 히스토리에는 남으므로 키 회전이 필요합니다.' ;;
+      t_literal) printf '서명 password가 문자열 리터럴로 들어 있습니다.' ;;
+      d_literal) printf '값은 출력하지 않습니다. 아래 위치를 직접 확인하고 System.getenv 등 간접 참조로 바꿉니다.' ;;
+      t_ignore) printf '.gitignore에 서명 파일 규칙이 없습니다' ;;
+      d_ignore) printf '지금 파일이 없어도 나중에 생기면 그대로 추적됩니다.' ;;
+      t_dist) printf 'Gradle 배포본을 gradle.org가 아닌 곳에서 받습니다.' ;;
+      d_manifest) printf '빌드 타입·보안 요구사항과 맞는지 확인합니다.' ;;
+      t_history) printf '과거 커밋에 서명 파일이 추가된 적이 있습니다.' ;;
+      d_history) printf '지금 지워져 있어도 히스토리에서 복원됩니다. 해당 키는 회전 대상입니다.' ;;
+      skip_gradle) printf 'Gradle 프로젝트가 아니어서 안드로이드 전용 검사는 건너뛰었습니다.' ;;
+      skip_hist) printf '히스토리는 검사하지 않았습니다. --history 로 포함합니다(느립니다).' ;;
+      clean) printf '발견 없음.' ;;
+      summary) printf '발견 %s건 — 높음 %s, 중간 %s, 낮음 %s' "$2" "$3" "$4" "$5" ;;
+      foot1) printf '이 도구는 고치지 않습니다. 커밋된 시크릿은 파일을 지워도 히스토리에 남으므로,' ;;
+      foot2) printf '지웠다고 해결된 것이 아닙니다. 노출된 키는 회전합니다.' ;;
+      has_attr) printf '에 %s 이 있습니다.' "$2" ;;
+    esac
+  else
+    case "$1" in
+      usage) printf 'usage: android-audit [path] [--history] [--lang ko|en]' ;;
+      no_dir) printf 'no such directory' ;;
+      no_git) printf 'not a git repository' ;;
+      high) printf 'HIGH' ;; med) printf 'MED' ;; low) printf 'LOW' ;;
+      t_tracked) printf 'Signing files are tracked by git.' ;;
+      d_tracked) printf 'Anyone who can read the repository can read these. Deleting the file leaves it in history, so the key needs rotating.' ;;
+      t_literal) printf 'A signing password is written as a string literal.' ;;
+      d_literal) printf 'Values are not printed. Open the locations below yourself and switch to System.getenv or another indirect reference.' ;;
+      t_ignore) printf '.gitignore has no rule for signing files' ;;
+      d_ignore) printf 'Even with no such file today, the next one gets tracked.' ;;
+      t_dist) printf 'Gradle is downloaded from a host other than gradle.org.' ;;
+      d_manifest) printf 'Check that this matches the build type and your security requirements.' ;;
+      t_history) printf 'Signing files were added in past commits.' ;;
+      d_history) printf 'Deleted now, but restorable from history. Treat those keys as exposed.' ;;
+      skip_gradle) printf 'Not a Gradle project — Android-specific checks were skipped.' ;;
+      skip_hist) printf 'History was not scanned. Add --history to include it (slow).' ;;
+      clean) printf 'Nothing found.' ;;
+      summary) printf '%s finding(s) — high %s, medium %s, low %s' "$2" "$3" "$4" "$5" ;;
+      foot1) printf 'This tool does not fix anything. A committed secret survives in history after the file is gone,' ;;
+      foot2) printf 'so deleting it is not a fix. Rotate exposed keys.' ;;
+      has_attr) printf ' has %s.' "$2" ;;
+    esac
+  fi
+}
+
+if [[ -n "${HELP:-}" ]]; then msg usage; echo; exit 0; fi
+[[ -d "$DIR" ]] || { printf '%s: %s\n' "$(msg no_dir)" "$DIR" >&2; exit 2; }
 cd "$DIR" || exit 2
-git rev-parse --git-dir >/dev/null 2>&1 || { echo "git 저장소가 아닙니다: $DIR" >&2; exit 2; }
+git rev-parse --git-dir >/dev/null 2>&1 || { printf '%s: %s\n' "$(msg no_git)" "$DIR" >&2; exit 2; }
 
 HIGH=0; MED=0; LOW=0
 out() { printf '%s\n' "$1"; }
-finding() { # $1 등급  $2 제목  $3 설명
+finding() { # $1 등급키  $2 제목  $3 설명
   case "$1" in
-    HIGH) HIGH=$((HIGH + 1)); printf '\n  [높음] %s\n' "$2" ;;
-    MED)  MED=$((MED + 1));  printf '\n  [중간] %s\n' "$2" ;;
-    LOW)  LOW=$((LOW + 1));  printf '\n  [낮음] %s\n' "$2" ;;
+    high) HIGH=$((HIGH + 1)) ;;
+    med)  MED=$((MED + 1)) ;;
+    low)  LOW=$((LOW + 1)) ;;
   esac
+  printf '\n  [%s] %s\n' "$(msg "$1")" "$2"
   [[ -n "${3:-}" ]] && printf '         %s\n' "$3"
 }
 item() { printf '         · %s\n' "$1"; }
 
 out "android-audit — $(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
-# Gradle 프로젝트가 아니면 안드로이드 전용 검사는 노이즈입니다.
-# 추적 중인 서명 파일만 보고 나머지는 건너뜁니다.
 # grep -q 를 파이프 뒤에 두지 않습니다. 일찍 매치되면 grep 이 먼저 끝나고
 # git 이 SIGPIPE(141) 로 죽는데, pipefail 이 그걸 파이프라인 실패로 봅니다.
 GRADLE=0
@@ -52,8 +121,7 @@ GRADLE_HIT=$(git ls-files | grep -E '(^|/)(settings\.gradle(\.kts)?|build\.gradl
 # 1. 추적 중인 서명 파일. 가장 비싼 실수라 가장 먼저 봅니다.
 TRACKED=$(git ls-files | grep -iE '(^|/)(local\.properties|keystore\.properties|signing\.properties)$|\.(jks|keystore|p12|pepk)$|[^/]*(service-account|play-publisher)[^/]*\.json$' || true)
 if [[ -n "$TRACKED" ]]; then
-  finding HIGH "서명 관련 파일이 git에 추적되고 있습니다." \
-    "저장소를 읽을 수 있는 모두에게 노출됩니다. 파일을 지워도 히스토리에는 남으므로 키 회전이 필요합니다."
+  finding high "$(msg t_tracked)" "$(msg d_tracked)"
   while IFS= read -r f; do [[ -n "$f" ]] && item "$f"; done <<< "$TRACKED"
 fi
 
@@ -62,7 +130,6 @@ LIT=""
 while IFS= read -r f; do
   [[ -n "$f" ]] || continue
   case "$f" in *.example | *.sample | *.template | *.dist) continue ;; esac
-  # 키워드 뒤에 바로 따옴표가 오면 리터럴입니다. getenv 등 간접 참조는 그 자리에 따옴표가 없습니다.
   m=$(grep -nE '(storePassword|keyPassword)[[:space:]]*(=)?[[:space:]]*("|'\'')' "$f" 2>/dev/null | grep -v '\$' || true)
   [[ -n "$m" ]] && LIT="${LIT}${f}:$(printf '%s' "$m" | cut -d: -f1 | tr '\n' ',')
 "
@@ -75,14 +142,13 @@ while IFS= read -r f; do
 "
 done <<< "$(git ls-files '*.properties' 2>/dev/null)"
 if [[ -n "${LIT//[[:space:]]/}" ]]; then
-  finding HIGH "서명 password가 문자열 리터럴로 들어 있습니다." \
-    "값은 출력하지 않습니다. 아래 위치를 직접 확인하고 System.getenv 등 간접 참조로 바꿉니다."
+  finding high "$(msg t_literal)" "$(msg d_literal)"
   while IFS= read -r l; do [[ -n "$l" ]] && item "${l%,}"; done <<< "$LIT"
 fi
 
 if ((GRADLE == 0)); then
   out ""
-  out "  Gradle 프로젝트가 아니어서 안드로이드 전용 검사는 건너뛰었습니다."
+  out "  $(msg skip_gradle)"
 else
 
 # 3. .gitignore 위생. 지금은 파일이 없어도 나중에 생깁니다.
@@ -93,8 +159,7 @@ for pat in "local.properties" "*.jks" "*.keystore"; do
     MISSING="${MISSING:+$MISSING, }$pat"
   fi
 done
-[[ -n "$MISSING" ]] && finding MED ".gitignore에 서명 파일 규칙이 없습니다: $MISSING" \
-  "지금 파일이 없어도 나중에 생기면 그대로 추적됩니다."
+[[ -n "$MISSING" ]] && finding med "$(msg t_ignore): $MISSING" "$(msg d_ignore)"
 
 # 4. Gradle wrapper 배포 출처.
 WP=$(git ls-files '*gradle-wrapper.properties' | head -1)
@@ -105,7 +170,7 @@ if [[ -n "$WP" && -f "$WP" ]]; then
     https://services.gradle.org/* | https://downloads.gradle.org/*) OK_HOST=1 ;;
   esac
   if [[ -n "$URL" ]] && ((OK_HOST == 0)); then
-    finding MED "Gradle 배포본을 gradle.org가 아닌 곳에서 받습니다." "$URL"
+    finding med "$(msg t_dist)" "$URL"
   fi
 fi
 
@@ -114,7 +179,7 @@ while IFS= read -r f; do
   [[ -n "$f" && -f "$f" ]] || continue
   for attr in 'android:debuggable="true"' 'android:usesCleartextTraffic="true"' 'android:allowBackup="true"'; do
     if grep -qF -- "$attr" "$f" 2>/dev/null; then
-      finding MED "$f 에 $attr 이 있습니다." "빌드 타입·보안 요구사항과 맞는지 확인합니다."
+      finding med "${f}$(msg has_attr "$attr")" "$(msg d_manifest)"
     fi
   done
 done <<< "$(git ls-files '*AndroidManifest.xml' 2>/dev/null)"
@@ -126,22 +191,21 @@ if ((HISTORY)); then
   HIST=$(git log --all --diff-filter=A --name-only --format='' 2>/dev/null \
     | grep -iE '(^|/)(local\.properties|keystore\.properties)$|\.(jks|keystore|p12)$' | sort -u || true)
   if [[ -n "$HIST" ]]; then
-    finding HIGH "과거 커밋에 서명 파일이 추가된 적이 있습니다." \
-      "지금 지워져 있어도 히스토리에서 복원됩니다. 해당 키는 회전 대상입니다."
+    finding high "$(msg t_history)" "$(msg d_history)"
     while IFS= read -r f; do [[ -n "$f" ]] && item "$f"; done <<< "$HIST"
   fi
 else
   out ""
-  out "  히스토리는 검사하지 않았습니다. --history 로 포함합니다(느립니다)."
+  out "  $(msg skip_hist)"
 fi
 
 TOTAL=$((HIGH + MED + LOW))
 out ""
 if ((TOTAL == 0)); then
-  out "발견 없음."
+  out "$(msg clean)"
   exit 0
 fi
-out "발견 ${TOTAL}건 — 높음 ${HIGH}, 중간 ${MED}, 낮음 ${LOW}"
-out "이 도구는 고치지 않습니다. 커밋된 시크릿은 파일을 지워도 히스토리에 남으므로,"
-out "지웠다고 해결된 것이 아닙니다. 노출된 키는 회전합니다."
+out "$(msg summary "$TOTAL" "$HIGH" "$MED" "$LOW")"
+out "$(msg foot1)"
+out "$(msg foot2)"
 exit 1

@@ -37,8 +37,13 @@ def repo(files, tmp, name):
     return d
 
 
-def run(d, *args):
-    p = subprocess.run([BASH, str(AUDIT), str(d), *args], capture_output=True, text=True)
+def run(d, *args, env_extra=None):
+    env = dict(os.environ)
+    for k in ("ANDROID_AUDIT_LANG", "LANG", "LC_ALL", "LC_MESSAGES"):
+        env.pop(k, None)
+    env.update(env_extra or {})
+    p = subprocess.run([BASH, str(AUDIT), str(d), *args],
+                       capture_output=True, text=True, env=env)
     return p.returncode, p.stdout, p.stderr
 
 
@@ -134,6 +139,24 @@ def main():
         check(size > 100_000, "목록이 파이프 버퍼를 넘음", f"{size:,} bytes")
         check("Gradle 프로젝트가 아니어서" not in out,
               "Gradle 감지가 SIGPIPE 로 실패하지 않음", "← 실제 회귀 지점")
+
+        print("\n== 언어")
+        d = repo(DIRTY, tmp, "lang")
+        _, ko, _ = run(d, "--lang", "ko")
+        _, en, _ = run(d, "--lang", "en")
+        check("[높음]" in ko and "[HIGH]" not in ko, "--lang ko 는 한국어만")
+        check("[HIGH]" in en and "[높음]" not in en, "--lang en 은 영어만")
+        check("finding(s)" in en, "요약도 영어로")
+        _, envout, _ = run(d, env_extra={"ANDROID_AUDIT_LANG": "en"})
+        check("[HIGH]" in envout, "ANDROID_AUDIT_LANG 로도 전환")
+        _, locout, _ = run(d, env_extra={"LANG": "en_US.UTF-8"})
+        check("[HIGH]" in locout, "LANG 로케일을 따름")
+        _, koloc, _ = run(d, env_extra={"LANG": "ko_KR.UTF-8"})
+        check("[높음]" in koloc, "ko 로케일이면 한국어")
+        rc, _, err = run(d, "--lang", "fr")
+        check(rc == 2 and "unknown language" in err, "모르는 언어는 exit 2", f"exit={rc}")
+        leaked = [s for s in SECRETS if s in ko or s in en]
+        check(not leaked, "두 언어 모두 값을 출력하지 않음", f"유출={leaked}" if leaked else "")
 
         print("\n== 사용법")
         rc, _, _ = run(pathlib.Path(tmp) / "does-not-exist")

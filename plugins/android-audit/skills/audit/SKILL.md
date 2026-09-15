@@ -29,6 +29,15 @@ android-audit
 android-audit ~/work/my-app --history
 ```
 
+출력 언어는 로케일을 따릅니다(`LANG`, macOS는 시스템 로케일). 필요하면 지정합니다.
+
+```bash
+android-audit --lang en
+```
+
+`ANDROID_AUDIT_LANG=en`으로도 됩니다. **사용자가 쓰는 언어로 보고합니다** —
+영어로 대화 중이면 `--lang en`을 붙입니다.
+
 `android-audit: command not found`가 나오면 플러그인이 활성화되지 않은 것입니다.
 직접 검사하지 말고 그 사실을 사용자에게 알립니다.
 
