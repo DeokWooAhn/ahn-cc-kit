@@ -1,3 +1,6 @@
 .DS_Store
 *.log
 node_modules/
+
+# 설치 범위 local 로 플러그인을 넣으면 생긴다. 머신마다 다르므로 공유하지 않는다.
+.claude/settings.local.json
