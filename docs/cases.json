@@ -729,5 +729,6 @@
       ]
     }
   ],
-  "total": 95
+  "total": 95,
+  "auditSample": "android-audit — ~/work/my-app\n\n  [높음] 서명 관련 파일이 git에 추적되고 있습니다.\n         저장소를 읽을 수 있는 모두에게 노출됩니다. 파일을 지워도 히스토리에는 남으므로 키 회전이 필요합니다.\n         · app/release.jks\n\n  [높음] 서명 password가 문자열 리터럴로 들어 있습니다.\n         값은 출력하지 않습니다. 아래 위치를 직접 확인하고 System.getenv 등 간접 참조로 바꿉니다.\n         · app/build.gradle.kts:4,5\n\n  [중간] .gitignore에 서명 파일 규칙이 없습니다: local.properties, *.jks, *.keystore\n         지금 파일이 없어도 나중에 생기면 그대로 추적됩니다.\n\n  [중간] app/src/main/AndroidManifest.xml 에 android:allowBackup=\"true\" 이 있습니다.\n         빌드 타입·보안 요구사항과 맞는지 확인합니다.\n\n  히스토리는 검사하지 않았습니다. --history 로 포함합니다(느립니다).\n\n발견 4건 — 높음 2, 중간 2, 낮음 0\n이 도구는 고치지 않습니다. 커밋된 시크릿은 파일을 지워도 히스토리에 남으므로,\n지웠다고 해결된 것이 아닙니다. 노출된 키는 회전합니다."
 }

@@ -127,6 +127,13 @@ tr:last-child td{border-bottom:0}
 .cmd{font-family:"JetBrains Mono",monospace;font-size:13px;word-break:break-word}
 .ctx{display:block;color:var(--muted);font-size:12px;margin-top:4px;font-family:Inter,sans-serif}
 
+.term{background:#2b2721;border-radius:14px;padding:18px 20px;overflow-x:auto;
+  box-shadow:var(--glow);margin:0 0 6px}
+.term pre{background:none;border:0;padding:0;margin:0;color:#ded8cd;font-size:12.5px;line-height:1.85}
+.term .s-high{color:#f0938a;font-weight:700}
+.term .s-med{color:#e0b860;font-weight:700}
+.term .s-dim{color:#8d8579}
+.term .s-ok{color:#7fc7a0;font-weight:700}
 .note{border-left:3px solid var(--clay);background:var(--card);border-radius:0 14px 14px 0;
   padding:18px 22px;margin:24px 0;font-size:14.5px;box-shadow:var(--glow)}
 .note strong{color:var(--clay)}
@@ -153,6 +160,7 @@ footer a{color:var(--muted)}
     <a href="#plugins" data-i18n="nav.plugins">플러그인</a>
     <a href="#install" data-i18n="nav.install">설치 범위</a>
     <a href="#rules" data-i18n="nav.rules">무엇이 막히나</a>
+    <a href="#audit" data-i18n="nav.audit">이미 들어온 것</a>
     <a href="#optout" data-i18n="nav.optout">끄는 법</a>
   </nav>
   <button class="btn" id="lang" type="button">EN</button>
@@ -265,6 +273,20 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
   <div id="hooks"></div>
 </section>
 
+<section id="audit" class="rise">
+  <p class="eyebrow" data-i18n="eyebrow.audit">감사</p>
+  <h2 data-i18n="audit.title">이미 들어온 것</h2>
+  <p class="sub" data-i18n="audit.sub">훅은 에이전트가 <strong>하려는 행동</strong>만 봅니다. 훅을 설치하기 전에 들어간 것, 사람이 직접 넣은 것, <code>git add .</code>로 딸려 들어간 것은 아무도 보지 않습니다. <code>android-audit</code>이 그 빈틈을 맡습니다.</p>
+
+<pre>android-audit              <span class="c"><span data-i18n="audit.c1">발견 없으면 0, 있으면 1 — CI에 그대로</span></span>
+android-audit ~/work/app --history</pre>
+
+  <div class="term"><pre id="audit-sample"></pre></div>
+
+  <div class="note"><strong data-i18n="audit.note.h">값을 출력하지 않고, 고치지 않습니다.</strong>
+    <span data-i18n="audit.note.b">파일과 줄 번호만 보고합니다. 감사 결과가 새 유출 경로가 되면 안 됩니다. <code>--fix</code>도 없습니다 — 커밋된 시크릿은 파일을 지워도 히스토리에 남으므로, 자동으로 "정리했다"고 말하는 것이 가장 위험한 결과입니다. 노출된 키는 회전이 답이고, 히스토리 정리는 협업자 전원이 다시 클론해야 하는 일이라 사용자가 결정할 문제입니다.</span></div>
+</section>
+
 <section id="optout" class="rise">
   <p class="eyebrow" data-i18n="eyebrow.optout">제어</p>
   <h2 data-i18n="optout.title">끄는 법</h2>
@@ -314,7 +336,13 @@ const I18N = {
     "flow.c2":"Warn","flow.c2b":"runs, then tells you",
     "flow.c3":"Allow","flow.c3b":"proceeds untouched",
     "eyebrow.plugins":"What's inside","eyebrow.install":"Scope",
-    "eyebrow.rules":"Verdicts","eyebrow.optout":"Control",
+    "eyebrow.rules":"Verdicts","eyebrow.optout":"Control","eyebrow.audit":"Audit",
+    "nav.audit":"Already there",
+    "audit.title":"What is already there",
+    "audit.sub":"Hooks only see what the agent <strong>is about to do</strong>. Anything that landed before you installed them, anything a person committed by hand, anything swept in by <code>git add .</code> — nothing watches that. <code>android-audit</code> covers the gap.",
+    "audit.c1":"exit 0 when clean, 1 when it finds something — drop it into CI",
+    "audit.note.h":"It prints no values, and it fixes nothing.",
+    "audit.note.b":"Locations only, never the secret itself — an audit must not become a new leak. There is no <code>--fix</code> either: a committed secret survives in history after the file is gone, so calling it \"cleaned up\" is the most dangerous outcome. Exposed keys need rotating, and rewriting history forces every collaborator to re-clone, so that call belongs to you.",
     "ui.cases":" cases","ui.err":"Could not load cases.json."
   }
 };
@@ -364,6 +392,8 @@ function render(){
       <div class="scroll"><table>${body}</table></div>`;
     host.appendChild(d);
   }
+  renderAudit();
+
   const t = document.getElementById("optout-table");
   t.querySelectorAll("tr:not(:first-child)").forEach(r => r.remove());
   for(const g of DATA.groups){
@@ -372,6 +402,18 @@ function render(){
     t.appendChild(tr);
   }
 }
+function renderAudit(){
+  const el = document.getElementById("audit-sample");
+  if(!el || !DATA || !DATA.auditSample) return;
+  el.innerHTML = esc(DATA.auditSample)
+    .replace(/\[높음\]/g, '<span class="s-high">[높음]</span>')
+    .replace(/\[중간\]/g, '<span class="s-med">[중간]</span>')
+    .replace(/^(발견 \d+건.*)$/m, '<span class="s-high">$1</span>')
+    .replace(/^(발견 없음\.)$/m, '<span class="s-ok">$1</span>')
+    .replace(/^(\s{2}히스토리는.*)$/m, '<span class="s-dim">$1</span>')
+    .replace(/^(이 도구는 고치지[\s\S]*)$/m, '<span class="s-dim">$1</span>');
+}
+
 function esc(s){ return s.replace(/[&<>]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
 
 // 섹션이 화면에 들어올 때 한 번만 올라오게 합니다.

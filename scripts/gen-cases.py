@@ -8,6 +8,7 @@
 """
 
 import importlib.util
+import os
 import json
 import pathlib
 import sys
@@ -73,6 +74,52 @@ def collect(suites, plugin):
     return out
 
 
+def audit_sample():
+    """실제로 감사를 한 번 돌려서 출력을 그대로 가져옵니다.
+
+    사이트에 손으로 적어 두면 출력 형식을 바꿀 때 낡습니다. 시크릿이 심어진
+    저장소를 만들어 돌리고, 경로만 일반적인 이름으로 바꿉니다.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    tmp = tempfile.mkdtemp(prefix="audit-sample-")
+    d = pathlib.Path(tmp) / "my-app"
+    d.mkdir(parents=True)
+    q = {"cwd": d, "capture_output": True, "check": True}
+    subprocess.run(["git", "init", "-q", "-b", "main"], **q)
+    files = {
+        "settings.gradle.kts": 'rootProject.name = "my-app"\n',
+        "gradlew": "#!/bin/sh\n",
+        "app/build.gradle.kts": (
+            'android {\n  signingConfigs {\n    create("release") {\n'
+            '      storePassword = "REDACTED"\n      keyPassword = "REDACTED"\n'
+            "    }\n  }\n}\n"
+        ),
+        "app/release.jks": "binary\n",
+        "app/src/main/AndroidManifest.xml":
+            '<manifest><application android:allowBackup="true"/></manifest>\n',
+    }
+    for rel, body in files.items():
+        f = d / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(body)
+    subprocess.run(["git", "add", "-A"], **q)
+    try:
+        out = subprocess.run(
+            ["/bin/bash", str(ROOT / "plugins/android-audit/bin/android-audit"), str(d)],
+            capture_output=True, text=True,
+        ).stdout
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    # macOS 는 /var 를 /private/var 로 풉니다. 스크립트가 출력한 경로는 해석된 쪽이라
+    # 두 형태를 모두 바꿔야 합니다. 긴 것부터 바꿉니다.
+    for path in sorted({str(d), os.path.realpath(d)}, key=len, reverse=True):
+        out = out.replace(path, "~/work/my-app")
+    return out.rstrip()
+
+
 ag = load(ROOT / "plugins/android-guard/hooks/test_hooks.py")
 gg = load(ROOT / "plugins/git-guard/hooks/test_hooks.py")
 
@@ -81,5 +128,8 @@ data += collect(gg.build_suites("/repo-on-main", "/repo-on-feature"), "git-guard
 
 total = sum(len(g["cases"]) for g in data)
 out = ROOT / "docs/cases.json"
-out.write_text(json.dumps({"groups": data, "total": total}, ensure_ascii=False, indent=2) + "\n")
-print(f"{out.relative_to(ROOT)} — 훅 {len(data)}개, 케이스 {total}건")
+sample = audit_sample()
+out.write_text(json.dumps(
+    {"groups": data, "total": total, "auditSample": sample},
+    ensure_ascii=False, indent=2) + "\n")
+print(f"{out.relative_to(ROOT)} — 훅 {len(data)}개, 케이스 {total}건, 감사 샘플 {len(sample.splitlines())}줄")
