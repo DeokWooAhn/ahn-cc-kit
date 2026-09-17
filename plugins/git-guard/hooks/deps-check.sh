@@ -36,6 +36,8 @@ cat <<MSG
   Fedora  sudo dnf install jq
 
 설치한 뒤 세션을 다시 시작하면 됩니다.
-이 확인이 필요 없으면 $OPTOUT=1 로 끕니다.
+
+이 확인이 필요 없으면 $OPTOUT=1 을 Claude Code 프로세스의 환경에 둡니다.
+.claude/settings.json 의 env 에 넣거나, claude 를 띄우기 전에 export 합니다.
 MSG
 exit 0

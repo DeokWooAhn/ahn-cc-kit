@@ -38,7 +38,10 @@ cat >&2 <<'MSG'
   git push --force-with-lease origin <branch>
 
 refspec 앞의 + (예: origin +main) 도 같은 force다.
-정말로 무조건 덮어써야 한다면 사용자가 직접 실행하거나, 이 훅을 끕니다.
-  GIT_GUARD_DISABLE_FORCE_PUSH=1
+정말로 무조건 덮어써야 한다면 사용자가 직접 실행합니다.
+
+훅을 끄려면 GIT_GUARD_DISABLE_FORCE_PUSH=1 을 Claude Code 프로세스의 환경에 둡니다.
+훅은 자기 환경변수만 읽으므로 명령 앞에 붙이는 것(GIT_GUARD_...=1 git ...)으로는 꺼지지 않습니다.
+  .claude/settings.json 의 env 에 넣거나, claude 를 띄우기 전에 export 합니다.
 MSG
 exit 2

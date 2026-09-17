@@ -59,8 +59,11 @@ $1
 
 $2
 
-사용자가 명시적으로 요청한 작업이면 사용자가 직접 실행하거나, 이 훅을 끕니다.
-  GIT_GUARD_DISABLE_DESTRUCTIVE=1
+사용자가 명시적으로 요청한 작업이면 사용자가 직접 실행합니다.
+
+훅을 끄려면 GIT_GUARD_DISABLE_DESTRUCTIVE=1 을 Claude Code 프로세스의 환경에 둡니다.
+훅은 자기 환경변수만 읽으므로 명령 앞에 붙이는 것(GIT_GUARD_...=1 git ...)으로는 꺼지지 않습니다.
+  .claude/settings.json 의 env 에 넣거나, claude 를 띄우기 전에 export 합니다.
 MSG
   exit 2
 }
@@ -118,13 +121,17 @@ if git_find_sub "$COMMAND" restore; then
 fi
 
 if git_find_sub "$COMMAND" branch; then
+  # git은 -D 와 -d -f 와 -df 를 모두 같게 본다. -D 만 보면 나머지가 그대로 빠져나간다.
+  # -f 단독은 브랜치를 옮기는 것(git branch -f topic main)이라 삭제와 함께 있을 때만 잡는다.
   if has_short D ||
-    { has_arg --delete && { has_arg --force || has_short f; }; }; then
+    { { has_arg --delete || has_short d; } && { has_arg --force || has_short f; }; }; then
     block "git branch -D 는 병합되지 않은 브랜치도 지웁니다. 그 브랜치에만 있던 커밋은 reflog가 만료되면 사라집니다." \
 "먼저 안전한 삭제를 시도합니다. 병합되지 않았으면 git이 거절합니다.
   git branch -d <branch>
 정말 지워야 한다면 어디에도 없는 커밋이 있는지 확인합니다.
-  git log --oneline <branch> --not --remotes"
+  git log --oneline <branch> --not --remotes
+squash 머지된 브랜치는 SHA가 달라 -d 가 항상 거절합니다. 내용이 원격에 있는지로 판단합니다.
+  git diff origin/main <branch>          (비어 있으면 잃을 것이 없습니다)"
   fi
 fi
 

@@ -35,9 +35,12 @@ $1
   git switch -c <type>/<subject>
   git push -u origin <type>/<subject>
 
-의도한 것이라면 사용자가 직접 실행하거나, 이 훅을 끕니다.
-  GIT_GUARD_DISABLE_PROTECTED_BRANCH=1
-보호 목록을 바꾸려면 GIT_GUARD_PROTECTED_BRANCHES 를 쉼표로 구분해 설정합니다.
+의도한 것이라면 사용자가 직접 실행합니다.
+
+훅을 끄려면 GIT_GUARD_DISABLE_PROTECTED_BRANCH=1 을 Claude Code 프로세스의 환경에 둡니다.
+보호 목록만 바꾸려면 같은 자리에 GIT_GUARD_PROTECTED_BRANCHES 를 쉼표로 구분해 설정합니다.
+훅은 자기 환경변수만 읽으므로 명령 앞에 붙이는 것(GIT_GUARD_...=1 git ...)으로는 적용되지 않습니다.
+  .claude/settings.json 의 env 에 넣거나, claude 를 띄우기 전에 export 합니다.
 MSG
   exit 2
 }

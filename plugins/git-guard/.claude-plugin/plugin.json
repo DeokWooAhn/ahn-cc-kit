@@ -1,7 +1,7 @@
 {
   "name": "git-guard",
   "description": "보호 브랜치 직접 push, --force push, reset --hard·clean -fd 같은 되돌리기 어려운 git 명령을 막습니다.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "DeokWooAhn",
     "url": "https://github.com/DeokWooAhn"
