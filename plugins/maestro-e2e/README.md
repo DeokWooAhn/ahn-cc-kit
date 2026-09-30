@@ -20,6 +20,9 @@ claude plugin install maestro-e2e@ahn-cc-kit --scope project
   확인하고 사용자에게 보여 줍니다.
 - 두 플랫폼에 같은 id를 붙여 Flow 하나로 양쪽을 돌립니다.
 - 실기기가 있으면 실기기로 돌립니다. 스토어판 앱을 지워야 하면 먼저 묻습니다.
+- 도입할 때 프로젝트 CLAUDE.md에 **"화면 코드를 바꾼 작업은 마치기 전에 Maestro를 돌린다"** 규칙을 넣습니다.
+  스킬 설명만으로는 에이전트가 E2E를 떠올리지 않으면 돌지 않아서, 매 세션 읽히는 CLAUDE.md에 둡니다.
+  기기가 없으면 건너뛰고 건너뛰었다고 알립니다.
 - 실제로 CI를 멈추게 했던 원인(정규식 id, 권한 설정 때문의 APK 전송 멈춤, 데이터 삭제 직후 재실행 레이스,
   부팅 직후 에뮬레이터 부하)을 피하는 템플릿을 씁니다.
 
@@ -54,6 +57,7 @@ skills/setup/
     ├── maestro/                     config.yaml, subflows/launch_clean.yaml, flows/ 예시
     ├── github/e2e-jobs.yml          기존 워크플로에 붙일 job 두 개
     ├── scripts/                     emulator-settle.sh, maestro-smoke.sh
+    ├── claude-md-rule.md            프로젝트 CLAUDE.md에 넣을 "화면 작업 뒤 Maestro 실행" 규칙
     └── mcp.json                     Maestro MCP 등록
 skills/flows/
 ├── SKILL.md                         기기 선택, 실행, MCP 작성 절차, 작성 규칙, 실패 조사 순서
