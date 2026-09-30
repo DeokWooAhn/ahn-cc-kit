@@ -13,7 +13,7 @@
       "name": "android-review",
       "source": "android-review",
       "description": "Compose 기반 Android/Kotlin 코드 리뷰 기준. 정확성·회귀 위험·자원 수명을 중심으로 변경분을 봅니다.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "DeokWooAhn"
       },
