@@ -454,6 +454,48 @@
           "branch": "feature/x"
         },
         {
+          "cmd": "git push",
+          "verdict": "block",
+          "note": "인자 없음 · upstream이 main",
+          "env": "",
+          "branch": "feature/y → origin/main"
+        },
+        {
+          "cmd": "git push origin",
+          "verdict": "block",
+          "note": "remote만 · upstream이 main",
+          "env": "",
+          "branch": "feature/y → origin/main"
+        },
+        {
+          "cmd": "git status\ngit push origin main",
+          "verdict": "block",
+          "note": "줄바꿈 뒤 push",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "cd app; git push origin main",
+          "verdict": "block",
+          "note": "; 뒤 push",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git commit -F - <<'EOF'\ngit push origin main 은 금지\nEOF",
+          "verdict": "pass",
+          "note": "heredoc 본문 오탐",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git commit -m \"첫 줄\ngit push origin main 은 금지\"",
+          "verdict": "pass",
+          "note": "여러 줄 메시지 오탐",
+          "env": "",
+          "branch": ""
+        },
+        {
           "cmd": "git push origin main",
           "verdict": "pass",
           "note": "보호목록 변경 시 통과",
@@ -536,6 +578,27 @@
           "note": "인자 없는 push",
           "env": "",
           "branch": "feature/x"
+        },
+        {
+          "cmd": "echo done\ngit push --force origin feature/x",
+          "verdict": "block",
+          "note": "줄바꿈 뒤 --force",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push \\\n  --force origin feature/x",
+          "verdict": "block",
+          "note": "줄 이어쓰기 --force",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git push origin feature/x && git fetch --force",
+          "verdict": "pass",
+          "note": "다른 명령의 --force 오탐",
+          "env": "",
+          "branch": ""
         }
       ]
     },
@@ -657,9 +720,37 @@
           "branch": ""
         },
         {
+          "cmd": "git branch -d -f old",
+          "verdict": "block",
+          "note": "branch -d -f",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git branch -df old",
+          "verdict": "block",
+          "note": "branch -df",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git branch --delete --force old",
+          "verdict": "block",
+          "note": "branch --delete --force",
+          "env": "",
+          "branch": ""
+        },
+        {
           "cmd": "git branch -d old",
           "verdict": "pass",
           "note": "branch -d",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git branch -f topic main",
+          "verdict": "pass",
+          "note": "branch -f (삭제 아님)",
           "env": "",
           "branch": ""
         },
@@ -725,10 +816,52 @@
           "note": "커밋 메시지 오탐",
           "env": "",
           "branch": ""
+        },
+        {
+          "cmd": "git clean -nd && git clean -fd",
+          "verdict": "block",
+          "note": "clean -nd && clean -fd",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git status\ngit reset --hard HEAD~1",
+          "verdict": "block",
+          "note": "줄바꿈 뒤 reset --hard",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "(cd app && git reset --hard)",
+          "verdict": "block",
+          "note": "subshell 안 reset --hard",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git checkout feature/x && rm -f tmp.log",
+          "verdict": "pass",
+          "note": "다른 명령의 -f 오탐",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git commit -F - <<'EOF'\n주의: git reset --hard 금지\nEOF",
+          "verdict": "pass",
+          "note": "heredoc 본문 오탐",
+          "env": "",
+          "branch": ""
+        },
+        {
+          "cmd": "git commit -m \"첫 줄\ngit clean -fd 는 쓰지 말 것\"",
+          "verdict": "pass",
+          "note": "여러 줄 메시지 오탐",
+          "env": "",
+          "branch": ""
         }
       ]
     }
   ],
-  "total": 95,
+  "total": 114,
   "auditSample": "android-audit — ~/work/my-app\n\n  [높음] 서명 관련 파일이 git에 추적되고 있습니다.\n         저장소를 읽을 수 있는 모두에게 노출됩니다. 파일을 지워도 히스토리에는 남으므로 키 회전이 필요합니다.\n         · app/release.jks\n\n  [높음] 서명 password가 문자열 리터럴로 들어 있습니다.\n         값은 출력하지 않습니다. 아래 위치를 직접 확인하고 System.getenv 등 간접 참조로 바꿉니다.\n         · app/build.gradle.kts:4,5\n\n  [중간] .gitignore에 서명 파일 규칙이 없습니다: local.properties, *.jks, *.keystore\n         지금 파일이 없어도 나중에 생기면 그대로 추적됩니다.\n\n  [중간] app/src/main/AndroidManifest.xml에 android:allowBackup=\"true\" 이 있습니다.\n         빌드 타입·보안 요구사항과 맞는지 확인합니다.\n\n  히스토리는 검사하지 않았습니다. --history 로 포함합니다(느립니다).\n\n발견 4건 — 높음 2, 중간 2, 낮음 0\n이 도구는 고치지 않습니다. 커밋된 시크릿은 파일을 지워도 히스토리에 남으므로,\n지웠다고 해결된 것이 아닙니다. 노출된 키는 회전합니다."
 }

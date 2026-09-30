@@ -50,6 +50,14 @@ def env_note(env):
     return ", ".join(sorted(keys)) if keys else ""
 
 
+# git-guard 테스트가 인자 없는 push 판정에 쓰는 저장소 자리. 경로 대신 어떤 브랜치 위인지 보여 줍니다.
+BRANCH_OF = {
+    "/repo-on-main": "main",
+    "/repo-on-feature": "feature/x",
+    "/repo-upstream-main": "feature/y → origin/main",
+}
+
+
 def collect(suites, plugin):
     out = []
     for hook, optout, cases in suites:
@@ -59,9 +67,7 @@ def collect(suites, plugin):
             env = case[3] if len(case) > 3 else {}
             # 인자 없는 git push 는 현재 브랜치로 판정이 갈립니다. 그 조건을 보여 줍니다.
             cwd = case[4] if len(case) > 4 else None
-            branch = ""
-            if cwd:
-                branch = "main" if cwd.endswith("main") else "feature/x"
+            branch = BRANCH_OF.get(cwd, "") if cwd else ""
             rows.append({
                 "cmd": display(payload),
                 "verdict": want,
@@ -124,7 +130,7 @@ ag = load(ROOT / "plugins/android-guard/hooks/test_hooks.py")
 gg = load(ROOT / "plugins/git-guard/hooks/test_hooks.py")
 
 data = collect(ag.SUITES, "android-guard")
-data += collect(gg.build_suites("/repo-on-main", "/repo-on-feature"), "git-guard")
+data += collect(gg.build_suites("/repo-on-main", "/repo-on-feature", "/repo-upstream-main"), "git-guard")
 
 total = sum(len(g["cases"]) for g in data)
 out = ROOT / "docs/cases.json"

@@ -18,15 +18,20 @@ COMMAND=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.command // empty' 2>/de
 # shellcheck source=_git_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_git_lib.sh"
 
-git_find_sub "$COMMAND" push || exit 0
-git_parse_push
+# 명령마다 따로 본다. 한 줄에 합쳐 보면 뒤 명령의 --force(예: git fetch --force)가 push에 섞이고,
+# 줄바꿈 뒤의 push는 아예 보지 못한다.
+git_split_commands "$COMMAND"
 
 FORCED=0
-((PUSH_FORCE)) && FORCED=1
-# refspec 앞의 + 도 force다.
-# bash 3.2는 set -u 아래에서 빈 배열의 "${a[@]}" 를 unbound로 본다. + 가드를 쓴다.
-for ref in ${PUSH_REFS[@]+"${PUSH_REFS[@]}"}; do
-  [[ "$ref" == +* ]] && FORCED=1
+for ((s = 0; s < ${#GIT_SEGMENTS[@]}; s++)); do
+  git_find_sub "${GIT_SEGMENTS[s]}" push || continue
+  git_parse_push
+  ((PUSH_FORCE)) && FORCED=1
+  # refspec 앞의 + 도 force다.
+  # bash 3.2는 set -u 아래에서 빈 배열의 "${a[@]}" 를 unbound로 본다. + 가드를 쓴다.
+  for ref in ${PUSH_REFS[@]+"${PUSH_REFS[@]}"}; do
+    [[ "$ref" == +* ]] && FORCED=1
+  done
 done
 ((FORCED)) || exit 0
 
