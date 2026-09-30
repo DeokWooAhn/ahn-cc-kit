@@ -11,7 +11,8 @@ plugins/<name>/
 ├── README.md
 └── skills/<skill>/
     ├── SKILL.md
-    └── references/                 필요할 때만 읽히는 상세 문서
+    ├── references/                 필요할 때만 읽히는 상세 문서
+    └── templates/                  사용자 저장소에 복사해 쓰는 파일 (있을 때만)
 ```
 
 `skills/`, `hooks/`, `agents/`는 **플러그인 루트**에 둡니다. `.claude-plugin/` 안에는

@@ -1,0 +1,11 @@
+# 예시. 서버 없이 뜨는 첫 화면 요소만 확인한다. id를 프로젝트에 맞게 바꾼다.
+appId: ${APP_ID}
+name: 앱이 뜨고 하단 탭이 보인다
+tags:
+  - smoke
+---
+- runFlow: ../subflows/launch_clean.yaml
+- assertVisible:
+    id: "tab.home"
+- assertVisible:
+    id: "tab.settings"
