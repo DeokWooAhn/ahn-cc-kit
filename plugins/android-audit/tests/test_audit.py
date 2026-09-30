@@ -17,7 +17,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 AUDIT = HERE.parent / "bin" / "android-audit"
 BASH = "/bin/bash"
 
-SECRETS = ["SuperSecret_DoNotLeak_123", "AnotherSecret_456", "PlainTextPassword_789"]
+SECRETS = ["SuperSecret_DoNotLeak_123", "AnotherSecret_456", "PlainTextPassword_789",
+           "StorePassConvention_012", "CommentDollar_345"]
 
 
 def repo(files, tmp, name):
@@ -61,19 +62,34 @@ DIRTY = {
         f'      storePassword = "{SECRETS[0]}"\n      keyPassword = "{SECRETS[1]}"\n'
         "    }\n  }\n}\n"
     ),
-    "gradle.properties": f"RELEASE_KEYSTORE_PASSWORD={SECRETS[2]}\n",
+    "gradle.properties": f"RELEASE_KEYSTORE_PASSWORD={SECRETS[2]}\nRELEASE_STORE_PASSWORD={SECRETS[3]}\n",
+    # 주석에 $ 가 있어도 앞의 리터럴은 리터럴이다. 예전에는 줄 전체의 $ 를 보고 건너뛰었다.
+    "app/signing.gradle.kts": f'storePassword = "{SECRETS[4]}" // ${{docs}} 참고\n',
     "app/release.jks": "binary\n",
     "app/src/main/AndroidManifest.xml": '<manifest><application android:allowBackup="true"/></manifest>\n',
 }
 
 CLEAN = {
     **GRADLE_MIN,
-    "app/build.gradle.kts": 'storePassword = System.getenv("RELEASE_STORE_PASSWORD")\n',
+    "app/build.gradle.kts": (
+        'storePassword = System.getenv("RELEASE_STORE_PASSWORD")\n'
+        'keyPassword = props["RELEASE_KEY_PASSWORD"] as String\n'
+    ),
+    "gradle.properties": "# RELEASE_STORE_PASSWORD=example\nRELEASE_KEY_PASSWORD=${ENV}\norg.gradle.jvmargs=-Xmx2g\n",
     ".gitignore": "local.properties\n*.jks\n*.keystore\n",
     "app/src/main/AndroidManifest.xml": "<manifest><application/></manifest>\n",
 }
 
 NOT_GRADLE = {"README.md": "# just a repo\n", "index.js": "console.log(1)\n"}
+
+
+def rule_block(text):
+    """공용 판정 블록의 본문. 머리의 세 줄(서로 상대 파일을 가리키는 주석)은 뺍니다."""
+    start, end = "# --- 서명 password 리터럴 판정", "# --- 판정 끝"
+    if start not in text or end not in text:
+        return None
+    body = text[text.index(start):text.index(end)]
+    return "\n".join(body.splitlines()[3:])
 
 
 def big_repo(tmp):
@@ -116,7 +132,8 @@ def main():
               "Gradle 프로젝트로 인식", "← grep -q + pipefail 회귀 지점")
         check("app/release.jks" in out, "추적 중인 키스토어를 찾음")
         check("app/build.gradle.kts:4,5" in out, "리터럴 위치를 줄 번호까지 보고")
-        check("gradle.properties:1" in out, "properties 리터럴도 보고")
+        check("gradle.properties:1,2" in out, "properties 리터럴도 보고 (STORE_PASSWORD 관례 포함)")
+        check("app/signing.gradle.kts:1" in out, "주석의 $ 때문에 리터럴을 건너뛰지 않음")
         check("allowBackup" in out, "Manifest 노출 설정 보고")
         leaked = [s for s in SECRETS if s in out or s in err]
         check(not leaked, "시크릿 값을 출력하지 않음", f"유출={leaked}" if leaked else "")
@@ -157,6 +174,15 @@ def main():
         check(rc == 2 and "unknown language" in err, "모르는 언어는 exit 2", f"exit={rc}")
         leaked = [s for s in SECRETS if s in ko or s in en]
         check(not leaked, "두 언어 모두 값을 출력하지 않음", f"유출={leaked}" if leaked else "")
+
+        print("\n== 훅과 같은 판정 규칙")
+        hook = HERE.parent.parent / "android-guard" / "hooks" / "signing-literal-guard.sh"
+        if hook.exists():
+            a, b = rule_block(hook.read_text()), rule_block(AUDIT.read_text())
+            check(a is not None and a == b, "signing-literal 판정 블록이 android-guard 훅과 같음",
+                  "" if a == b else "← 한쪽만 고쳤습니다")
+        else:
+            print("  skip android-guard 가 없는 체크아웃")
 
         print("\n== 사용법")
         rc, _, _ = run(pathlib.Path(tmp) / "does-not-exist")

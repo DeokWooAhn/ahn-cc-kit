@@ -35,7 +35,9 @@ NEW=$(printf '%s' "$HOOK_INPUT" | jq -r '
     (.tool_input.content // empty),
     ((.tool_input.edits // []) | map(.new_string // empty) | join("\n"))
   ] | join("\n")' 2>/dev/null || true)
-[[ -n "${NEW//[[:space:]]/}" ]] || exit 0
+# 내용이 공백뿐이면 볼 것이 없다. ${NEW//[[:space:]]/} 로 지워서 확인하면 bash가 내용 길이에 대해
+# 제곱 이상으로 느려진다(4000줄에 100초 넘게). glob 매칭은 선형이다.
+[[ "$NEW" == *[![:space:]]* ]] || exit 0
 
 # Gradle properties는 URL의 콜론을 \: 로 이스케이프한다. 판정 전에 백슬래시를 걷어낸다.
 while IFS= read -r line; do

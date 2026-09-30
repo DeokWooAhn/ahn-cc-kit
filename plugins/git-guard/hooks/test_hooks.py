@@ -16,6 +16,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -165,6 +166,13 @@ def build_suites(on_main, on_feature, on_upstream_main):
 
 HUGE = json.dumps({"tool_name": "Bash", "tool_input": {"command": "echo " + "x" * 200_000}})
 
+# 판정을 켠 채로 넣는 큰 명령. 명령 조각 나누기와 따옴표 제거가 긴 줄에서 제곱으로 느려지지 않는지 본다.
+LARGE_LIMIT_S = 3.0
+LARGE = [
+    ("큰 명령 · 따옴표 없음", cmd("echo " + "x" * 200_000 + " && git push origin feature/x")),
+    ("큰 명령 · 따옴표 안", cmd('git commit -m "' + "x" * 200_000 + '" && git push origin feature/x')),
+]
+
 
 
 def check_deps_hook(prefix):
@@ -222,6 +230,14 @@ def main():
             ok = writer_rc == 0 and rc == 0
             failures += not ok
             print(f"  {'ok  ' if ok else 'FAIL'} {'200KB 파이프 소진':<24} writer={writer_rc} hook={rc} (want 0/0)")
+
+            for label, body in LARGE:
+                started = time.time()
+                run(hook, body, {}, on_feature)
+                elapsed = time.time() - started
+                ok = elapsed < LARGE_LIMIT_S
+                failures += not ok
+                print(f"  {'ok  ' if ok else 'FAIL'} {label:<24} {elapsed:.2f}s (want < {LARGE_LIMIT_S:.0f}s)")
 
         failures += check_deps_hook('GIT_GUARD')
 

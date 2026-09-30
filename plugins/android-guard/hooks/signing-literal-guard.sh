@@ -34,26 +34,67 @@ NEW=$(printf '%s' "$HOOK_INPUT" | jq -r '
     (.tool_input.content // empty),
     ((.tool_input.edits // []) | map(.new_string // empty) | join("\n"))
   ] | join("\n")' 2>/dev/null || true)
-[[ -n "${NEW//[[:space:]]/}" ]] || exit 0
+# 내용이 공백뿐이면 볼 것이 없다. ${NEW//[[:space:]]/} 로 지워서 확인하면 bash가 내용 길이에 대해
+# 제곱 이상으로 느려진다(4000줄에 100초 넘게). glob 매칭은 선형이다.
+[[ "$NEW" == *[![:space:]]* ]] || exit 0
 
-# Groovy/KTS: 키워드 뒤에 바로 따옴표가 오면 리터럴이다.
-GRADLE_RE='(storePassword|keyPassword)[[:space:]]*(=)?[[:space:]]*("|'\'')'
-# .properties: 키 이름이 password로 끝나고 값이 비어 있지 않으면 리터럴이다.
-PROPS_RE='(^|[[:space:]])[A-Za-z0-9_.]*(storePassword|keyPassword|KEYSTORE_PASSWORD|KEY_PASSWORD)[[:space:]]*=[[:space:]]*[^[:space:]]'
+# --- 서명 password 리터럴 판정 ---------------------------------------------------------------
+# android-audit/bin/android-audit 에 같은 블록이 있다. 두 플러그인은 따로 설치되므로 파일을 같이 쓸 수 없다.
+# 한쪽을 고치면 다른 쪽도 똑같이 고친다. android-audit 테스트가 두 블록이 같은지 확인한다.
+
+# 서명 password를 담는 키 이름. store·key·keystore·signing 뒤에 pass(word)가 온다. 대소문자는 가리지 않는다.
+# 예: storePassword, keyPassword, KEYSTORE_PASSWORD, RELEASE_STORE_PASSWORD, ANDROID_STORE_PASS, signing.password
+SIGNING_KEY_RE='(store|key|keystore|signing)[_.-]?pass(word)?'
+
+# Gradle(Groovy·KTS) 한 줄이 서명 password에 문자열 리터럴을 넣는가.
+#   storePassword = "x"   keyPassword 'x'   val releaseStorePassword = "x"
+# 키 이름 앞이 따옴표·$·{ 이면 변수가 아니라 문자열 안의 글자다(getenv("RELEASE_STORE_PASSWORD"),
+# props["storePassword"], "$storePassword"). 보간은 키 바로 뒤 큰따옴표 값 안의 $만 인정한다.
+# 주석에 $가 있어도 상관없다. Groovy 작은따옴표는 보간하지 않으므로 $가 있어도 리터럴이다.
+signing_literal_in_gradle() {
+  local line="$1" re q lit rc=1 was=0
+  re="(^|[^A-Za-z0-9_\"'\$\{])[A-Za-z0-9_.]*${SIGNING_KEY_RE}[[:space:]]*(=[[:space:]]*|[[:space:]]+)([\"'])(.*)"
+  # $(shopt -p) 로 저장하면 줄마다 서브셸이 뜬다. 긴 파일에서 눈에 띄게 느려진다.
+  shopt -q nocasematch && was=1
+  shopt -s nocasematch
+  if [[ "$line" =~ $re ]]; then
+    q="${BASH_REMATCH[5]}"
+    lit="${BASH_REMATCH[6]}"
+    lit="${lit%%"$q"*}"
+    rc=0
+    [[ -z "$lit" ]] && rc=1
+    [[ "$q" == '"' && "$lit" == *'$'* ]] && rc=1
+  fi
+  ((was)) || shopt -u nocasematch
+  return "$rc"
+}
+
+# .properties 한 줄이 서명 password에 값을 넣는가. 구분자는 = 와 : 둘 다다.
+# 주석 줄(# !)과 빈 값, ${...} 자리표시자로 시작하는 값은 리터럴이 아니다.
+signing_literal_in_properties() {
+  local line="$1" re val rc=1 was=0
+  [[ "$line" =~ ^[[:space:]]*[#!] ]] && return 1
+  re="^[[:space:]]*[A-Za-z0-9_.-]*${SIGNING_KEY_RE}[[:space:]]*[=:][[:space:]]*([^[:space:]].*)$"
+  # $(shopt -p) 로 저장하면 줄마다 서브셸이 뜬다. 긴 파일에서 눈에 띄게 느려진다.
+  shopt -q nocasematch && was=1
+  shopt -s nocasematch
+  if [[ "$line" =~ $re ]]; then
+    val="${BASH_REMATCH[3]}"
+    rc=0
+    [[ "$val" == '$'* ]] && rc=1
+  fi
+  ((was)) || shopt -u nocasematch
+  return "$rc"
+}
+# --- 판정 끝 ---------------------------------------------------------------------------------
 
 while IFS= read -r line; do
-  case "$line" in
-    *storePassword* | *keyPassword* | *KEYSTORE_PASSWORD* | *KEY_PASSWORD*) ;;
-    *) continue ;;
-  esac
-
+  # 키 이름에는 반드시 pass 가 들어간다. 없는 줄은 정규식까지 가지 않는다.
+  case "$line" in *[Pp][Aa][Ss][Ss]*) ;; *) continue ;; esac
   if [[ "$KIND" == "gradle" ]]; then
-    [[ "$line" =~ $GRADLE_RE ]] || continue
-    # "${System.getenv("X")}" 같은 보간 문자열은 리터럴이 아니다.
-    [[ "$line" == *'$'* ]] && continue
+    signing_literal_in_gradle "$line" || continue
   else
-    [[ "$line" =~ $PROPS_RE ]] || continue
-    [[ "$line" == *'$'* ]] && continue
+    signing_literal_in_properties "$line" || continue
   fi
 
   cat >&2 <<'MSG'

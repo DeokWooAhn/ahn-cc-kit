@@ -94,12 +94,33 @@ ANDROID_GUARD_SIGNING_KEYS="MY_SIGN_KEY|MY_SIGN_PASS"
 
 ### signing-literal-guard
 
-`storePassword`/`keyPassword` 뒤에 **바로 따옴표**가 오면 리터럴로 봅니다.
-`System.getenv(...)`, `providers.environmentVariable(...)`, `findProperty(...)` 같은 간접
-참조는 따옴표가 그 위치에 오지 않으므로 판정식에서 자연히 빠집니다. `$` 보간 문자열도 통과시킵니다.
+**키 이름**: `store`·`key`·`keystore`·`signing` 뒤에 `pass`나 `password`가 오는 이름을 대소문자 없이 봅니다.
+`storePassword`, `keyPassword`, `KEYSTORE_PASSWORD`, `RELEASE_STORE_PASSWORD`, `ANDROID_STORE_PASS`가 모두 해당합니다.
+
+**Gradle**(Groovy·KTS): 그 이름 뒤에 **바로 문자열**이 오면 리터럴로 봅니다(`storePassword = "x"`,
+`keyPassword 'x'`, `val releaseStorePassword = "x"`).
+- `System.getenv(...)`, `providers.environmentVariable(...)`, `findProperty(...)` 같은 간접 참조는 그 자리에
+  문자열이 오지 않으므로 빠집니다.
+- 이름이 따옴표 안에 있으면 변수가 아니라 문자열의 글자라 보지 않습니다. `getenv("RELEASE_STORE_PASSWORD")`,
+  `keystoreProperties['storePassword']`(Android 문서의 Groovy 서명 설정)가 여기에 해당합니다.
+- `$` 보간은 **그 문자열 값 안의** `$`만 봅니다. 주석의 `${docs}`는 판정에 영향을 주지 않습니다.
+  Groovy 작은따옴표는 보간하지 않으므로 `'pa$$word'`는 리터럴입니다.
+
+**.properties**: 그 이름에 비어 있지 않은 값을 넣으면(`=`, `:` 둘 다) 리터럴로 봅니다. 주석 줄(`#`, `!`)과
+`${...}`로 시작하는 자리표시자는 빠집니다.
+
+같은 판정 블록이 `android-audit`에도 있습니다. 두 플러그인은 따로 설치되므로 파일을 같이 쓸 수 없어서 복사해 두고,
+`android-audit` 테스트가 두 블록이 같은지 확인합니다.
 
 cc-agents-kit의 `staged-secret-guard`는 커밋 시점을 잡고, 이 훅은 쓰는 순간을 잡습니다.
 층이 달라 겹치지 않습니다.
+
+### manifest-risk-check
+
+`exported="true"`는 **컴포넌트 요소마다** 봅니다(`activity`, `activity-alias`, `service`, `receiver`, `provider`).
+LAUNCHER intent-filter를 가진 Activity의 exported는 필수라 **그 Activity만** 제외합니다. 같은 편집에 런처
+Activity와 exported Service가 함께 들어가도 Service는 알립니다. 요소 없이 속성 조각만 편집한 경우는 어느 요소인지
+알 수 없으므로, 그 조각에 LAUNCHER가 없을 때 알립니다.
 
 ## 넣지 않기로 한 것
 

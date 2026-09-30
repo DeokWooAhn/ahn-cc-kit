@@ -50,7 +50,7 @@ CI에 그대로 걸 수 있습니다.
 | 항목 | 등급 |
 | --- | --- |
 | 추적 중인 `local.properties`·`*.jks`·Play 서비스 계정 JSON | 높음 |
-| Gradle·properties의 평문 `storePassword`·`keyPassword` | 높음 |
+| Gradle·properties의 평문 서명 password (`storePassword`, `RELEASE_STORE_PASSWORD` 등. 판정 규칙은 android-guard의 `signing-literal-guard`와 같음) | 높음 |
 | 히스토리에 추가된 적 있는 서명 파일 (`--history`) | 높음 |
 | `.gitignore`에 서명 파일 규칙 누락 | 중간 |
 | gradle.org가 아닌 곳에서 받는 Gradle 배포본 | 중간 |
