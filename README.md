@@ -2,7 +2,7 @@
 
 **Android 프로젝트를 위한** Claude Code 플러그인 마켓플레이스. 플러그인 하나는 문제 하나만 다룹니다.
 
-넷 중 셋은 Android·Gradle을 전제합니다. `git-guard`만 플랫폼과 무관합니다 —
+다섯 중 넷은 Android를 전제합니다. `git-guard`만 플랫폼과 무관합니다 —
 Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
 
 | 플러그인 | 전제 | 이런 저장소에서 |
@@ -11,6 +11,7 @@ Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 �
 | `android-guard` | Android · Gradle | Gradle 프로젝트가 아니면 걸릴 일이 거의 없습니다 |
 | `android-audit` | Android · Gradle | Gradle이 아니면 추적 파일만 보고 나머지는 건너뜁니다 |
 | `git-guard` | **없음** | 어느 언어·플랫폼이든 동작합니다 |
+| `maestro-e2e` | Android · Maestro CLI | Compose·XML View 둘 다 다룹니다. CI 템플릿은 GitHub Actions용입니다 |
 
 **iOS·웹·서버는 다루지 않습니다.** iOS 프로젝트에서 `android-guard`를 켜 두면 조용히
 있을 뿐 `.p12`나 provisioning profile을 지켜주지는 않습니다.
@@ -40,6 +41,10 @@ claude plugin install git-guard@ahn-cc-kit
 claude plugin install android-audit@ahn-cc-kit
 ```
 
+```bash
+claude plugin install maestro-e2e@ahn-cc-kit
+```
+
 ## 플러그인
 
 | 플러그인 | 내용 | 상태 |
@@ -48,6 +53,7 @@ claude plugin install android-audit@ahn-cc-kit
 | `android-guard` | Gradle·서명·Manifest 사고 방지 훅 (차단 4 + 경고 2) | stable |
 | `git-guard` | 보호 브랜치·force push·파괴적 git 차단 (차단 3) | stable |
 | `android-audit` | 이미 들어와 있는 시크릿·설정 문제 감사 | stable |
+| `maestro-e2e` | Maestro E2E 도입 절차와 Flow 작성·실행 규칙 | draft |
 
 ### android-review
 
@@ -83,6 +89,17 @@ python3 plugins/android-guard/hooks/test_hooks.py
 ```bash
 python3 plugins/git-guard/hooks/test_hooks.py
 ```
+
+### maestro-e2e
+
+Android 앱에 Maestro E2E를 도입할 때("마에스트로 도입해줘")와 Flow를 쓰고 돌릴 때("마에스트로 돌려줘")
+불립니다. 도입은 4단계로 나눠 단계마다 PR을 냅니다. 테스트 id와 테스트 모드 → Flow와 MCP →
+CI smoke → 릴리스 관문 순서입니다.
+
+실제로 CI를 멈추게 했던 원인을 피하는 템플릿(공통 실행 subflow, 에뮬레이터 안정화 스크립트, CI job)이
+들어 있습니다. 정규식 id, 권한 기본값 때문의 APK 전송 멈춤, 데이터 삭제 직후 재실행 레이스 같은 것들입니다.
+GitLab CI는 문서만 있고 검증하지 않았습니다. 자세한 내용은
+[plugins/maestro-e2e/README.md](plugins/maestro-e2e/README.md)에 있습니다.
 
 ## 원하는 프로젝트에서만 켜기
 

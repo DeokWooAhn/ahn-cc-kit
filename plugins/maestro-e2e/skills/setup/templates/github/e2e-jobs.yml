@@ -1,0 +1,152 @@
+# 기존 Android 워크플로의 `jobs:` 아래에 붙여 넣는 조각이다. 단독 워크플로가 아니다.
+#
+# 가정:
+# - `build` job이 debug APK를 `debug-apk` 이름의 artifact로 올린다(경로: app/build/outputs/apk/debug/*.apk).
+# - 저장소에 `.github/scripts/emulator-settle.sh`, `.github/scripts/maestro-smoke.sh`가 있다(템플릿 scripts/).
+#
+# 바꿀 곳: APP_ID, E2E_SKIP_PATHS.
+
+  # 앱 동작과 무관한 파일만 바꾼 PR에서는 에뮬레이터를 띄우지 않는다. build와 동시에 돌아 시간을 늘리지 않는다.
+  # PR이 아닌 실행(기본 브랜치 푸시, 태그, 수동 실행)은 항상 E2E를 돌린다.
+  e2e_changes:
+    name: Decide whether to run E2E
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    env:
+      # 이 정규식에 걸리는 파일만 바뀌었으면 건너뛴다. 목록에 없는 경로는 돌리는 쪽이 기본이다.
+      E2E_SKIP_PATHS: '^(docs/|\.claude/|.*\.md$)'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check changed files
+        id: check
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "$BASE_SHA"...HEAD)
+          echo "Changed files:"
+          printf '%s\n' "$CHANGED"
+
+          RELEVANT=$(printf '%s\n' "$CHANGED" | grep -vE "$E2E_SKIP_PATHS" || true)
+          if [ -n "$RELEVANT" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No app-related changes; skipping E2E."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  e2e_smoke:
+    name: Maestro smoke test
+    needs: [build, e2e_changes]
+    if: ${{ needs.e2e_changes.outputs.run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # 버전을 고정하지 않으면 Maestro 새 릴리스의 동작 변화로 코드 변경 없이 CI가 깨진다.
+      # 설치 스크립트가 이 환경 변수를 읽는다.
+      MAESTRO_VERSION: 2.1.0
+      API_LEVEL: 34
+      # 기본값(2코어, RAM 2.5GB)에서는 google_apis 이미지가 부팅 후 작업만으로 여유가 없다.
+      # ubuntu-latest 러너는 4 vCPU / 16GB다. 바꾸면 스냅샷과 맞지 않으니 AVD_CACHE_VERSION도 올린다.
+      EMULATOR_CORES: 4
+      EMULATOR_RAM_SIZE: 4096M
+      # AVD 생성 옵션이나 스냅샷 만드는 방법을 바꾸면 올린다. 캐시 키에 들어가 스냅샷을 새로 만든다.
+      AVD_CACHE_VERSION: 1
+      APP_ID: com.example.app
+      # 서버가 필요 없는 Flow만 돌린다. release 태그는 릴리스 전에 실기기에서 돌린다.
+      MAESTRO_TAGS: smoke
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Maestro CLI가 JVM으로 돈다.
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # ubuntu 러너는 KVM을 지원하지만 기본으로는 일반 사용자에게 열려 있지 않다.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Download debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: debug-apk
+          path: artifacts
+
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Restore AVD cache
+        id: avd-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ env.API_LEVEL }}-google_apis-x86_64-v${{ env.AVD_CACHE_VERSION }}
+
+      # 캐시가 없을 때만 AVD를 만들고 부팅 스냅샷을 남긴다. 부팅 직후 바로 찍으면 밀린 작업(GMS 초기화,
+      # dexopt)까지 스냅샷에 담겨 매 실행마다 되풀이되므로, 에뮬레이터가 조용해진 뒤에 종료해 저장한다.
+      - name: Create AVD and generate snapshot
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ env.API_LEVEL }}
+          target: google_apis
+          arch: x86_64
+          cores: ${{ env.EMULATOR_CORES }}
+          ram-size: ${{ env.EMULATOR_RAM_SIZE }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: .github/scripts/emulator-settle.sh 300
+
+      - name: Run Maestro smoke flows
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ env.API_LEVEL }}
+          target: google_apis
+          arch: x86_64
+          cores: ${{ env.EMULATOR_CORES }}
+          ram-size: ${{ env.EMULATOR_RAM_SIZE }}
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          # 스냅샷에서 뜬 직후에도 패키지 매니저가 준비되기 전이거나 밀린 작업이 남아 있을 수 있어 한 번 더 기다린다.
+          script: |
+            .github/scripts/emulator-settle.sh 120
+            .github/scripts/maestro-smoke.sh
+
+      - name: Upload Maestro results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-smoke-results
+          path: build/maestro/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # 릴리스 관문: 릴리스 빌드·스토어 업로드·QA 배포 job의 needs에 e2e_smoke를 넣는다.
+  # 태그와 수동 실행에서는 e2e_changes가 항상 E2E를 돌리므로, smoke가 실패하면 이 job들은 실행되지 않는다.
+  #
+  # release_bundle:
+  #   needs: [build, e2e_smoke]

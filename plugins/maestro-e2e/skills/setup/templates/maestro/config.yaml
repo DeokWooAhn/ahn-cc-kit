@@ -1,0 +1,4 @@
+# Maestro 워크스페이스 설정. `maestro test .maestro`로 실행하면 flows/ 아래만 테스트로 잡힌다.
+# subflows/는 다른 Flow가 runFlow로 불러 쓰는 조각이라 단독으로 실행하지 않는다.
+flows:
+  - "flows/*"
