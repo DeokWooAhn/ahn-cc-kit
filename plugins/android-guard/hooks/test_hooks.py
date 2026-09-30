@@ -16,6 +16,7 @@
 """
 
 import json
+import time
 import os
 import re
 import subprocess
@@ -62,6 +63,11 @@ def payload(tool, tool_input, tool_response=None):
 
 
 # (훅, opt-out 변수, [(라벨, 기대, 페이로드, 추가 env)])
+LAUNCHER_FILTER = (
+    '<intent-filter><action android:name="android.intent.action.MAIN"/>'
+    '<category android:name="android.intent.category.LAUNCHER"/></intent-filter>'
+)
+
 SUITES = [
     ("signing-secrets-guard.sh", "ANDROID_GUARD_DISABLE_SIGNING_SECRETS", [
         ("local.properties 읽기", BLOCK, payload("Read", {"file_path": "local.properties"}), {}),
@@ -106,6 +112,17 @@ SUITES = [
         ("빈 값", PASS, payload("Write", {"file_path": "gradle.properties", "content": "RELEASE_KEYSTORE_PASSWORD="}), {}),
         ("example 면제", PASS, payload("Write", {"file_path": "signing.properties.example", "content": 'storePassword = "changeme"'}), {}),
         ("무관한 파일", PASS, payload("Write", {"file_path": "README.md", "content": 'storePassword = "x"'}), {}),
+        ("STORE_PASSWORD 관례", BLOCK, payload("Write", {"file_path": "gradle.properties", "content": "RELEASE_STORE_PASSWORD=hunter2"}), {}),
+        ("STORE_PASS 줄임", BLOCK, payload("Write", {"file_path": "gradle.properties", "content": "ANDROID_STORE_PASS=hunter2"}), {}),
+        ("properties : 구분자", BLOCK, payload("Write", {"file_path": "gradle.properties", "content": "storePassword: hunter2"}), {}),
+        ("properties 주석 줄", PASS, payload("Write", {"file_path": "gradle.properties", "content": "# RELEASE_STORE_PASSWORD=example"}), {}),
+        ("properties 자리표시자", PASS, payload("Write", {"file_path": "gradle.properties", "content": "RELEASE_STORE_PASSWORD=${ENV}"}), {}),
+        ("주석의 $ 는 무관", BLOCK, payload("Write", {"file_path": "app/build.gradle.kts", "content": 'storePassword = "hunter2" // ${docs} 참고'}), {}),
+        ("변수 이름에 담은 리터럴", BLOCK, payload("Write", {"file_path": "app/build.gradle.kts", "content": 'val releaseStorePassword = "hunter2"'}), {}),
+        ("groovy 작은따옴표의 $", BLOCK, payload("Write", {"file_path": "app/build.gradle", "content": "storePassword 'pa$$word'"}), {}),
+        ("보간 문자열", PASS, payload("Write", {"file_path": "app/build.gradle.kts", "content": 'storePassword = "${System.getenv("P")}"'}), {}),
+        ("키 이름이 문자열 안", PASS, payload("Write", {"file_path": "app/build.gradle.kts", "content": 'storePassword = props["RELEASE_STORE_PASSWORD"] as String'}), {}),
+        ("groovy 프로퍼티 맵", PASS, payload("Write", {"file_path": "app/build.gradle", "content": "storePassword keystoreProperties['storePassword']"}), {}),
     ]),
     ("unsigned-release-check.sh", "ANDROID_GUARD_DISABLE_UNSIGNED_RELEASE", [
         ("키 없는 release 빌드", WARN, payload("Bash", {"command": "./gradlew :app:bundleRelease"}, "BUILD SUCCESSFUL in 2m"), {}),
@@ -136,10 +153,50 @@ SUITES = [
             "file_path": "app/src/main/AndroidManifest.xml",
             "content": '<application android:usesCleartextTraffic="true" />'}), {}),
         ("무관한 파일", PASS, payload("Write", {"file_path": "app/src/main/res/values/strings.xml", "content": 'android:exported="true"'}), {}),
+        ("런처 + exported Service", WARN, payload("Write", {
+            "file_path": "app/src/main/AndroidManifest.xml",
+            "content": '<activity android:name=".Main" android:exported="true">' + LAUNCHER_FILTER + '</activity>'
+                       '<service android:name=".Sync" android:exported="true"/>'}), {}),
+        ("런처 + 비공개 Service", PASS, payload("Write", {
+            "file_path": "app/src/main/AndroidManifest.xml",
+            "content": '<activity android:name=".Main" android:exported="true">' + LAUNCHER_FILTER + '</activity>'
+                       '<service android:name=".Sync" android:exported="false"/>'}), {}),
+        ("activity-alias 런처", PASS, payload("Write", {
+            "file_path": "app/src/main/AndroidManifest.xml",
+            "content": '<activity-alias android:name=".Alias" android:exported="true">' + LAUNCHER_FILTER + '</activity-alias>'}), {}),
+        ("여러 줄 receiver", WARN, payload("Edit", {
+            "file_path": "app/src/main/AndroidManifest.xml",
+            "new_string": '<receiver\n    android:name=".Boot"\n    android:exported="true">\n</receiver>'}), {}),
+        ("Service의 LAUNCHER 글자", WARN, payload("Edit", {
+            "file_path": "app/src/main/AndroidManifest.xml",
+            "new_string": '<service android:name=".S" android:exported="true">' + LAUNCHER_FILTER + '</service>'}), {}),
+        ("작은따옴표 exported", WARN, payload("Edit", {
+            "file_path": "app/src/main/AndroidManifest.xml",
+            "new_string": "<provider android:name='.P' android:exported='true'/>"}), {}),
+        ("속성 조각만", WARN, payload("Edit", {
+            "file_path": "app/src/main/AndroidManifest.xml",
+            "new_string": 'android:exported="true"'}), {}),
     ]),
 ]
 
 HUGE = json.dumps({"tool_name": "Write", "tool_input": {"file_path": "/tmp/x.kt", "content": "x" * 200_000}})
+
+# 판정을 켠 채로 넣는 큰 입력. 예전에는 빈 내용 확인(${NEW//[[:space:]]/})이 줄 수에 대해 제곱 이상으로
+# 느려서 4000줄짜리 gradle.properties 하나에 몇 분이 걸렸다. 훅 제한 시간(5초)을 넘기면 판정이 조용히 빠진다.
+LARGE_LIMIT_S = 3.0
+LARGE = {
+    "signing-literal-guard.sh": payload("Write", {
+        "file_path": "gradle.properties",
+        "content": "org.gradle.jvmargs=-Xmx2g\nRELEASE_KEY_PASSWORD=\n" * 2000}),
+    "manifest-risk-check.sh": payload("Write", {
+        "file_path": "app/src/main/AndroidManifest.xml",
+        "content": '<service android:name=".S" android:exported="false"/>\n' * 4000}),
+    "gradle-wrapper-guard.sh": payload("Write", {
+        "file_path": "gradle/wrapper/gradle-wrapper.properties",
+        "content": "distributionPath=wrapper/dists\n" * 4000}),
+    "signing-secrets-guard.sh": payload("Bash", {"command": "echo " + "x" * 200_000}),
+    "gradle-cache-guard.sh": payload("Bash", {"command": "echo " + "x" * 200_000}),
+}
 
 
 
@@ -205,6 +262,15 @@ def main():
         ok = writer_rc == 0 and rc == 0
         failures += not ok
         print(f"  {'ok  ' if ok else 'FAIL'} {'200KB 파이프 소진':<24} writer={writer_rc} hook={rc} (want 0/0)")
+
+        # 계약 3: 판정을 켠 채로 큰 입력을 넣어도 제한 시간 안에 끝난다.
+        if hook in LARGE:
+            started = time.time()
+            run(hook, LARGE[hook])
+            elapsed = time.time() - started
+            ok = elapsed < LARGE_LIMIT_S
+            failures += not ok
+            print(f"  {'ok  ' if ok else 'FAIL'} {'큰 입력 판정 시간':<24} {elapsed:.2f}s (want < {LARGE_LIMIT_S:.0f}s)")
 
     failures += check_deps_hook('ANDROID_GUARD')
 

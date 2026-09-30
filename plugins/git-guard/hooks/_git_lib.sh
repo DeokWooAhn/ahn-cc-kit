@@ -40,6 +40,8 @@ git_split_commands() {
   # 따옴표 상태를 줄을 넘어 유지한다. 따옴표 안의 줄바꿈은 명령 경계가 아니므로 출력하지 않는다.
   # 큰따옴표 안의 \" 와, 따옴표 밖의 \' \" 는 따옴표를 열고 닫지 않는다.
   cmd=$(printf '%s\n' "$cmd" | awk -v q="$q" '
+    # 따옴표 밖이고 따옴표·백슬래시가 없는 줄은 그대로 둔다. 한 글자씩 이어 붙이면 긴 줄에서 느려진다.
+    st == 0 && index($0, q) == 0 && index($0, "\"") == 0 && index($0, "\\") == 0 { print; next }
     {
       out = ""
       n = length($0)
@@ -70,7 +72,8 @@ git_split_commands() {
   cmd="${cmd//"\`"/$nl}"
 
   while IFS= read -r line; do
-    [[ -n "${line//[[:space:]]/}" ]] && GIT_SEGMENTS+=("$line")
+    # ${line//[[:space:]]/} 로 지워 확인하면 긴 줄에서 제곱 이상으로 느려진다. glob 매칭은 선형이다.
+    [[ "$line" == *[![:space:]]* ]] && GIT_SEGMENTS+=("$line")
   done <<< "$cmd"
   return 0
 }
