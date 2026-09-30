@@ -31,7 +31,7 @@
       "name": "android-guard",
       "source": "android-guard",
       "description": "Android/Gradle 사고 방지 훅. 서명 자격 증명 접근, wrapper 변조, Gradle 캐시 삭제를 막고 서명 없는 release 빌드와 Manifest 노출 변경을 알립니다.",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "author": {
         "name": "DeokWooAhn"
       },

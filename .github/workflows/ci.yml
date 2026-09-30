@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Hook and audit tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS 기본 /bin/bash 는 3.2다. 3.2 에서만 드러나는 버그(set -u 아래 빈 배열의 "${a[@]}")가 있어서
+        # 테스트 하네스는 일부러 /bin/bash 로 훅을 돌린다. Linux 만으로는 그 계열이 통과해 버린다.
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 훅은 jq 가 없으면 아무것도 막지 못한다. 러너 이미지에 있는지 먼저 드러낸다.
+      - name: Show tool versions
+        run: |
+          /bin/bash --version | head -1
+          jq --version
+          git --version
+          python3 --version
+
+      - name: git-guard
+        run: python3 plugins/git-guard/hooks/test_hooks.py
+
+      - name: android-guard
+        run: python3 plugins/android-guard/hooks/test_hooks.py
+
+      - name: android-audit
+        run: python3 plugins/android-audit/tests/test_audit.py
+
+  docs:
+    name: Manifests, case table, plugin validation
+    runs-on: ubuntu-latest
+    env:
+      # 검증기 새 버전의 규칙 변화로 코드 변경 없이 CI가 깨지지 않게 고정한다. 올릴 때는 로컬에서 먼저 돌려 본다.
+      CLAUDE_CODE_VERSION: 2.1.272
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check manifests and README numbers
+        run: python3 scripts/check-manifests.py
+
+      # 사이트의 "무엇이 막히나" 표는 테스트에서 만든다. 훅을 고치고 표를 다시 만들지 않으면 여기서 걸린다.
+      - name: Regenerate case table and require no diff
+        run: |
+          python3 scripts/gen-cases.py
+          if ! git diff --exit-code docs/cases.json; then
+            echo "::error::docs/cases.json 이 테스트와 다릅니다. python3 scripts/gen-cases.py 로 다시 만들어 커밋합니다."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 로그인 없이 동작한다. 커뮤니티 마켓플레이스 심사와 같은 검사다.
+      - name: Validate marketplace and plugins
+        run: |
+          npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          claude plugin validate .
+          for p in plugins/*/; do
+            claude plugin validate "$p"
+          done

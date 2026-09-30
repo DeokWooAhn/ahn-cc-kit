@@ -139,7 +139,10 @@ claude plugin uninstall android-guard@ahn-cc-kit
       "source": { "source": "github", "repo": "DeokWooAhn/ahn-cc-kit" }
     }
   },
-  "enabledPlugins": ["android-guard@ahn-cc-kit", "git-guard@ahn-cc-kit"]
+  "enabledPlugins": {
+    "android-guard@ahn-cc-kit": true,
+    "git-guard@ahn-cc-kit": true
+  }
 }
 ```
 
@@ -218,6 +221,24 @@ python3 -m http.server 4173 --directory docs
 ```bash
 claude plugin validate ./plugins/android-review
 ```
+
+매니페스트와 문서 숫자가 서로 맞는지 봅니다. 마켓플레이스 목록과 `plugins/` 폴더, 두 곳에 적는 버전,
+README의 사례 수를 확인합니다.
+
+```bash
+python3 scripts/check-manifests.py
+```
+
+### CI
+
+`.github/workflows/ci.yml`이 PR과 `main` 푸시마다 돌립니다.
+
+- **테스트 3종**을 Ubuntu와 macOS에서 돌립니다. macOS의 `/bin/bash` 3.2에서만 드러나는 버그가 있어 둘 다 봅니다.
+- **매니페스트 검사**(`scripts/check-manifests.py`).
+- **사례 표를 다시 만들고 차이가 없는지** 봅니다. 훅을 고치고 `gen-cases.py`를 돌리지 않으면 여기서 걸립니다.
+  감사 샘플은 `--lang ko`로 고정해서 러너의 로케일과 상관없이 같은 결과가 나옵니다.
+- **`claude plugin validate`**를 마켓플레이스와 플러그인마다 돌립니다. 로그인 없이 동작하고, CLI 버전은
+  워크플로의 `CLAUDE_CODE_VERSION`으로 고정합니다.
 
 ## 라이선스
 

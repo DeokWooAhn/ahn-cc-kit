@@ -114,7 +114,9 @@ def audit_sample():
     subprocess.run(["git", "add", "-A"], **q)
     try:
         out = subprocess.run(
-            ["/bin/bash", str(ROOT / "plugins/android-audit/bin/android-audit"), str(d)],
+            # 언어를 고정합니다. 안 그러면 돌리는 머신의 로케일을 따라가서 CI(Linux, C.UTF-8)에서는
+            # 영어로 나오고, 표를 다시 만든 뒤 차이를 보는 검사가 늘 실패합니다. 사이트 기본 언어가 한국어입니다.
+            ["/bin/bash", str(ROOT / "plugins/android-audit/bin/android-audit"), str(d), "--lang", "ko"],
             capture_output=True, text=True,
         ).stdout
     finally:

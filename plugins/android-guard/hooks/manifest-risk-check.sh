@@ -35,29 +35,40 @@ add() { FOUND="${FOUND:+$FOUND
 # 요소 경계 없이 속성 조각만 편집한 경우(요소 시작 앞부분이나 요소가 아예 없는 조각)는 어느 요소인지 알 수
 # 없으므로, 그 조각에 LAUNCHER가 없을 때만 경고한다.
 exported_without_launcher() {
+  # < 를 레코드 구분자로 써서 태그 단위로 한 번만 훑는다. 남은 문자열을 잘라 가며 찾으면 요소 수의 제곱만큼
+  # 복사해서, Ubuntu 기본 awk(mawk)에서 요소 4000개에 1초 넘게 걸렸다.
   printf '%s' "$NEW" | tr '\n' ' ' | awk -v q="'" '
     BEGIN {
+      RS = "<"
       exported_re = "android:exported[ \t]*=[ \t]*[\"" q "]true[\"" q "]"
       launcher = "android\\.intent\\.category\\.LAUNCHER"
+      found = 0; seen = 0; tag = ""; elem = ""; pre = ""
+    }
+    function judge() {
+      if (elem ~ exported_re && !(tag ~ /^activity/ && elem ~ launcher)) found = 1
+      tag = ""; elem = ""
     }
     {
-      s = $0; found = 0; first = 1
-      while (match(s, /<(activity-alias|activity|service|receiver|provider)[ \t\/>]/)) {
-        if (first) { pre = substr(s, 1, RSTART - 1); if (pre ~ exported_re && pre !~ launcher) found = 1; first = 0 }
-        rest = substr(s, RSTART)
-        match(rest, /^<[a-z-]+/); tag = substr(rest, 2, RLENGTH - 1)
-        gt = index(rest, ">")
-        if (gt == 0) { elem = rest; s = "" }
-        else if (substr(rest, gt - 1, 1) == "/") { elem = substr(rest, 1, gt); s = substr(rest, gt + 1) }
-        else {
-          closing = "</" tag ">"
-          ci = index(rest, closing)
-          if (ci == 0) { elem = rest; s = "" }
-          else { elem = substr(rest, 1, ci + length(closing) - 1); s = substr(rest, ci + length(closing)) }
-        }
-        if (elem ~ exported_re && !(tag ~ /^activity/ && elem ~ launcher)) found = 1
+      r = $0
+      if (tag != "") {
+        elem = elem "<" r
+        if (index(r, "/" tag ">") == 1) judge()
+        next
       }
-      if (first && $0 ~ exported_re && $0 !~ launcher) found = 1
+      if (match(r, /^(activity-alias|activity|service|receiver|provider)[ \t\/>]/)) {
+        seen = 1
+        tag = substr(r, 1, RLENGTH - 1)
+        elem = "<" r
+        gt = index(r, ">")
+        if (gt == 0 || substr(r, gt - 1, 1) == "/") judge()
+        next
+      }
+      # 첫 컴포넌트 앞의 조각. 속성 조각만 편집한 경우 어느 요소인지 알 수 없다.
+      if (!seen) pre = pre "<" r
+    }
+    END {
+      if (tag != "") judge()
+      if (pre ~ exported_re && pre !~ launcher) found = 1
       print (found ? "yes" : "no")
     }' 2>/dev/null || echo no
 }
