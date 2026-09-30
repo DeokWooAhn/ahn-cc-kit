@@ -2,8 +2,8 @@
 
 **Android 프로젝트를 위한** Claude Code 플러그인 마켓플레이스. 플러그인 하나는 문제 하나만 다룹니다.
 
-다섯 중 넷은 Android를 전제합니다. `git-guard`만 플랫폼과 무관합니다 —
-Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
+다섯 중 셋은 Android·Gradle을 전제하고, `maestro-e2e`는 Android와 iOS를 함께 다룹니다. `git-guard`만
+플랫폼과 무관합니다 — Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
 
 | 플러그인 | 전제 | 이런 저장소에서 |
 | --- | --- | --- |
@@ -11,10 +11,10 @@ Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 �
 | `android-guard` | Android · Gradle | Gradle 프로젝트가 아니면 걸릴 일이 거의 없습니다 |
 | `android-audit` | Android · Gradle | Gradle이 아니면 추적 파일만 보고 나머지는 건너뜁니다 |
 | `git-guard` | **없음** | 어느 언어·플랫폼이든 동작합니다 |
-| `maestro-e2e` | Android · Maestro CLI | Compose·XML View 둘 다 다룹니다. CI 템플릿은 GitHub Actions용입니다 |
+| `maestro-e2e` | Android · iOS · Maestro CLI | Android는 Compose, iOS는 SwiftUI(시뮬레이터) 기준입니다. CI 템플릿은 GitHub Actions의 Android용입니다 |
 
-**iOS·웹·서버는 다루지 않습니다.** iOS 프로젝트에서 `android-guard`를 켜 두면 조용히
-있을 뿐 `.p12`나 provisioning profile을 지켜주지는 않습니다.
+iOS 프로젝트에서 `android-guard`를 켜 두면 조용히 있을 뿐 `.p12`나 provisioning profile을
+지켜주지는 않습니다.
 
 **<https://deokwooahn.github.io/ahn-cc-kit/>** — 어떤 명령이 막히고 통과하는지 95건을
 표로 볼 수 있습니다. 그 표는 훅 테스트에서 생성되므로 실제 동작과 어긋나지 않습니다.
@@ -92,13 +92,13 @@ python3 plugins/git-guard/hooks/test_hooks.py
 
 ### maestro-e2e
 
-Android 앱에 Maestro E2E를 도입할 때("마에스트로 도입해줘")와 Flow를 쓰고 돌릴 때("마에스트로 돌려줘")
-불립니다. 도입은 4단계로 나눠 단계마다 PR을 냅니다. 테스트 id와 테스트 모드 → Flow와 MCP →
+Android·iOS 앱에 Maestro E2E를 도입할 때("마에스트로 도입해줘")와 Flow를 쓰고 돌릴 때("마에스트로 돌려줘")
+불립니다. 두 플랫폼에 같은 id를 붙여 Flow 하나로 양쪽을 돌립니다. 도입은 4단계로 나눠 단계마다 PR을 냅니다. 테스트 id와 테스트 모드 → Flow와 MCP →
 CI smoke → 릴리스 관문 순서입니다.
 
 실제로 CI를 멈추게 했던 원인을 피하는 템플릿(공통 실행 subflow, 에뮬레이터 안정화 스크립트, CI job)이
 들어 있습니다. 정규식 id, 권한 기본값 때문의 APK 전송 멈춤, 데이터 삭제 직후 재실행 레이스 같은 것들입니다.
-GitLab CI는 문서만 있고 검증하지 않았습니다. 자세한 내용은
+GitLab CI와 iOS CI는 문서만 있고 검증하지 않았습니다. 자세한 내용은
 [plugins/maestro-e2e/README.md](plugins/maestro-e2e/README.md)에 있습니다.
 
 ## 원하는 프로젝트에서만 켜기

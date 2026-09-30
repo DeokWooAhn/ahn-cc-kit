@@ -222,7 +222,7 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
 <section id="plugins" class="rise">
   <p class="eyebrow" data-i18n="eyebrow.plugins">구성</p>
   <h2 data-i18n="plugins.title">플러그인</h2>
-  <p class="sub" data-i18n="plugins.sub">훅은 하네스가 실행합니다 — 모델이 우회할 수 없고 컨텍스트도 쓰지 않습니다. 스킬은 모델이 필요할 때 읽습니다. 다섯 중 넷은 Android를 전제하고, <code>git-guard</code>만 플랫폼과 무관합니다.</p>
+  <p class="sub" data-i18n="plugins.sub">훅은 하네스가 실행합니다 — 모델이 우회할 수 없고 컨텍스트도 쓰지 않습니다. 스킬은 모델이 필요할 때 읽습니다. 다섯 중 셋은 Android·Gradle을 전제하고, <code>maestro-e2e</code>는 Android와 iOS를 함께 다루며, <code>git-guard</code>만 플랫폼과 무관합니다.</p>
   <div class="cards">
     <div class="card">
       <h3>android-review</h3>
@@ -246,8 +246,8 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
     </div>
     <div class="card">
       <h3>maestro-e2e</h3>
-      <p data-i18n="plugins.maestro">Maestro E2E를 4단계로 도입합니다. 테스트 id와 테스트 모드, Flow, CI smoke, 릴리스 관문 순서로 단계마다 PR을 냅니다. CI를 멈추게 했던 원인을 피하는 템플릿이 들어 있습니다.</p>
-      <span class="tag scope" data-i18n="scope.maestro">Android · Maestro</span><span class="tag" data-i18n="tag.skill2">스킬 2</span><span class="tag">~155 tok</span>
+      <p data-i18n="plugins.maestro">Android·iOS에 Maestro E2E를 4단계로 도입합니다. 두 플랫폼이 Flow 하나를 같이 쓰고, 테스트 id와 테스트 모드, Flow, CI smoke, 릴리스 관문 순서로 단계마다 PR을 냅니다. CI를 멈추게 했던 원인을 피하는 템플릿이 들어 있습니다.</p>
+      <span class="tag scope" data-i18n="scope.maestro">Android · iOS</span><span class="tag" data-i18n="tag.skill2">스킬 2</span><span class="tag">~168 tok</span>
     </div>
   </div>
 </section>
@@ -319,12 +319,12 @@ const I18N = {
     "hero.step1":"add the marketplace","hero.step2":"install only what you need",
     "hero.req":"Needs <code>bash</code>, <code>jq</code>, and <code>git</code> for git-guard. Nothing else.",
     "plugins.title":"Plugins",
-    "plugins.sub":"Hooks run in the harness — the model cannot route around them and they cost no context. Skills are read by the model when a task needs them. Four of the five assume Android; only <code>git-guard</code> is platform-agnostic.",
-    "scope.android":"Android · Compose","scope.gradle":"Android · Gradle","scope.any":"Any repo","scope.maestro":"Android · Maestro",
+    "plugins.sub":"Hooks run in the harness — the model cannot route around them and they cost no context. Skills are read by the model when a task needs them. Three of the five assume Android and Gradle, <code>maestro-e2e</code> covers Android and iOS, and only <code>git-guard</code> is platform-agnostic.",
+    "scope.android":"Android · Compose","scope.gradle":"Android · Gradle","scope.any":"Any repo","scope.maestro":"Android · iOS",
     "plugins.review":"Compose-first code review. Correctness → regression risk → scope creep → security → missing tests. It explains; it does not edit your code.",
     "plugins.aguard":"Blocks access to signing credentials, wrapper tampering and Gradle cache deletion. Warns on unsigned release builds and risky Manifest changes.",
     "plugins.audit":"Finds the same problems the hooks block, but in a repo where they are <em>already there</em>. Reports locations, never values, and never fixes.",
-    "plugins.maestro":"Sets up Maestro E2E in four steps — test ids and a test-mode flag, flows, CI smoke, then a release gate — one PR per step. Ships templates that avoid the causes that actually stalled CI.",
+    "plugins.maestro":"Sets up Maestro E2E on Android and iOS in four steps, one flow shared by both — test ids and a test-mode flag, flows, CI smoke, then a release gate — one PR per step. Ships templates that avoid the causes that actually stalled CI.",
     "plugins.gguard":"Blocks direct pushes to protected branches, <code>--force</code> pushes, and hard-to-undo commands like <code>reset --hard</code> and <code>clean -fd</code>.",
     "tag.skill":"1 skill","tag.skill2":"2 skills","tag.hook6":"6 hooks","tag.hook3":"3 hooks",
     "install.title":"Turn it on only where you want it",

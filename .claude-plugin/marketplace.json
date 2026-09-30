@@ -86,7 +86,7 @@
     {
       "name": "maestro-e2e",
       "source": "maestro-e2e",
-      "description": "Android 앱에 Maestro E2E 테스트를 도입하고 운영하는 절차. 테스트 id 규칙, 공통 실행 subflow, smoke/release Flow, CI 에뮬레이터 job과 릴리스 관문, 실제로 겪은 함정을 담습니다.",
+      "description": "Android·iOS 앱에 Maestro E2E 테스트를 도입하고 운영하는 절차. 두 플랫폼 공통 테스트 id, 공통 실행 subflow, smoke/release Flow, CI 에뮬레이터 job과 릴리스 관문, 실제로 겪은 함정을 담습니다.",
       "version": "0.1.0",
       "author": {
         "name": "DeokWooAhn"
@@ -95,6 +95,7 @@
       "category": "testing",
       "keywords": [
         "android",
+        "ios",
         "maestro",
         "e2e",
         "ui-test",

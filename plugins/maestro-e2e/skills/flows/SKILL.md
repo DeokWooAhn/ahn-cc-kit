@@ -1,10 +1,10 @@
 ---
 name: flows
 description: >-
-  Android 앱의 Maestro Flow(.maestro/)를 작성·수정·실행하거나 실패 원인을 찾을 때, 화면 코드를 바꾼 뒤
+  Android·iOS 앱의 Maestro Flow(.maestro/)를 작성·수정·실행하거나 실패 원인을 찾을 때, 화면 코드를 바꾼 뒤
   E2E로 확인할 때 사용합니다. "마에스트로 돌려줘", "E2E 플로우 만들어줘", "Maestro 테스트 왜 실패해",
   "이 화면 플로우 추가해줘" 같은 요청이 해당됩니다.
-  Writing, running, or debugging Maestro flows for an Android app — device choice, MCP-driven
+  Writing, running, or debugging Maestro flows for an Android or iOS app — device choice, MCP-driven
   authoring, selector rules, and known flakiness causes.
 metadata:
   category: testing
@@ -18,9 +18,13 @@ metadata:
 
 ## 기기 고르기
 
-- **실기기가 연결돼 있으면 실기기로, 없으면 에뮬레이터로** 돌린다. `adb devices`에서 serial이
-  `emulator-`로 시작하지 않으면 실기기다. 에뮬레이터는 RAM·CPU를 많이 쓰니 다 쓰면 끈다.
-- 실기기에 스토어판이 깔려 있으면 debug 빌드와 서명이 달라 덮어쓸 수 없다. **지우기 전에 묻는다.**
+- 바꾼 플랫폼에서 돌린다. 두 플랫폼 공통 Flow를 고쳤으면 양쪽 다 돌린다.
+- **실기기가 연결돼 있으면 실기기로, 없으면 에뮬레이터·시뮬레이터로** 돌린다.
+  - Android: `adb devices`에서 serial이 `emulator-`로 시작하지 않으면 실기기다.
+  - iOS: `xcrun devicectl list devices`로 실기기를 본다. 설치된 Maestro 2.1.0 CLI는 iOS 대상을 시뮬레이터로만
+    안내하므로, 실기기에서 안 되면 시뮬레이터로 돌리고 그렇게 했다고 보고한다.
+- 에뮬레이터·시뮬레이터는 RAM·CPU를 많이 쓰니 다 쓰면 끈다(`adb emu kill`, `xcrun simctl shutdown all`).
+- 실기기에 스토어판이 깔려 있으면 개발 빌드와 서명이 달라 덮어쓸 수 없다. **지우기 전에 묻는다.**
   지우면 그 기기의 앱 데이터가 사라진다.
 - 잠금 화면이면 테스트가 실패한다. 잠금은 풀지 말고 사용자에게 요청한다.
 - 기기가 없으면 건너뛰고, 건너뛰었다고 보고한다.
@@ -28,9 +32,11 @@ metadata:
 ## 실행
 
 ```bash
-maestro --device <serial> test .maestro -e APP_ID=<applicationId>
+maestro --device <serial 또는 udid> test .maestro -e APP_ID=<applicationId 또는 bundle id>
 ```
 
+- `APP_ID`는 플랫폼마다 다르다. 대소문자까지 확인한다.
+- iOS는 먼저 시뮬레이터용으로 빌드해 설치한다. 명령은 `setup` 스킬의 `references/ios.md`.
 - 태그로 거른다: `--include-tags=smoke`. 실패 스크린샷을 남기려면 `--test-output-dir=<dir>`.
 - 화면 계층: `maestro --device <serial> hierarchy --compact`. id가 실제로 어떻게 보이는지 여기서 확인한다.
 
@@ -55,11 +61,13 @@ maestro --device <serial> test .maestro -e APP_ID=<applicationId>
 - 결과 숫자를 단언할 때 화면의 다른 글자(키패드 숫자, 탭 이름)와 겹치지 않는 값을 고른다.
 - 태그는 `smoke`(서버 없이 통과, CI에서 실행)와 `release`(서버 필요, 릴리스 전 실기기) 둘만 쓴다.
 - **광고를 누르거나 실제 광고를 노출하는 Flow를 만들지 않는다.** 릴리스 빌드에는 Maestro를 돌리지 않는다.
-- 플랫폼·조건마다 조작이 다르면 `runFlow: { when: ..., commands: [...] }`로 나눈다.
+- 플랫폼마다 조작이 다르면 `runFlow: { when: { platform: Android|iOS }, commands: [...] }`로 나눈다.
+  `back`은 Android 전용이다. iOS 시트는 닫기 버튼 id로 닫는다.
 
 ## 실패했을 때
 
 1. 실패 스크린샷을 먼저 본다. 기대한 화면이 떴는지, 팝업이 덮었는지.
 2. 그 시점의 `hierarchy`에서 찾던 id가 있는지 본다. 없으면 id 누락이거나 별도 창(Dialog)이다.
-3. CI면 artifact의 `logcat.txt`에서 앱 프로세스가 죽었는지, 테스트 모드 인자가 들어왔는지 본다.
+3. 로그에서 앱 프로세스가 죽었는지, 테스트 모드 인자가 들어왔는지 본다. Android는 logcat(CI면 artifact의
+   `logcat.txt`), iOS 시뮬레이터는 `xcrun simctl spawn <udid> log show`.
 4. 증상이 `references/gotchas.md`에 있으면 그 대응을 따른다. 대기 시간을 늘리는 건 원인을 확인한 뒤에만.

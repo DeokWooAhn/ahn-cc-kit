@@ -1,6 +1,7 @@
 # 실제로 겪은 함정
 
-Maestro 2.1.0, GitHub Actions `ubuntu-latest` 에뮬레이터(API 34 `google_apis`)와 Galaxy 실기기에서 겪은 것이다.
+Maestro 2.1.0, GitHub Actions `ubuntu-latest` 에뮬레이터(API 34 `google_apis`), Galaxy 실기기, iOS 26
+시뮬레이터에서 겪은 것이다.
 대기 시간을 늘려 증상만 가리지 말고, 원인이 같은지 먼저 확인한다.
 
 ## 엉뚱한 요소를 누른다
@@ -34,22 +35,37 @@ Maestro 2.1.0, GitHub Actions `ubuntu-latest` 에뮬레이터(API 34 `google_api
 - **대응**: 스냅샷은 부하가 내려간 뒤 저장한다. 테스트 전에도 `bg-dexopt-job`을 돌리고 부하가 내려가길
   기다린다(`emulator-settle.sh`). 에뮬레이터는 4코어·4GB. 설치 뒤 앱을 한 번 띄워 첫 실행 비용을 미리 치른다.
 
-## Compose Dialog 안의 요소를 못 찾는다
+## Compose 요소 일부만 id가 안 보인다 (Android)
 
-- **증상**: 화면의 id는 다 보이는데 Dialog나 BottomSheet를 열면 그 안의 id만 안 보인다.
-- **원인**: Dialog는 별도 창이라 루트에 켠 `testTagsAsResourceId`가 닿지 않는다.
-- **대응**: Dialog 콘텐츠 루트에도 `Modifier.semantics { testTagsAsResourceId = true }`를 켠다.
+- **증상**: 어떤 화면은 id가 다 보이는데, Dialog·BottomSheet를 열거나 다른 화면으로 가면 그쪽 id만 안 보인다.
+- **원인**: `testTagsAsResourceId`는 켠 composition 안에만 적용된다. Dialog는 별도 창이고, XML 레이아웃에 끼운
+  `ComposeView`나 Activity·Fragment의 `setContent`도 각각 따로 된 composition이다.
+- **대응**: 그 composition의 루트마다 `Modifier.semantics { testTagsAsResourceId = true }`를 켠다.
+
+## 컨테이너 id가 여러 요소에 잡힌다 (iOS)
+
+- **증상**: 화면 기준점 `screen.home`을 단언하면 통과는 하는데, 화면 계층에 같은 id가 여러 개 보인다.
+- **원인**: SwiftUI 컨테이너에 `.accessibilityIdentifier`만 달면 id가 없는 자식 요소가 모두 그 id를 물려받는다.
+- **대응**: `.accessibilityElement(children: .contain)`를 함께 달아 컨테이너 요소를 따로 만든다. 자식에 이미
+  붙은 id는 덮어쓰이지 않는다.
+
+## 시트·대화상자를 닫는 방법이 다르다
+
+- **증상**: Android에서 통과한 Flow가 iOS에서 시트가 열린 채로 멈춘다.
+- **원인**: `back`은 Android 전용이다. iOS 시트는 뒤로가기가 없다.
+- **대응**: iOS 닫기 버튼에 id를 붙이고, `runFlow: { when: { platform: iOS } }`로 그 버튼을 누른다.
+  목록 항목을 눌러 닫히는 동작에 기대면 선택 상태가 바뀌어 다음 단계가 달라질 수 있다.
 
 ## 스크롤해도 못 찾는다
 
 - **증상**: `scrollUntilVisible`이 목록 뒤쪽 항목에서 "No visible element found"로 끝난다. 스크린샷에는
-  항목이 화면 끝에 걸려 있다.
+  항목이 화면 끝에 걸려 있다. iOS 시뮬레이터에서 160여 개 목록의 40번째쯤 항목까지 못 갔다.
 - **원인**: 기본 제한 시간이 20초다. 긴 목록의 뒤쪽까지 가기 전에 끝난다.
 - **대응**: 목록 앞쪽 항목을 쓰거나 `timeout`을 늘린다. Flow가 목록 길이에 기대지 않게 하는 쪽이 낫다.
 
 ## 기기 테스트가 화면을 못 찾는다
 
-- **증상**: `No compose hierarchies found`, 또는 Maestro가 아무 요소도 못 찾는다.
+- **증상**: Android 기기 테스트의 `No compose hierarchies found`, 또는 Maestro가 아무 요소도 못 찾는다.
 - **원인**: 실기기 화면이 꺼져 있거나 잠금 화면이다.
 - **대응**: 사용자에게 잠금 해제를 요청한다. 대신 풀지 않는다.
 

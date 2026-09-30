@@ -31,8 +31,8 @@
 ## maestro-e2e
 
 동작 설명은 설치된 [Maestro CLI](https://github.com/mobile-dev-inc/maestro)(Apache-2.0) 2.1.0의 `--help` 출력과,
-에뮬레이터·실기기에서 직접 돌려 본 결과로 적었습니다. `id:` 전체 일치 매칭, XML View의 짧은 id 매칭,
-`launchApp` 권한 기본값이 APK 전송을 일으키는 것이 여기에 해당합니다. Maestro 코드는 가져오지 않았습니다.
+Android 에뮬레이터·실기기와 iOS 26 시뮬레이터에서 직접 돌려 본 결과로 적었습니다. `id:` 전체 일치 매칭,
+`launchApp` 권한 기본값이 APK 전송을 일으키는 것, iOS 실행 인자 전달과 `tabItem` id 전달이 여기에 해당합니다. Maestro 코드는 가져오지 않았습니다.
 
 CI 템플릿은 [android-emulator-runner](https://github.com/ReactiveCircus/android-emulator-runner)(Apache-2.0)를
 Action으로 **사용**할 뿐 코드를 포함하지 않습니다. 템플릿 스크립트와 Flow는 작성자의 다른 저장소에서 쓰던 것을
