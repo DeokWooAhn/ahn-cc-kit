@@ -38,11 +38,19 @@ def repo(files, tmp, name):
     return d
 
 
+LANG_VARS = ("ANDROID_AUDIT_LANG", "LANG", "LC_ALL", "LC_MESSAGES")
+
+
 def run(d, *args, env_extra=None):
     env = dict(os.environ)
-    for k in ("ANDROID_AUDIT_LANG", "LANG", "LC_ALL", "LC_MESSAGES"):
+    for k in LANG_VARS:
         env.pop(k, None)
     env.update(env_extra or {})
+    # 언어를 시험하는 경우가 아니면 한국어로 고정한다. 로케일 변수를 지우면 도구는 macOS 로케일이나 영어로
+    # 떨어지는데, 아래 검사는 한국어 문구를 본다. 한국어 Mac에서만 통과하고 CI(영어)에서는 실패했으며,
+    # "…이 없어야 한다"는 검사는 영어 출력에서 항상 통과해 아무것도 검증하지 못했다.
+    if "--lang" not in args and not any(k in (env_extra or {}) for k in LANG_VARS):
+        args = (*args, "--lang", "ko")
     p = subprocess.run([BASH, str(AUDIT), str(d), *args],
                        capture_output=True, text=True, env=env)
     return p.returncode, p.stdout, p.stderr
