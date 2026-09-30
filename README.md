@@ -16,7 +16,7 @@
 iOS 프로젝트에서 `android-guard`를 켜 두면 조용히 있을 뿐 `.p12`나 provisioning profile을
 지켜주지는 않습니다.
 
-**<https://deokwooahn.github.io/ahn-cc-kit/>** — 어떤 명령이 막히고 통과하는지 95건을
+**<https://deokwooahn.github.io/ahn-cc-kit/>** — 어떤 명령이 막히고 통과하는지 114건을
 표로 볼 수 있습니다. 그 표는 훅 테스트에서 생성되므로 실제 동작과 어긋나지 않습니다.
 
 ## 설치

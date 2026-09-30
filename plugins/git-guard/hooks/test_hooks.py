@@ -5,7 +5,8 @@
 빈 배열의 "${a[@]}" 를 unbound variable로 본다. 최신 bash로만 돌리면 이 계열의
 버그가 통과해 버린다.
 
-현재 브랜치를 읽어야 하는 케이스(인자 없는 git push)를 위해 임시 저장소 두 개를 만든다.
+현재 브랜치를 읽어야 하는 케이스(인자 없는 git push)를 위해 임시 저장소 세 개를 만든다.
+셋째는 feature 브랜치의 upstream이 origin/main이고 push.default=upstream인 저장소다.
 
     python3 test_hooks.py
 """
@@ -62,7 +63,25 @@ def make_repo(parent, branch):
     return path
 
 
-def build_suites(on_main, on_feature):
+def make_upstream_repo(parent):
+    """feature/y 가 origin/main 을 추적하고 push.default=upstream 인 저장소.
+
+    이 상태에서 인자 없는 git push 는 현재 브랜치 이름(feature/y)이 아니라 main 으로 나간다.
+    원격은 로컬 bare 저장소다. push 없이 fetch 로만 채운다.
+    """
+    work = make_repo(parent, "upstream-work")
+    remote = os.path.join(parent, "upstream-remote.git")
+    q = {"capture_output": True, "check": True}
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", remote], **q)
+    subprocess.run(["git", "-C", remote, "fetch", "-q", work, "upstream-work:main"], **q)
+    subprocess.run(["git", "-C", work, "remote", "add", "origin", remote], **q)
+    subprocess.run(["git", "-C", work, "fetch", "-q", "origin"], **q)
+    subprocess.run(["git", "-C", work, "switch", "-q", "-c", "feature/y", "--track", "origin/main"], **q)
+    subprocess.run(["git", "-C", work, "config", "push.default", "upstream"], **q)
+    return work
+
+
+def build_suites(on_main, on_feature, on_upstream_main):
     return [
         ("protected-branch-guard.sh", "GIT_GUARD_DISABLE_PROTECTED_BRANCH", [
             ("origin main", BLOCK, cmd("git push origin main"), {}, None),
@@ -80,6 +99,12 @@ def build_suites(on_main, on_feature):
             ("-o 값은 refspec 아님", PASS, cmd("git push -o ci.skip origin feature/x"), {}, None),
             ("인자 없음 · main 위", BLOCK, cmd("git push"), {}, on_main),
             ("인자 없음 · feature 위", PASS, cmd("git push"), {}, on_feature),
+            ("인자 없음 · upstream이 main", BLOCK, cmd("git push"), {}, on_upstream_main),
+            ("remote만 · upstream이 main", BLOCK, cmd("git push origin"), {}, on_upstream_main),
+            ("줄바꿈 뒤 push", BLOCK, cmd("git status\ngit push origin main"), {}, None),
+            ("; 뒤 push", BLOCK, cmd("cd app; git push origin main"), {}, None),
+            ("heredoc 본문 오탐", PASS, cmd("git commit -F - <<'EOF'\ngit push origin main 은 금지\nEOF"), {}, None),
+            ("여러 줄 메시지 오탐", PASS, cmd('git commit -m "첫 줄\ngit push origin main 은 금지"'), {}, None),
             ("보호목록 변경 시 통과", PASS, cmd("git push origin main"), {"GIT_GUARD_PROTECTED_BRANCHES": "develop"}, None),
             ("커밋 메시지 오탐", PASS, cmd('git commit -m "git push origin main 은 금지"'), {}, None),
             ("git 아닌 명령", PASS, cmd("./gradlew assembleDebug"), {}, None),
@@ -93,6 +118,9 @@ def build_suites(on_main, on_feature):
             ("--force-if-includes", PASS, cmd("git push --force-if-includes origin feature/x"), {}, None),
             ("평범한 push", PASS, cmd("git push origin feature/x"), {}, None),
             ("인자 없는 push", PASS, cmd("git push"), {}, on_feature),
+            ("줄바꿈 뒤 --force", BLOCK, cmd("echo done\ngit push --force origin feature/x"), {}, None),
+            ("줄 이어쓰기 --force", BLOCK, cmd("git push \\\n  --force origin feature/x"), {}, None),
+            ("다른 명령의 --force 오탐", PASS, cmd("git push origin feature/x && git fetch --force"), {}, None),
         ]),
         ("destructive-git-guard.sh", "GIT_GUARD_DISABLE_DESTRUCTIVE", [
             ("reset --hard", BLOCK, cmd("git reset --hard HEAD~1"), {}, None),
@@ -125,6 +153,12 @@ def build_suites(on_main, on_feature):
             ("reflog expire", BLOCK, cmd("git reflog expire --expire=now --all"), {}, None),
             ("reflog 조회", PASS, cmd("git reflog"), {}, None),
             ("커밋 메시지 오탐", PASS, cmd('git commit -m "reset --hard 주의"'), {}, None),
+            ("clean -nd && clean -fd", BLOCK, cmd("git clean -nd && git clean -fd"), {}, None),
+            ("줄바꿈 뒤 reset --hard", BLOCK, cmd("git status\ngit reset --hard HEAD~1"), {}, None),
+            ("subshell 안 reset --hard", BLOCK, cmd("(cd app && git reset --hard)"), {}, None),
+            ("다른 명령의 -f 오탐", PASS, cmd("git checkout feature/x && rm -f tmp.log"), {}, None),
+            ("heredoc 본문 오탐", PASS, cmd("git commit -F - <<'EOF'\n주의: git reset --hard 금지\nEOF"), {}, None),
+            ("여러 줄 메시지 오탐", PASS, cmd('git commit -m "첫 줄\ngit clean -fd 는 쓰지 말 것"'), {}, None),
         ]),
     ]
 
@@ -168,8 +202,9 @@ def main():
     try:
         on_main = make_repo(tmp, "main")
         on_feature = make_repo(tmp, "feature/x")
+        on_upstream_main = make_upstream_repo(tmp)
         failures = 0
-        for hook, optout, cases in build_suites(on_main, on_feature):
+        for hook, optout, cases in build_suites(on_main, on_feature, on_upstream_main):
             print(f"\n== {hook}")
             for label, want, body, env_extra, cwd in cases:
                 _, rc, _, _ = run(hook, body, env_extra, cwd)

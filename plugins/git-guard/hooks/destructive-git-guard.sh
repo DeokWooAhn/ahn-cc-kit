@@ -68,7 +68,15 @@ MSG
   exit 2
 }
 
-if git_find_sub "$COMMAND" reset && has_arg --hard; then
+# 명령마다 따로 본다. 한 줄에 합쳐 보면 git clean -nd && git clean -fd 에서 앞의 -n 이 뒤의
+# 실제 삭제까지 dry run으로 보이게 하고, git checkout x && rm -f y 에서는 rm 의 -f 를 checkout 의
+# --force 로 오인한다. 줄바꿈 뒤의 명령은 아예 보지 못한다.
+#
+# 아래 본문은 들여쓰지 않는다. 안내 문구가 여러 줄 문자열이라 들여쓰면 출력이 바뀐다.
+check_segment() {
+local SEG="$1"
+
+if git_find_sub "$SEG" reset && has_arg --hard; then
   block "git reset --hard 는 워킹트리와 인덱스의 변경을 지웁니다. 커밋되지 않은 작업은 복구할 수 없습니다." \
 "먼저 무엇을 잃는지 봅니다.
   git status
@@ -78,7 +86,7 @@ if git_find_sub "$COMMAND" reset && has_arg --hard; then
   git revert <ref>                (이력을 지우지 않고 되돌립니다)"
 fi
 
-if git_find_sub "$COMMAND" clean; then
+if git_find_sub "$SEG" clean; then
   if { has_short f || has_arg --force; } &&
     ! has_short n && ! has_arg --dry-run; then
     block "git clean 은 추적되지 않는 파일을 지웁니다. git 안에 없던 파일이므로 reflog로도 복구되지 않습니다." \
@@ -88,7 +96,7 @@ if git_find_sub "$COMMAND" clean; then
   fi
 fi
 
-if git_find_sub "$COMMAND" checkout; then
+if git_find_sub "$SEG" checkout; then
   if has_short f || has_arg --force; then
     block "git checkout --force 는 워킹트리의 변경을 말없이 버립니다." \
 "먼저 확인하고, 버리지 않으려면 치워 둡니다.
@@ -104,7 +112,7 @@ if git_find_sub "$COMMAND" checkout; then
   fi
 fi
 
-if git_find_sub "$COMMAND" restore; then
+if git_find_sub "$SEG" restore; then
   # --staged 만 쓰면 인덱스만 되돌리므로 워킹트리는 안전하다.
   staged_only=0
   if { has_arg --staged || has_short S; } &&
@@ -120,7 +128,7 @@ if git_find_sub "$COMMAND" restore; then
   fi
 fi
 
-if git_find_sub "$COMMAND" branch; then
+if git_find_sub "$SEG" branch; then
   # git은 -D 와 -d -f 와 -df 를 모두 같게 본다. -D 만 보면 나머지가 그대로 빠져나간다.
   # -f 단독은 브랜치를 옮기는 것(git branch -f topic main)이라 삭제와 함께 있을 때만 잡는다.
   if has_short D ||
@@ -135,7 +143,7 @@ squash 머지된 브랜치는 SHA가 달라 -d 가 항상 거절합니다. 내�
   fi
 fi
 
-if git_find_sub "$COMMAND" stash && ((${#GIT_ARGS[@]} > 0)); then
+if git_find_sub "$SEG" stash && ((${#GIT_ARGS[@]} > 0)); then
   case "${GIT_ARGS[0]}" in
     drop | clear)
       block "git stash ${GIT_ARGS[0]} 는 치워 둔 작업을 버립니다. dangling commit으로 잠시 남지만 찾기 어렵습니다." \
@@ -147,15 +155,21 @@ if git_find_sub "$COMMAND" stash && ((${#GIT_ARGS[@]} > 0)); then
   esac
 fi
 
-if git_find_sub "$COMMAND" reflog && has_arg expire; then
+if git_find_sub "$SEG" reflog && has_arg expire; then
   block "git reflog expire 는 복구망 자체를 걷어냅니다. 이걸 돌린 뒤에는 reset --hard 로 잃은 커밋도 되찾을 수 없습니다." \
 "저장소 용량이 목적이라면 기본 만료 정책(reflog 90일)에 맡깁니다. 수동 만료가 필요한 상황은 드뭅니다."
 fi
 
-if git_find_sub "$COMMAND" gc && has_prefix --prune; then
+if git_find_sub "$SEG" gc && has_prefix --prune; then
   block "git gc --prune 은 도달 불가능한 객체를 즉시 지웁니다. reflog에서 복구할 여지가 사라집니다." \
 "용량 회수가 목적이면 인자 없이 돌립니다. 기본값이 안전한 쪽입니다.
   git gc"
 fi
+}
+
+git_split_commands "$COMMAND"
+for ((s = 0; s < ${#GIT_SEGMENTS[@]}; s++)); do
+  check_segment "${GIT_SEGMENTS[s]}"
+done
 
 exit 0

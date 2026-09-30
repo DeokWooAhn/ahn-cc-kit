@@ -3,8 +3,79 @@
 #
 # 셸 문법을 온전히 파싱하지는 않는다. 따옴표로 감싼 인자, 변수 확장, 치환은 놓친다.
 # 놓치면 통과시킨다(fail open). 사고 방지용 가드이지 샌드박스가 아니다.
+#
+# 훅은 먼저 git_split_commands 로 명령을 조각낸 뒤 조각마다 git_find_sub 를 부른다.
+# 통째로 토큰화하면 앞 명령의 옵션이 뒤 명령에 섞인다. git clean -nd && git clean -fd 에서
+# 앞의 -n 이 뒤의 실제 삭제까지 dry run으로 보이게 만든다.
 
-# 명령 문자열에서 하위 명령이 $2인 첫 git 호출을 찾는다.
+# 명령 문자열을 셸 명령 단위로 나눠 GIT_SEGMENTS 배열에 담는다.
+#
+# 1. 줄 이어쓰기(\ + 줄바꿈)를 한 줄로 합친다. 안 합치면 뒤 줄의 --force 가 다른 조각으로 떨어진다.
+# 2. heredoc 본문을 지운다. 커밋 메시지·PR 본문을 <<'EOF' 로 넘기면 본문의 "git reset --hard" 같은
+#    글자가 명령으로 오인된다. 오탐은 훅을 꺼 버리게 만든다.
+# 3. 따옴표로 감싼 내용을 지운다. 여러 줄에 걸친 따옴표도 한 덩어리로 본다.
+# 4. && || ; | & ( ) ` 와 줄바꿈을 명령 경계로 본다.
+git_split_commands() {
+  local cmd="$1" nl=$'\n' bsnl=$'\\\n' q="'" line
+  GIT_SEGMENTS=()
+
+  cmd="${cmd//"$bsnl"/ }"
+
+  # heredoc: <<DELIM, <<-DELIM, <<'DELIM', <<"DELIM". <<< (here-string)은 heredoc이 아니다.
+  # 끝 줄은 앞 공백을 무시하고 비교한다(<<- 는 탭 들여쓰기를 허용한다). 끝 줄이 없으면 끝까지 지운다.
+  cmd=$(printf '%s\n' "$cmd" | awk -v q="$q" '
+    BEGIN { re = "<<-?[ \t]*[\"" q "]?[A-Za-z_][A-Za-z0-9_]*[\"" q "]?" }
+    skip { t = $0; sub(/^[ \t]+/, "", t); if (t == delim) skip = 0; next }
+    {
+      print
+      s = $0; gsub(/<<</, "   ", s)
+      if (match(s, re)) {
+        delim = substr(s, RSTART, RLENGTH)
+        sub(/^<<-?[ \t]*/, "", delim)
+        gsub("[\"" q "]", "", delim)
+        skip = 1
+      }
+    }' 2>/dev/null || printf '%s' "$cmd")
+
+  # 따옴표 상태를 줄을 넘어 유지한다. 따옴표 안의 줄바꿈은 명령 경계가 아니므로 출력하지 않는다.
+  # 큰따옴표 안의 \" 와, 따옴표 밖의 \' \" 는 따옴표를 열고 닫지 않는다.
+  cmd=$(printf '%s\n' "$cmd" | awk -v q="$q" '
+    {
+      out = ""
+      n = length($0)
+      for (i = 1; i <= n; i++) {
+        c = substr($0, i, 1)
+        if (st == 1) { if (c == q) { st = 0; out = out " " } continue }
+        if (st == 2) {
+          if (c == "\\") { i++; continue }
+          if (c == "\"") { st = 0; out = out " " }
+          continue
+        }
+        if (c == "\\") { out = out " "; i++; continue }
+        if (c == q) { st = 1; continue }
+        if (c == "\"") { st = 2; continue }
+        out = out c
+      }
+      printf "%s", out
+      if (st == 0) printf "\n"
+    }' 2>/dev/null || printf '%s' "$cmd")
+
+  cmd="${cmd//"&&"/$nl}"
+  cmd="${cmd//"||"/$nl}"
+  cmd="${cmd//";"/$nl}"
+  cmd="${cmd//"|"/$nl}"
+  cmd="${cmd//"&"/$nl}"
+  cmd="${cmd//"("/$nl}"
+  cmd="${cmd//")"/$nl}"
+  cmd="${cmd//"\`"/$nl}"
+
+  while IFS= read -r line; do
+    [[ -n "${line//[[:space:]]/}" ]] && GIT_SEGMENTS+=("$line")
+  done <<< "$cmd"
+  return 0
+}
+
+# 조각 하나에서 하위 명령이 $2인 첫 git 호출을 찾는다. 조각은 git_split_commands 가 만든다.
 # 성공하면 GIT_ARGS(하위 명령 뒤 인자)와 GIT_C_DIR(-C 값)을 채우고 0을 반환한다.
 git_find_sub() {
   local cmd="$1" want="$2"
@@ -92,6 +163,24 @@ git_current_branch() {
   b=$(git -C "$d" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
   [[ "$b" == "HEAD" ]] && b=""
   printf '%s' "$b"
+}
+
+# 인자 없는 git push가 실제로 향할 원격 브랜치 이름. 판정할 수 없으면 빈 문자열.
+#
+# 현재 브랜치 이름과 다를 수 있다. push.default=upstream(또는 tracking)이고 feature 브랜치의
+# upstream이 origin/main이면 git push 는 main으로 나간다. @{push}는 push.default와
+# pushRemote 설정을 반영한 목적지를 돌려준다.
+#
+# 실패하는 경우는 둘이다. git이 push 자체를 거부하는 경우(simple인데 upstream 이름이 다름,
+# upstream 없음)와, 원격에 아직 없는 브랜치를 current로 새로 만드는 경우다. 앞은 막을 필요가 없고
+# 뒤는 현재 브랜치 이름이 곧 목적지이므로, 호출하는 쪽이 현재 브랜치로 판정하면 된다.
+# 실패할 때도 "@{push}"를 stdout에 찍으므로 종료 코드로 거른다.
+git_push_target() {
+  local d="${GIT_C_DIR:-.}" t
+  t=$(git -C "$d" rev-parse --abbrev-ref --symbolic-full-name '@{push}' 2>/dev/null) || return 0
+  # origin/main → main. 원격 이름에 / 가 들어간 경우는 다루지 않는다.
+  [[ "$t" == */* ]] || return 0
+  printf '%s' "${t#*/}"
 }
 
 # 보호 브랜치인가. GIT_GUARD_PROTECTED_BRANCHES는 쉼표로 구분된 glob 목록이다.

@@ -42,13 +42,20 @@ GIT_GUARD_PROTECTED_BRANCHES="main,release/*,hotfix/*"
 | `git push origin :main` | 원격 브랜치 삭제 |
 | `git push --delete origin main` | 원격 브랜치 삭제 |
 | `git push --all` / `--mirror` | 보호 브랜치까지 함께 나갑니다 |
-| `git push` | **현재 브랜치를 읽어서 판정** |
+| `git push` | **현재 브랜치와 실제 push 목적지를 읽어서 판정** |
 | `git add . && git push origin main` | 명령 구분자를 넘어서 찾습니다 |
+| `git status`⏎`git push origin main` | 줄바꿈 뒤의 명령도 봅니다 |
 | `git -C <path> push origin main` | 전역 옵션을 건너뜁니다 |
 
-**인자 없는 `git push`가 가장 까다롭습니다.** 명령만 봐서는 대상을 알 수 없으므로
-`git rev-parse --abbrev-ref HEAD`로 현재 브랜치를 읽습니다. 저장소 밖이거나 detached HEAD면
-판정할 수 없으므로 통과시킵니다.
+**인자 없는 `git push`가 가장 까다롭습니다.** 명령만 봐서는 대상을 알 수 없으므로 현재 브랜치와
+**실제 목적지**를 함께 읽습니다. 둘은 다를 수 있습니다. `push.default=upstream`(또는 `tracking`)이고
+feature 브랜치의 upstream이 `origin/main`이면, 현재 브랜치는 feature인데 `git push`는 `main`으로 나갑니다.
+목적지는 `git rev-parse --abbrev-ref --symbolic-full-name @{push}`로 구합니다. `push.default`와
+`pushRemote` 설정이 반영된 값입니다.
+
+목적지를 구할 수 없으면 현재 브랜치로 판정합니다. 기본값 `simple`에서 upstream 이름이 다르거나
+upstream이 없으면 git이 push 자체를 거부하고, `current`로 원격에 없는 브랜치를 새로 만들 때는
+현재 브랜치 이름이 곧 목적지입니다. 저장소 밖이거나 detached HEAD면 판정할 수 없으므로 통과시킵니다.
 
 `-o ci.skip` 같이 값을 먹는 옵션의 값은 refspec으로 세지 않습니다.
 
@@ -58,7 +65,9 @@ GIT_GUARD_PROTECTED_BRANCHES="main,release/*,hotfix/*"
 fetch 이후 누군가 올린 커밋이 말없이 사라집니다. `--force-with-lease`는 그 경우 거절하고 멈춥니다.
 한 단어 차이라 대안 비용이 없어서 전면 차단이 성립합니다.
 
-refspec 앞의 `+`(`git push origin +main`)도 같은 force로 봅니다.
+refspec 앞의 `+`(`git push origin +main`)도 같은 force로 봅니다. 줄바꿈 뒤의 push, `\`로 이어 쓴
+`--force`도 잡습니다. 반대로 `git push origin x && git fetch --force`처럼 **다른 명령의 `--force`는
+push의 것으로 보지 않습니다.**
 
 ## destructive-git-guard
 
@@ -82,17 +91,31 @@ refspec 앞의 `+`(`git push origin +main`)도 같은 force로 봅니다.
 - `git reset --soft`, `git reset` — 워킹트리를 건드리지 않습니다
 - `git gc` — 인자 없는 기본값은 안전한 쪽입니다
 
+명령마다 따로 봅니다. `git clean -nd && git clean -fd`는 앞 명령의 `-n` 때문에 통과하지 않고,
+`git checkout x && rm -f y`는 `rm`의 `-f` 때문에 막히지 않습니다.
+
 ## 파싱 한계
 
-셸 문법을 온전히 파싱하지 않습니다. **따옴표로 감싼 내용은 먼저 지웁니다.**
+셸 문법을 온전히 파싱하지 않습니다. 판정 전에 명령을 이렇게 다듬습니다.
+
+1. `\` + 줄바꿈으로 이어 쓴 줄을 한 줄로 합칩니다.
+2. **heredoc 본문을 지웁니다.** 커밋 메시지나 PR 본문을 `<<'EOF'`로 넘기면 본문의 글자가 명령으로
+   오인되기 때문입니다. 끝 줄이 없으면 그 뒤를 전부 지웁니다.
+3. **따옴표로 감싼 내용을 지웁니다.** 여러 줄에 걸친 따옴표도 한 덩어리로 봅니다.
+4. `&&` `||` `;` `|` `&` `(` `)` 백틱과 줄바꿈을 명령 경계로 보고, 명령마다 따로 판정합니다.
 
 ```bash
 git commit -m "git push origin main 은 금지"   # 막지 않는다
+git commit -F - <<'MSG'                       # 막지 않는다 (heredoc 본문)
+git reset --hard 는 쓰지 말 것
+MSG
 git push origin "main"                        # 놓칠 수 있다
 ```
 
 오탐보다 누락을 택했습니다. 오탐은 사람이 훅을 꺼 버리게 만들고, 그러면 아무것도 막지 못합니다.
-변수 확장(`git push $REMOTE $BRANCH`)과 명령 치환도 놓칩니다. 사고 방지용 가드이지 샌드박스가 아닙니다.
+변수 확장(`git push $REMOTE $BRANCH`)과 명령 치환도 놓칩니다. 따옴표 안에 `<<`가 있으면 heredoc으로
+오인해 그 뒤를 보지 못할 수 있고, 원격 이름에 `/`가 든 경우의 목적지 계산은 다루지 않습니다.
+사고 방지용 가드이지 샌드박스가 아닙니다.
 
 ## 테스트
 
@@ -104,4 +127,6 @@ python3 plugins/git-guard/hooks/test_hooks.py
 빈 배열의 `"${a[@]}"`를 unbound variable로 봅니다. 최신 bash로만 돌리면 이 계열 버그가
 통과해 버립니다. 실제로 이 플러그인을 만들면서 세 군데에서 잡혔습니다.
 
-현재 브랜치를 읽어야 하는 케이스를 위해 임시 저장소 두 개(`main`, `feature/x`)를 만듭니다.
+현재 브랜치를 읽어야 하는 케이스를 위해 임시 저장소 세 개를 만듭니다. `main`, `feature/x`, 그리고
+upstream이 `origin/main`이고 `push.default=upstream`인 `feature/y`입니다. 원격은 로컬 bare 저장소이고,
+push 없이 fetch로만 채웁니다.
