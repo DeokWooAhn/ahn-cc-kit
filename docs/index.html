@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ahn-cc-kit — Claude Code plugins for mobile apps</title>
-<meta name="description" content="Android/Compose 코드 리뷰 기준과, Gradle·서명·git 사고를 막는 Claude Code 훅 모음.">
+<meta name="description" content="Android/Compose 코드 리뷰 기준, Gradle·서명·git 사고를 막는 Claude Code 훅, Android·iOS 공통 Maestro E2E 도입 절차 모음.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -172,13 +172,13 @@ footer a{color:var(--muted)}
 
 <section>
   <h1 data-i18n="hero.title">에이전트가 실수하기 전에 멈춥니다.</h1>
-  <p class="lede" data-i18n="hero.lede">Android·Gradle·git 작업에서 되돌리기 비싼 행동을 막는 Claude Code 훅과, Compose 기준 코드 리뷰 스킬. 플러그인 하나는 문제 하나만 다룹니다.</p>
+  <p class="lede" data-i18n="hero.lede">Android·Gradle·git 작업에서 되돌리기 비싼 행동을 막는 Claude Code 훅, Compose 기준 코드 리뷰 스킬, Android·iOS가 Flow 하나를 같이 쓰는 Maestro E2E 도입 절차. 플러그인 하나는 문제 하나만 다룹니다.</p>
 <pre><span class="c"># <span data-i18n="hero.step1">마켓플레이스 추가</span></span>
 claude plugin marketplace add DeokWooAhn/ahn-cc-kit
 
 <span class="c"># <span data-i18n="hero.step2">필요한 것만 설치</span></span>
 claude plugin install android-guard@ahn-cc-kit --scope local</pre>
-  <p class="sub" data-i18n="hero.req">필요한 것은 <code>bash</code>, <code>jq</code>, 그리고 git-guard는 <code>git</code>. 그 외 의존성은 없습니다.</p>
+  <p class="sub" data-i18n="hero.req">훅 플러그인은 <code>bash</code>와 <code>jq</code>, git-guard는 <code>git</code>도 씁니다. maestro-e2e는 <code>maestro</code> CLI가 필요합니다.</p>
 
   <div class="flow">
     <svg viewBox="0 0 660 210" role="img" aria-labelledby="flow-t">
@@ -315,9 +315,9 @@ const I18N = {
   en: {
     "nav.install":"Scope","nav.plugins":"Plugins","nav.rules":"What gets blocked","nav.optout":"Opting out",
     "hero.title":"Stop the agent before it slips.",
-    "hero.lede":"Claude Code hooks that block expensive mistakes in Android, Gradle and git work, plus a Compose-first code review skill. Each plugin is scoped to one pain.",
+    "hero.lede":"Claude Code hooks that block expensive mistakes in Android, Gradle and git work, a Compose-first code review skill, and a Maestro E2E setup guide where Android and iOS share one flow. Each plugin is scoped to one pain.",
     "hero.step1":"add the marketplace","hero.step2":"install only what you need",
-    "hero.req":"Needs <code>bash</code>, <code>jq</code>, and <code>git</code> for git-guard. Nothing else.",
+    "hero.req":"Hook plugins need <code>bash</code> and <code>jq</code>, plus <code>git</code> for git-guard. maestro-e2e needs the <code>maestro</code> CLI.",
     "plugins.title":"Plugins",
     "plugins.sub":"Hooks run in the harness — the model cannot route around them and they cost no context. Skills are read by the model when a task needs them. Three of the five assume Android and Gradle, <code>maestro-e2e</code> covers Android and iOS, and only <code>git-guard</code> is platform-agnostic.",
     "scope.android":"Android · Compose","scope.gradle":"Android · Gradle","scope.any":"Any repo","scope.maestro":"Android · iOS",

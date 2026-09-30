@@ -148,6 +148,7 @@ claude plugin uninstall android-guard@ahn-cc-kit
 ## 필요한 것
 
 훅 플러그인(`android-guard`, `git-guard`)은 `bash`와 `jq`가 필요합니다. `git-guard`는 `git`도 씁니다.
+`maestro-e2e`는 [Maestro CLI](https://maestro.dev)를 씁니다. iOS까지 돌리려면 Xcode가 필요합니다.
 
 **`jq`가 없으면 훅이 아무것도 막지 못합니다.** 입력 파싱이 전부 빈 값이 되어, 입력이 깨졌을 때
 통과시키는 경로를 그대로 타기 때문입니다. 그래서 두 플러그인 모두 세션 시작 때 한 번 확인하고
