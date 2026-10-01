@@ -1,8 +1,8 @@
 ---
 name: flows
 description: >-
-  Android·iOS 앱의 Maestro Flow(.maestro/)를 작성·수정·실행하거나 실패 원인을 찾을 때, 화면 코드를 바꾼 뒤
-  E2E로 확인할 때 사용합니다. "마에스트로 돌려줘", "E2E 플로우 만들어줘", "Maestro 테스트 왜 실패해",
+  Android·iOS 앱의 Maestro Flow(.maestro/)를 작성·수정·실행하거나 실패 원인을 찾을 때 사용합니다.
+  "마에스트로 돌려줘", "E2E 플로우 만들어줘", "Maestro 테스트 왜 실패해",
   "이 화면 플로우 추가해줘" 같은 요청이 해당됩니다.
   Writing, running, or debugging Maestro flows for an Android or iOS app — device choice, MCP-driven
   authoring, selector rules, and known flakiness causes.
@@ -16,9 +16,9 @@ metadata:
 저장소에 `.maestro/`가 아직 없으면 같은 플러그인의 `setup` 스킬부터 따른다.
 그 프로젝트의 id 표와 태그 기준은 저장소의 `.claude/skills/`나 문서에 있다. 그것이 우선이다.
 
-프로젝트 CLAUDE.md에 "화면·UI 코드를 바꾼 작업은 마치기 전에 Maestro를 돌린다"는 규칙이 있으면, 화면 작업의
-마무리 단계에서 요청이 없어도 이 스킬대로 돌린다. 규칙이 없는데 `.maestro/`가 있으면 사용자에게 규칙을
-넣을지 한 번 묻는다(`setup` 스킬의 `templates/claude-md-rule.md`).
+이 플러그인은 화면 작업 뒤에 Maestro를 저절로 돌리지 않는다. PR마다 도는 CI `smoke`가 팀 공통 관문이다.
+로컬 기기에서는 사용자가 요청했거나 사용자의 지침이 그렇게 하라고 할 때 돌린다. 프로젝트 CLAUDE.md에
+그런 규칙을 넣자고 제안하지 않는다.
 
 ## 기기 고르기
 
