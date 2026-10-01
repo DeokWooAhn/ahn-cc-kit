@@ -92,8 +92,9 @@ python3 plugins/git-guard/hooks/test_hooks.py
 
 ### maestro-e2e
 
-Android·iOS 앱에 Maestro E2E를 도입할 때("마에스트로 도입해줘")와 Flow를 쓰고 돌릴 때("마에스트로 돌려줘")
-불립니다. 두 플랫폼에 같은 id를 붙여 Flow 하나로 양쪽을 돌립니다. 도입은 4단계로 나눠 단계마다 PR을 냅니다. 테스트 id와 테스트 모드 → Flow와 MCP →
+Android·iOS 앱에 Maestro E2E를 도입할 때("마에스트로 도입해줘")와 Flow를 만들고 돌리고 리뷰할 때
+("smoke 테스트 만들어줘", "마에스트로 돌려줘") 불립니다. Flow를 만들기 전에 그 프로젝트의 `APP_ID`와 이미 붙은 id를 찾아
+씁니다. 실패는 Flow·앱·환경 중 무엇 때문인지 판정합니다. 두 플랫폼에 같은 id를 붙여 Flow 하나로 양쪽을 돌립니다. 도입은 4단계로 나눠 단계마다 PR을 냅니다. 테스트 id와 테스트 모드 → Flow와 MCP →
 CI smoke → 릴리스 관문 순서입니다.
 팀에 거는 규칙은 PR마다 CI에서 도는 `smoke`뿐이고, 화면 작업 뒤 기기 실행을 강제하는 규칙을 프로젝트 CLAUDE.md에
 넣지 않습니다.
