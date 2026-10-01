@@ -17,6 +17,7 @@ metadata:
 그 프로젝트의 id 표와 태그 기준은 저장소의 `.claude/skills/`나 문서에 있다. 그것이 우선이다.
 
 이 플러그인은 화면 작업 뒤에 Maestro를 저절로 돌리지 않는다. PR마다 도는 CI `smoke`가 팀 공통 관문이다.
+CI에서 smoke를 못 돌리는 저장소는 그 저장소 문서의 릴리스 전 수동 실행 절차가 대신한다(`setup` 3단계).
 로컬 기기에서는 사용자가 요청했거나 사용자의 지침이 그렇게 하라고 할 때 돌린다. 프로젝트 CLAUDE.md에
 그런 규칙을 넣자고 제안하지 않는다.
 
@@ -66,7 +67,7 @@ maestro --device <serial 또는 udid> test .maestro -e APP_ID=<applicationId 또
 
 ## MCP로 Flow 만들기
 
-`.mcp.json`에 `maestro mcp`가 있으면:
+Maestro MCP가 등록돼 있으면(`claude mcp list`에 `maestro`가 보이면. 저장소 `.mcp.json`이거나 local 등록이다):
 
 1. `inspect_view_hierarchy`로 화면의 id를 확인한다.
 2. `tap_on`·`run_flow`로 한 단계씩 조작해 본다.

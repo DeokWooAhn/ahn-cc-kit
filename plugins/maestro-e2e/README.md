@@ -27,6 +27,8 @@ claude plugin install maestro-e2e@ahn-cc-kit --scope project
 - 팀에 거는 규칙은 **CI에서 도는 `smoke`** 하나입니다. 화면을 고칠 때마다 기기에서 Maestro를 돌리라는 규칙을
   프로젝트 CLAUDE.md에 넣지 않습니다. 기기 실행은 요청할 때만 하고, 매번 돌리고 싶은 사람은 개인 지침
   (`~/.claude/CLAUDE.md`)에 둡니다.
+- CI에서 smoke를 못 돌리면(KVM이 없는 GitLab 러너 등) 관문이 없다고 알리고, 러너를 둘지 릴리스 전 수동 실행으로
+  갈지 사용자가 정하게 합니다.
 - 실제로 CI를 멈추게 했던 원인(정규식 id, 권한 설정 때문의 APK 전송 멈춤, 데이터 삭제 직후 재실행 레이스,
   부팅 직후 에뮬레이터 부하)을 피하는 템플릿을 씁니다.
 
@@ -61,7 +63,7 @@ skills/setup/
     ├── maestro/                     config.yaml, subflows/launch_clean.yaml, flows/ 예시
     ├── github/e2e-jobs.yml          기존 워크플로에 붙일 job 두 개
     ├── scripts/                     emulator-settle.sh, maestro-smoke.sh
-    └── mcp.json                     Maestro MCP 등록
+    └── mcp.json                     Maestro MCP 팀 파일(.mcp.json)용. local 등록이면 쓰지 않음
 skills/flows/
 ├── SKILL.md                         프로젝트 분석, smoke 만들기, 기기 선택, 실행, 작성 규칙, 실패 판정
 └── references/
@@ -75,4 +77,5 @@ skills/flows/
 - [Maestro CLI](https://maestro.dev) (`maestro`), Java 17
 - Android: Android SDK의 `adb`
 - iOS: Xcode(`xcodebuild`, `xcrun simctl`)
-- MCP로 Flow를 만들려면 저장소의 `.mcp.json`에 `maestro mcp` 등록(`templates/mcp.json`)
+- MCP로 Flow를 만들려면 `maestro mcp` 등록. 기본은 local 등록(`claude mcp add maestro -- maestro mcp`)이고,
+  팀원 모두가 Maestro를 쓸 때만 `.mcp.json`으로 커밋합니다(`templates/mcp.json`)
