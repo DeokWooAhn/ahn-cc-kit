@@ -142,9 +142,11 @@ signing_literal_in_gradle() {
 }
 
 # .properties 한 줄이 서명 password에 값을 넣는가. 구분자는 = 와 : 둘 다다.
-# 주석 줄(# !)과 빈 값, ${...} 자리표시자로 시작하는 값은 리터럴이 아니다.
+# 주석 줄(# !)과 빈 값, 값 전체가 ${이름} 자리표시자 하나인 줄은 리터럴이 아니다.
+# $ 로 시작한다고 자리표시자가 아니다. $123abc, $ENV, ${ENV}abc 는 리터럴이다.
 signing_literal_in_properties() {
   local line="$1" re val rc=1 was=0
+  local ph='^[$][{][^{}]+[}][[:space:]]*$'
   [[ "$line" =~ ^[[:space:]]*[#!] ]] && return 1
   re="^[[:space:]]*[A-Za-z0-9_.-]*${SIGNING_KEY_RE}[[:space:]]*[=:][[:space:]]*([^[:space:]].*)$"
   # $(shopt -p) 로 저장하면 줄마다 서브셸이 뜬다. 긴 파일에서 눈에 띄게 느려진다.
@@ -153,7 +155,7 @@ signing_literal_in_properties() {
   if [[ "$line" =~ $re ]]; then
     val="${BASH_REMATCH[3]}"
     rc=0
-    [[ "$val" == '$'* ]] && rc=1
+    [[ "$val" =~ $ph ]] && rc=1
   fi
   ((was)) || shopt -u nocasematch
   return "$rc"
