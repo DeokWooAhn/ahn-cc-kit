@@ -117,6 +117,11 @@ SUITES = [
         ("properties : 구분자", BLOCK, payload("Write", {"file_path": "gradle.properties", "content": "storePassword: hunter2"}), {}),
         ("properties 주석 줄", PASS, payload("Write", {"file_path": "gradle.properties", "content": "# RELEASE_STORE_PASSWORD=example"}), {}),
         ("properties 자리표시자", PASS, payload("Write", {"file_path": "gradle.properties", "content": "RELEASE_STORE_PASSWORD=${ENV}"}), {}),
+        # 자리표시자 예외는 값 전체가 ${이름} 하나일 때만이다. $ 로 시작한다고 빠지지 않는다.
+        ("properties $ 로 시작하는 리터럴", BLOCK, payload("Write", {"file_path": "gradle.properties", "content": "RELEASE_STORE_PASSWORD=$123abc"}), {}),
+        ("properties 중괄호 없는 $", BLOCK, payload("Write", {"file_path": "gradle.properties", "content": "RELEASE_STORE_PASSWORD=$ENV"}), {}),
+        ("properties 자리표시자 뒤 글자", BLOCK, payload("Write", {"file_path": "gradle.properties", "content": "RELEASE_STORE_PASSWORD=${ENV}abc"}), {}),
+        ("properties : 자리표시자", PASS, payload("Write", {"file_path": "gradle.properties", "content": "storePassword: ${RELEASE_STORE_PASSWORD}"}), {}),
         ("주석의 $ 는 무관", BLOCK, payload("Write", {"file_path": "app/build.gradle.kts", "content": 'storePassword = "hunter2" // ${docs} 참고'}), {}),
         ("변수 이름에 담은 리터럴", BLOCK, payload("Write", {"file_path": "app/build.gradle.kts", "content": 'val releaseStorePassword = "hunter2"'}), {}),
         ("groovy 작은따옴표의 $", BLOCK, payload("Write", {"file_path": "app/build.gradle", "content": "storePassword 'pa$$word'"}), {}),

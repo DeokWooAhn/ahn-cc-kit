@@ -18,7 +18,7 @@ AUDIT = HERE.parent / "bin" / "android-audit"
 BASH = "/bin/bash"
 
 SECRETS = ["SuperSecret_DoNotLeak_123", "AnotherSecret_456", "PlainTextPassword_789",
-           "StorePassConvention_012", "CommentDollar_345"]
+           "StorePassConvention_012", "CommentDollar_345", "123DollarPrefix_678"]
 
 
 def repo(files, tmp, name):
@@ -70,7 +70,11 @@ DIRTY = {
         f'      storePassword = "{SECRETS[0]}"\n      keyPassword = "{SECRETS[1]}"\n'
         "    }\n  }\n}\n"
     ),
-    "gradle.properties": f"RELEASE_KEYSTORE_PASSWORD={SECRETS[2]}\nRELEASE_STORE_PASSWORD={SECRETS[3]}\n",
+    # $ 로 시작해도 ${이름} 꼴이 아니면 리터럴이다. 예전에는 $ 하나만 보고 자리표시자로 건너뛰었다.
+    "gradle.properties": (
+        f"RELEASE_KEYSTORE_PASSWORD={SECRETS[2]}\nRELEASE_STORE_PASSWORD={SECRETS[3]}\n"
+        f"RELEASE_KEY_PASSWORD=${SECRETS[5]}\n"
+    ),
     # 주석에 $ 가 있어도 앞의 리터럴은 리터럴이다. 예전에는 줄 전체의 $ 를 보고 건너뛰었다.
     "app/signing.gradle.kts": f'storePassword = "{SECRETS[4]}" // ${{docs}} 참고\n',
     "app/release.jks": "binary\n",
@@ -140,7 +144,8 @@ def main():
               "Gradle 프로젝트로 인식", "← grep -q + pipefail 회귀 지점")
         check("app/release.jks" in out, "추적 중인 키스토어를 찾음")
         check("app/build.gradle.kts:4,5" in out, "리터럴 위치를 줄 번호까지 보고")
-        check("gradle.properties:1,2" in out, "properties 리터럴도 보고 (STORE_PASSWORD 관례 포함)")
+        check("gradle.properties:1,2,3" in out,
+              "properties 리터럴도 보고 (STORE_PASSWORD 관례, $ 로 시작하는 값 포함)")
         check("app/signing.gradle.kts:1" in out, "주석의 $ 때문에 리터럴을 건너뛰지 않음")
         check("allowBackup" in out, "Manifest 노출 설정 보고")
         leaked = [s for s in SECRETS if s in out or s in err]

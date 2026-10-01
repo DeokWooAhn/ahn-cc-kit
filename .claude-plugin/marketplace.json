@@ -31,7 +31,7 @@
       "name": "android-guard",
       "source": "android-guard",
       "description": "Android/Gradle 사고 방지 훅. 서명 자격 증명 접근, wrapper 변조, Gradle 캐시 삭제를 막고 서명 없는 release 빌드와 Manifest 노출 변경을 알립니다.",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "author": {
         "name": "DeokWooAhn"
       },
@@ -68,7 +68,7 @@
       "name": "android-audit",
       "source": "android-audit",
       "description": "이미 저장소에 들어와 있는 서명 자격 증명, 평문 password, gitignore 누락, Manifest 노출 설정을 찾습니다. 값은 출력하지 않고 위치만 보고하며, 고치지 않습니다.",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "author": {
         "name": "DeokWooAhn"
       },
@@ -87,7 +87,7 @@
       "name": "maestro-e2e",
       "source": "maestro-e2e",
       "description": "Android·iOS 앱에 Maestro E2E 테스트를 도입하고 운영하는 절차. 두 플랫폼 공통 테스트 id, 공통 실행 subflow, smoke/release Flow, CI 에뮬레이터 job과 릴리스 관문, 실제로 겪은 함정을 담습니다.",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "author": {
         "name": "DeokWooAhn"
       },

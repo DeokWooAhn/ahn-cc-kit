@@ -11,7 +11,7 @@ claude plugin install maestro-e2e@ahn-cc-kit --scope project
 | 스킬 | 요청 예 | 직접 부르기 |
 | --- | --- | --- |
 | `setup` | "마에스트로 도입해줘", "E2E 테스트 CI에 넣어줘" | `/maestro-e2e:setup` |
-| `flows` | "마에스트로 돌려줘", "이 화면 플로우 만들어줘", "Maestro 테스트 왜 실패해" | `/maestro-e2e:flows` |
+| `flows` | "smoke 테스트 만들어줘", "마에스트로 돌려줘", "마에스트로 플로우 리뷰해줘", "Maestro 테스트 왜 실패해" | `/maestro-e2e:flows` |
 
 ## 무엇을 하나
 
@@ -19,10 +19,14 @@ claude plugin install maestro-e2e@ahn-cc-kit --scope project
 - 시작 전에 플랫폼(Android·iOS), 테스트를 막는 것(광고 동의, 광고, 온보딩), CI 환경, 연결된 기기를
   확인하고 사용자에게 보여 줍니다.
 - 두 플랫폼에 같은 id를 붙여 Flow 하나로 양쪽을 돌립니다.
+- Flow를 만들기 전에 프로젝트를 봅니다. 플랫폼별 `APP_ID`, 기존 `.maestro/` 구성, 이미 붙은 id를 찾고,
+  있는 것을 먼저 씁니다. 없는 id는 위치와 이름을 제안한 뒤 붙입니다.
+- 기존 Flow를 체크리스트로 리뷰하고, 실패는 **Flow·앱·환경** 중 무엇 때문인지 판정해 보고합니다.
+  앱 버그를 Flow를 느슨하게 고쳐 가리지 않습니다.
 - 실기기가 있으면 실기기로 돌립니다. 스토어판 앱을 지워야 하면 먼저 묻습니다.
-- 도입할 때 프로젝트 CLAUDE.md에 **"화면 코드를 바꾼 작업은 마치기 전에 Maestro를 돌린다"** 규칙을 넣습니다.
-  스킬 설명만으로는 에이전트가 E2E를 떠올리지 않으면 돌지 않아서, 매 세션 읽히는 CLAUDE.md에 둡니다.
-  기기가 없으면 건너뛰고 건너뛰었다고 알립니다.
+- 팀에 거는 규칙은 **CI에서 도는 `smoke`** 하나입니다. 화면을 고칠 때마다 기기에서 Maestro를 돌리라는 규칙을
+  프로젝트 CLAUDE.md에 넣지 않습니다. 기기 실행은 요청할 때만 하고, 매번 돌리고 싶은 사람은 개인 지침
+  (`~/.claude/CLAUDE.md`)에 둡니다.
 - 실제로 CI를 멈추게 했던 원인(정규식 id, 권한 설정 때문의 APK 전송 멈춤, 데이터 삭제 직후 재실행 레이스,
   부팅 직후 에뮬레이터 부하)을 피하는 템플릿을 씁니다.
 
@@ -57,11 +61,13 @@ skills/setup/
     ├── maestro/                     config.yaml, subflows/launch_clean.yaml, flows/ 예시
     ├── github/e2e-jobs.yml          기존 워크플로에 붙일 job 두 개
     ├── scripts/                     emulator-settle.sh, maestro-smoke.sh
-    ├── claude-md-rule.md            프로젝트 CLAUDE.md에 넣을 "화면 작업 뒤 Maestro 실행" 규칙
     └── mcp.json                     Maestro MCP 등록
 skills/flows/
-├── SKILL.md                         기기 선택, 실행, MCP 작성 절차, 작성 규칙, 실패 조사 순서
-└── references/gotchas.md            증상 → 원인 → 대응
+├── SKILL.md                         프로젝트 분석, smoke 만들기, 기기 선택, 실행, 작성 규칙, 실패 판정
+└── references/
+    ├── project-analysis.md          APP_ID 찾기, 기존 .maestro·id 확인, 없는 id 제안
+    ├── review-checklist.md          기존 Flow 리뷰 항목과 보고 형식
+    └── gotchas.md                   증상 → 원인 → 대응
 ```
 
 ## 필요한 것
