@@ -161,6 +161,14 @@ html:has(dialog[open]){overflow:hidden}
 .fd-body{padding:20px 24px 26px;overflow-y:auto}
 .fd-body > .sub{margin:0 0 22px}
 .fd-src{margin:22px 0 0;font-size:13.5px}
+.fd-why{display:grid;gap:12px;grid-template-columns:1fr 1fr;margin:0 0 26px}
+.fd-why section{padding:0;background:var(--card-hi);border:1px solid var(--line);border-radius:13px;padding:14px 16px}
+.fd-why section + section::before{display:none}
+.fd-why h4,.fd-h{margin:0 0 8px;font:700 12px Inter,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--clay)}
+.fd-why ul{margin:0;padding-left:18px}
+.fd-why li{font-size:13.6px;color:var(--muted);line-height:1.62;margin:0 0 6px}
+.fd-why li:last-child{margin-bottom:0}
+.fd-h{margin:0 0 12px}
 .fc{list-style:none;margin:0;padding:0}
 .fc > li{position:relative;margin:0 0 26px}
 .fc > li:last-child{margin-bottom:0}
@@ -176,6 +184,9 @@ html:has(dialog[open]){overflow:hidden}
 .fc .k-cmd .n{border-left-color:var(--clay)}
 .fc .k-ask .n{border-left-color:var(--indigo);background:rgba(37,69,111,.05)}
 .fc .k-end .n{border-left-color:var(--clay);background:rgba(184,85,46,.05)}
+.fc .k-team .n{border:1px solid rgba(37,69,111,.28);border-left:3px solid var(--indigo);background:rgba(37,69,111,.06)}
+.fc .k-team .n b{color:var(--indigo)}
+.fc .k-team .n b::before{content:"👥 "}
 .fc .k-phase{margin-bottom:12px}
 .fc .k-phase::before,.fc .k-phase::after{display:none}
 .fc .k-phase span{display:inline-block;font:700 11.5px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;
@@ -195,6 +206,7 @@ html:has(dialog[open]){overflow:hidden}
   .fd{width:calc(100% - 16px);max-height:calc(100dvh - 16px)}
   .fd-head{padding:16px 16px 12px} .fd-body{padding:16px 16px 22px}
   .fc .opts{grid-template-columns:1fr}
+  .fd-why{grid-template-columns:1fr}
 }
 
 /* 스크롤에 맞춰 섹션이 올라오게 합니다. 모션을 줄이기로 한 사용자에게는 적용하지 않습니다. */
@@ -372,6 +384,11 @@ android-audit ~/work/app --history</pre>
   </div>
   <div class="fd-body">
     <p class="sub" id="fd-sum"></p>
+    <div class="fd-why">
+      <section><h4 id="fd-why-h"></h4><ul id="fd-why"></ul></section>
+      <section><h4 id="fd-md-h"></h4><ul id="fd-md"></ul></section>
+    </div>
+    <h4 class="fd-h" id="fd-flow-h"></h4>
     <ol class="fc" id="fd-flow"></ol>
     <p class="fd-src"><a id="fd-src" href="#"></a></p>
   </div>
@@ -443,6 +460,8 @@ document.getElementById("lang").onclick = () => { lang = lang === "ko" ? "en" : 
 
 let DATA = null;
 const active = new Set(["block","warn","pass"]);
+// 판정 표는 접힌 채로 시작합니다. 펼친 훅은 필터나 언어를 바꿔 다시 그려도 펼친 채로 둡니다.
+const openHooks = new Set();
 document.querySelectorAll(".chip").forEach(c => c.onclick = () => {
   const f = c.dataset.f;
   active.has(f) ? active.delete(f) : active.add(f);
@@ -462,7 +481,8 @@ function render(){
     if(!rows.length) continue;
     const d = document.createElement("details");
     d.className = "hook";
-    d.open = true;
+    d.open = openHooks.has(g.hook);
+    d.addEventListener("toggle", () => d.open ? openHooks.add(g.hook) : openHooks.delete(g.hook));
     const body = rows.map(c => {
       let ctx = "";
       if(c.env) ctx += `<span class="ctx">env: ${c.env}</span>`;
@@ -630,7 +650,7 @@ const FLOWS = {
   },
   "maestro-e2e": {
     ko: { kind:"스킬 2 · Android · iOS", sum:"도입은 4단계, 단계마다 PR 하나입니다. 도입이 끝나면 PR마다 CI smoke가 돌고, 그 밖의 일은 요청할 때 합니다.", steps:[
-      {k:"cmd", t:"설치", code:"claude plugin install maestro-e2e@ahn-cc-kit --scope project", d:"필요: Maestro CLI(2.1.0 기준), Java 17, Android는 <code>adb</code>, iOS는 Xcode. 팀원도 받도록 project 범위로 넣습니다."},
+      {k:"cmd", t:"설치", code:"claude plugin install maestro-e2e@ahn-cc-kit --scope project", d:"필요: Maestro CLI(2.1.0 기준), Java 17, Android는 <code>adb</code>, iOS는 Xcode. 팀이 같이 쓰므로 project 범위로 넣습니다(팀원 설치는 바로 아래)."},
       {k:"ask", t:"도입을 요청합니다", d:"\"마에스트로 도입해줘\" — 또는 <code>/maestro-e2e:setup</code>"},
       {k:"step", t:"시작 전에 확인합니다", d:"플랫폼, 테스트를 막는 것(광고 동의·광고·트래킹 SDK·온보딩), smoke/release로 나눌 화면, CI와 KVM, 연결된 기기를 표로 보여 줍니다."},
       {k:"phase", t:"1단계 · PR"},
@@ -645,13 +665,14 @@ const FLOWS = {
       {k:"step", t:"릴리스 관문", d:"릴리스 빌드·업로드 job이 <code>e2e_smoke</code>를 기다립니다. release Flow는 태그 커밋의 debug 빌드로 실기기에서 돌립니다. 릴리스 빌드에는 Maestro를 돌리지 않습니다."},
       {k:"phase", t:"도입 후"},
       {k:"step", t:"PR마다 CI smoke가 자동으로 돕니다", d:"팀 공통 관문입니다. 화면 작업마다 기기에서 돌리는 건 팀 규칙이 아니라 개인 지침으로 둡니다."},
+      {k:"step", t:"id는 그 화면을 고치는 PR에서 붙입니다", d:"도입 뒤에는 각자 화면 작업 PR에서 그 화면의 id를 붙입니다. 붙이기 전에 저장소의 id 표를 보고, 같은 PR에서 표도 고칩니다. 이름이 갈라지면 머지 충돌 없이 Flow만 조용히 깨지기 때문입니다."},
       {k:"branch", t:"그 밖에는 요청할 때", items:[
         {v:"info", t:"\"이 화면 플로우 만들어줘\"", d:"만들지부터 판단 → 기존 id 확인 → 작성 → 처음부터 두 번 통과"},
         {v:"info", t:"\"마에스트로 돌려줘\"", d:"debug 빌드 설치 → 실행. 넘길 변수가 없는 Flow는 건너뜁니다"},
         {v:"info", t:"\"플로우 리뷰해줘\"", d:"체크리스트로 보고만 합니다"},
         {v:"info", t:"\"Maestro 테스트 왜 실패해\"", d:"Flow · 앱 · 환경 중 하나로 판정하고 근거와 조치를 적습니다"}]}]},
     en: { kind:"2 skills · Android · iOS", sum:"Adoption is four steps, one PR each. Afterwards CI runs smoke on every PR, and everything else happens when you ask.", steps:[
-      {k:"cmd", t:"Install", code:"claude plugin install maestro-e2e@ahn-cc-kit --scope project", d:"Needs the Maestro CLI (2.1.0), Java 17, <code>adb</code> for Android and Xcode for iOS. Project scope so collaborators get it too."},
+      {k:"cmd", t:"Install", code:"claude plugin install maestro-e2e@ahn-cc-kit --scope project", d:"Needs the Maestro CLI (2.1.0), Java 17, <code>adb</code> for Android and Xcode for iOS. Project scope, since the team shares it (teammates' install is right below)."},
       {k:"ask", t:"Ask to set it up", d:"\"Set up Maestro\" — or <code>/maestro-e2e:setup</code>"},
       {k:"step", t:"Check before starting", d:"Platforms, what blocks tests (ad consent, ads, tracking SDKs, onboarding), which screens are smoke vs release, CI and KVM, connected devices — shown as a table."},
       {k:"phase", t:"Step 1 · PR"},
@@ -666,12 +687,121 @@ const FLOWS = {
       {k:"step", t:"Release gate", d:"Release build and upload jobs wait for <code>e2e_smoke</code>. Release flows run on a real device against the tagged commit's debug build. Maestro never runs on release builds."},
       {k:"phase", t:"After adoption"},
       {k:"step", t:"CI smoke runs on every PR", d:"That is the team gate. Running on a device after every screen change is a personal instruction, not a team rule."},
+      {k:"step", t:"Add ids in the PR that touches the screen", d:"After adoption, each person adds a screen's ids in the PR that changes that screen. Check the repo's id table first and update it in the same PR — diverging names don't conflict at merge, they just quietly break flows."},
       {k:"branch", t:"Everything else, on request", items:[
         {v:"info", t:"\"Add a flow for this screen\"", d:"Decide whether it needs one → reuse ids → write → pass twice from scratch"},
         {v:"info", t:"\"Run Maestro\"", d:"Install the debug build → run. Flows whose variables can't be supplied are skipped"},
         {v:"info", t:"\"Review the flows\"", d:"Reports against the checklist; no edits"},
         {v:"info", t:"\"Why is Maestro failing?\"", d:"Classifies it as flow, app or environment, with evidence and a fix"}]}]}
   }
+};
+
+// 왜 쓰나 · md 파일로 적어 두는 것과 무엇이 다른가. 카드 대화상자의 순서도 위에 둡니다.
+const WHY = {
+  "android-review": {
+    ko: { why:[
+      "리뷰 기준이 사람·세션마다 달라지지 않습니다. 정확성 → 회귀 위험 → 범위 이탈 → 보안 → 테스트 누락 순서와 보고 형식이 고정됩니다.",
+      "일회성 이벤트를 <code>collectLatest</code>로 수집하는 것처럼 Compose·코루틴·Hilt에서 놓치기 쉬운 것을 체크리스트로 봅니다.",
+      "AGP·R8·targetSdk 변경은 직접 조사하기 전에 Google 공식 스킬부터 확인합니다."],
+      md:[
+      "md 파일(CLAUDE.md 등)에 적은 기준은 리뷰하지 않는 세션에서도 매번 컨텍스트를 씁니다. 스킬은 설명(~72 tok)만 올라가 있다가 리뷰할 때 본문을 읽고, 상세 체크리스트는 필요한 절만 읽습니다.",
+      "저장소마다 복사한 md는 따로 낡습니다. 플러그인은 한 곳에서 고치고 <code>update</code> 한 번으로 모든 저장소가 같은 기준을 씁니다.",
+      "기준 자체는 md에도 적을 수 있습니다. 차이는 내용이 아니라 언제 읽히고 어떻게 배포되느냐입니다."]},
+    en: { why:[
+      "Reviews stop varying by person and session: correctness → regression risk → scope creep → security → missing tests, in a fixed report format.",
+      "A checklist for what is easy to miss in Compose, coroutines and Hilt — like collecting one-off events with <code>collectLatest</code>.",
+      "AGP, R8 and targetSdk changes check Google's official skills before any digging."],
+      md:[
+      "Criteria in a markdown file (CLAUDE.md and the like) take context every session, even when nobody is reviewing. A skill keeps only its description (~72 tok) loaded, reads the body when reviewing, and reads only the checklist sections it needs.",
+      "A copy in each repo drifts on its own. The plugin is fixed in one place and one <code>update</code> brings every repo to the same criteria.",
+      "You could write the same criteria in markdown. The difference is when it is read and how it is distributed, not what it says."]}
+  },
+  "android-guard": {
+    ko: { why:[
+      "서명 키 유출, wrapper 변조, Gradle 캐시 삭제처럼 한 번 일어나면 되돌리기 비싼 실수를 실행 전에 멈춥니다.",
+      "서명 없이 \"성공\"한 release 빌드처럼 초록불 뒤에 숨은 문제를 알립니다."],
+      md:[
+      "md에 \"서명 파일을 읽지 마라\"고 적으면 모델에게 부탁하는 것입니다. 잊거나 다른 도구로 돌아갈 수 있습니다. 훅은 하네스가 실행해 모델이 우회할 수 없습니다.",
+      "컨텍스트를 쓰지 않습니다(0 tok). md 규칙은 매 세션 자리를 차지합니다.",
+      "판정이 테스트로 고정돼 있습니다. 아래 \"무엇이 막히나\" 표가 그 테스트에서 만들어집니다."]},
+    en: { why:[
+      "Stops mistakes that are expensive to undo — leaked signing keys, a tampered wrapper, a deleted Gradle cache — before they run.",
+      "Flags problems hiding behind a green build, like a release build that \"succeeded\" unsigned."],
+      md:[
+      "\"Don't read signing files\" in markdown is a request to the model. It can forget, or reach the file another way. A hook runs in the harness; the model cannot route around it.",
+      "It costs no context (0 tok). A markdown rule takes room every session.",
+      "Verdicts are pinned by tests, and the \"What gets blocked\" table below is generated from them."]}
+  },
+  "git-guard": {
+    ko: { why:[
+      "<code>--force</code> push, 보호 브랜치 직접 push, <code>reset --hard</code>·<code>clean -fd</code>처럼 남의 커밋이나 커밋하지 않은 변경을 날리는 명령을 실행 전에 멈춥니다.",
+      "<code>git restore 파일</code>, <code>--force-with-lease</code> 같은 좁은 작업은 통과시켜 일을 막지 않습니다."],
+      md:[
+      "md 규칙은 지켜 달라는 부탁이고, 훅은 실행되지 않게 막습니다. <code>&&</code>·줄바꿈·heredoc으로 이어진 명령도 같은 기준으로 봅니다.",
+      "서버의 브랜치 보호는 push가 나간 뒤에 거절합니다. 훅은 로컬에서 명령 전에 멈추고, <code>reset</code>·<code>clean</code>처럼 서버가 볼 수 없는 로컬 명령도 막습니다.",
+      "컨텍스트를 쓰지 않습니다(0 tok)."]},
+    en: { why:[
+      "Stops commands that wipe other people's commits or your uncommitted work — <code>--force</code> pushes, direct pushes to protected branches, <code>reset --hard</code>, <code>clean -fd</code> — before they run.",
+      "Narrow operations like <code>git restore &lt;file&gt;</code> and <code>--force-with-lease</code> pass, so work isn't blocked."],
+      md:[
+      "A markdown rule asks; a hook prevents. Commands chained with <code>&&</code>, newlines or heredocs are judged the same way.",
+      "Server-side branch protection rejects a push after it leaves. The hook stops it locally, before it runs, and also covers local-only commands like <code>reset</code> and <code>clean</code> that a server never sees.",
+      "It costs no context (0 tok)."]}
+  },
+  "android-audit": {
+    ko: { why:[
+      "훅을 설치하기 전에 들어간 것, 사람이 직접 커밋한 것, <code>git add .</code>로 딸려 들어간 서명 파일·평문 password를 찾습니다.",
+      "종료 코드가 있어 CI에 그대로 걸 수 있습니다."],
+      md:[
+      "md에 \"시크릿을 찾아봐\"라고 적으면 모델이 매번 다르게 찾고, 확인하려고 값을 채팅에 옮길 수 있습니다. 이 도구는 같은 규칙으로 돌고 값은 출력하지 않습니다.",
+      "판정 규칙이 android-guard 훅과 같고, 테스트가 두 쪽이 같은지 확인합니다."]},
+    en: { why:[
+      "Finds signing files and plaintext passwords that got in before the hooks, were committed by hand, or rode along with <code>git add .</code>.",
+      "It has exit codes, so it drops straight into CI."],
+      md:[
+      "\"Look for secrets\" in markdown means the model searches differently each time, and may paste a value into chat to confirm it. The tool runs the same rules every time and never prints values.",
+      "Its rules match the android-guard hooks, and a test checks that the two stay identical."]}
+  },
+  "maestro-e2e": {
+    ko: { why:[
+      "화면이 망가진 채 머지·배포되는 것을 PR마다 도는 CI smoke로 막습니다.",
+      "실제로 CI를 멈추게 했던 원인(정규식 id, APK 전송 멈춤, 재실행 레이스, 부팅 직후 부하)을 피하는 템플릿을 그대로 씁니다.",
+      "Android와 iOS가 같은 id로 Flow 하나를 같이 씁니다."],
+      md:[
+      "md 가이드는 설명이고, 이 플러그인은 복사해 쓰는 템플릿(공통 subflow, CI job, 안정화 스크립트)과 절차(프로젝트 분석, 실패 판정)까지 담습니다.",
+      "저장소마다 복사한 가이드는 따로 낡습니다. 프로젝트에 복사해 둔 가이드가 플러그인과 어긋나는 일이 실제로 있었습니다. 프로젝트에는 id 표와 APP_ID처럼 그 저장소에만 해당하는 것만 둡니다.",
+      "스킬은 필요할 때만 읽혀 평소 컨텍스트를 쓰지 않습니다."]},
+    en: { why:[
+      "CI smoke on every PR stops a broken screen from being merged and shipped.",
+      "Templates that avoid what actually stalled CI — regex ids, stuck APK transfers, relaunch races, post-boot load.",
+      "Android and iOS share one flow through the same ids."],
+      md:[
+      "A markdown guide explains; this plugin also ships templates you copy (shared subflow, CI job, stabilisation scripts) and procedures (project analysis, failure triage).",
+      "A guide copied into each repo drifts. A copy kept in a project really did fall out of step with the plugin. The project keeps only what is its own — the id table and APP_ID.",
+      "Skills are read only when needed, so they cost no context the rest of the time."]}
+  }
+};
+
+// 팀에서 쓸 때. 설치 바로 다음에 순서도 노드로 넣습니다.
+// project 범위의 .claude/settings.json은 플러그인을 켜기만 하고 내려받지는 않습니다(공식 문서 plugins/install).
+const PROJ_KO = "팀 모두에게 같게 걸려면 한 사람이 <code>--scope project</code>로 설치해 <code>.claude/settings.json</code>을 커밋합니다. 그 파일은 플러그인을 켜기만 하고 내려받지는 않으므로, 팀원은 각자 같은 설치 명령을 한 번 실행합니다. 설정 파일을 고쳐 커밋하는 건 한 사람입니다. 설치 뒤 그 파일에 차이(키 순서 등)가 생겨도 커밋하지 않습니다.";
+const PROJ_EN = "To give everyone the same setup, one person installs with <code>--scope project</code> and commits <code>.claude/settings.json</code>. That file only enables the plugin; it doesn't download it, so each teammate runs the same install command once. Only one person edits and commits the settings file. If installing leaves a diff in it (key order and the like), don't commit it.";
+const TEAM = {
+  "android-review": {
+    ko:{t:"팀에서 쓸 때", d:"각자 설치하면 됩니다. 리뷰는 저장소 파일을 바꾸지 않아 서로 겹칠 일이 없습니다."},
+    en:{t:"Using it as a team", d:"Everyone installs it for themselves. A review changes no repository files, so nothing collides."}},
+  "android-guard": {
+    ko:{t:"팀에서 쓸 때", d:PROJ_KO + " 나만 쓰려면 <code>--scope local</code>로 각자 넣습니다. 서로 영향이 없습니다."},
+    en:{t:"Using it as a team", d:PROJ_EN + " To use it just for yourself, install with <code>--scope local</code>; it affects no one else."}},
+  "git-guard": {
+    ko:{t:"팀에서 쓸 때", d:PROJ_KO + " 보호 목록을 바꾸는 <code>GIT_GUARD_PROTECTED_BRANCHES</code>는 각자 셸에 두는 값이라 팀원마다 다를 수 있습니다."},
+    en:{t:"Using it as a team", d:PROJ_EN + " <code>GIT_GUARD_PROTECTED_BRANCHES</code> lives in each person's shell, so the protected list can differ between teammates."}},
+  "android-audit": {
+    ko:{t:"팀에서 쓸 때", d:"각자 설치해 실행해도 저장소를 바꾸지 않습니다. CI에 거는 것은 한 사람이 PR 하나로 합니다."},
+    en:{t:"Using it as a team", d:"Anyone can install and run it; it changes nothing in the repo. Wiring it into CI is one person's single PR."}},
+  "maestro-e2e": {
+    ko:{t:"팀에서 쓸 때 — 설치는 모두, 도입은 한 사람", d:"한 사람이 project 범위로 설치해 <code>.claude/settings.json</code>을 커밋하고, 팀원은 각자 같은 설치 명령을 한 번 실행합니다. 그 파일은 플러그인을 켜기만 하고 내려받지는 않습니다. <strong>아래 도입 1~4단계는 한 사람이 맡습니다.</strong> 여럿이 동시에 도입하면 같은 화면에 서로 다른 이름의 id를 붙이고 <code>.maestro/</code>와 CI job을 따로 만들어 충돌합니다. 시작하기 전에 열린 PR과 브랜치에 <code>.maestro/</code>나 테스트 id 작업이 있는지 보고, 팀에 알립니다."},
+    en:{t:"Using it as a team — everyone installs, one person adopts", d:"One person installs at project scope and commits <code>.claude/settings.json</code>; each teammate runs the same install command once, since that file only enables the plugin and doesn't download it. <strong>Steps 1–4 below are one person's job.</strong> If several people adopt at once, the same screens get ids under different names and separate <code>.maestro/</code> folders and CI jobs, and everything collides. Before starting, check open PRs and branches for <code>.maestro/</code> or test-id work, and tell the team."}}
 };
 
 const fd = document.getElementById("fd");
@@ -691,7 +821,15 @@ function renderFlow(){
   document.getElementById("fd-kind").textContent = f.kind;
   document.getElementById("fd-title").textContent = fdName;
   document.getElementById("fd-sum").textContent = f.sum;
-  document.getElementById("fd-flow").innerHTML = f.steps.map(flowNode).join("");
+  const w = WHY[fdName][lang], tm = TEAM[fdName][lang], ko = lang === "ko";
+  document.getElementById("fd-why-h").textContent = ko ? "왜 쓰나" : "Why use it";
+  document.getElementById("fd-md-h").textContent = ko ? "md 파일로 적어 두는 것과 차이" : "Versus a markdown file";
+  document.getElementById("fd-flow-h").textContent = ko ? "진행 순서" : "How it runs";
+  document.getElementById("fd-why").innerHTML = w.why.map(x => `<li>${x}</li>`).join("");
+  document.getElementById("fd-md").innerHTML = w.md.map(x => `<li>${x}</li>`).join("");
+  // 팀 노드는 설치 바로 다음에 둡니다.
+  const steps = [f.steps[0], {k:"team", t:tm.t, d:tm.d}, ...f.steps.slice(1)];
+  document.getElementById("fd-flow").innerHTML = steps.map(flowNode).join("");
   const src = document.getElementById("fd-src");
   src.href = `https://github.com/DeokWooAhn/ahn-cc-kit/tree/main/plugins/${fdName}`;
   src.textContent = lang === "ko" ? "README와 스킬 원문 보기 →" : "Read the README and skill source →";
