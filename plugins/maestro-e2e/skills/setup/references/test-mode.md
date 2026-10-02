@@ -22,6 +22,8 @@ Maestro는 `launchApp`의 `arguments`를 **Android에서는 intent extra로, iOS
 | 강제 업데이트·점검 안내 | 서버 설정에 따라 테스트 결과가 달라진다 |
 
 로그인은 끄지 않는다. 로그인이 필요한 화면은 테스트 계정이나 mock 환경이 준비된 뒤 `release`로 다룬다.
+로그인 subflow를 하나 두고, 계정은 `-e`와 CI 변수로 넘기며(Flow와 저장소에 적지 않는다), 동시에 실행하는
+환경끼리는 계정을 나눈다. 같은 계정으로 동시에 로그인하면 서로의 세션을 끊거나 데이터를 바꾼다.
 
 **트래킹 SDK는 초기화 시점을 먼저 본다.** Android에서는 보통 `Application.onCreate`에서 초기화하는데, 그때는
 아직 Activity의 intent extra를 읽을 수 없다. 셋 중 하나를 고른다.

@@ -50,7 +50,8 @@ metadata:
 ## 2단계 — Flow와 MCP
 
 - `templates/maestro/`를 저장소 루트의 `.maestro/`로 복사한다. `launch_clean.yaml`의 기준점 id를 바꾼다.
-- `smoke` 2~3개(앱 실행, 서버 없이 되는 핵심 동작, 탭 이동)와 `release` 1~2개로 시작한다.
+- 처음엔 `smoke` 2~3개(앱 실행, 서버 없이 되는 핵심 동작, 탭 이동)와 `release` 1~2개로 시작한다. smoke는 3단계에서
+  CI 관문이 되므로 적게 넣는다. CI에서 안정되면 `flows` 스킬의 기준(3~5개)까지 늘린다.
 - Maestro MCP를 등록한다. Flow는 MCP로 기기를 조작하며 만들고 CLI로 확정한다. 어디에 등록할지 사용자에게 묻는다.
   - **local 등록**(기본): `claude mcp add maestro -- maestro mcp`. 기본 범위가 local이라 그 사람의 그 저장소에서만
     켜지고 커밋되지 않는다. Maestro를 설치하지 않은 팀원이 있으면 이쪽이다.
@@ -58,7 +59,8 @@ metadata:
     설치하지 않은 사람에게는 MCP 서버 연결 실패가 뜬다.
 - 이 저장소의 `.claude/skills/`에 **그 프로젝트의 id 표**를 남긴다. 이 플러그인에는 넣지 않는다.
 - 프로젝트 CLAUDE.md에 "화면을 고치면 Maestro를 돌린다" 같은 규칙을 넣지 않는다. 팀 공통 관문은 3단계의 CI smoke다.
-  로컬 기기 실행은 요청할 때만 한다. 매번 돌리고 싶은 사람은 개인 지침(`~/.claude/CLAUDE.md`)에 둔다.
+  로컬 기기 실행은 요청할 때만 한다. 매번 돌리고 싶은 사람은 개인 지침에 둔다. 모든 저장소에 적용하려면
+  `~/.claude/CLAUDE.md`, 그 저장소에서만 쓰려면 저장소 루트의 `CLAUDE.local.md`(`.gitignore`에 직접 추가한다).
 - 두 플랫폼이 다 있으면 **양쪽에서 모두** 통과해야 2단계가 끝난다. iOS 빌드·실행은 `references/ios.md`.
 - 완료 기준: Flow가 각 플랫폼 기기에서 통과한다.
 - 작성·실행 규칙은 같은 플러그인의 `flows` 스킬을 따른다.
