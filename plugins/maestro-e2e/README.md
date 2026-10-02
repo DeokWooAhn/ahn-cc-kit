@@ -69,6 +69,7 @@ skills/flows/
 └── references/
     ├── project-analysis.md          APP_ID 찾기, 기존 .maestro·id 확인, 없는 id 제안
     ├── review-checklist.md          기존 Flow 리뷰 항목과 보고 형식
+    ├── when-to-add-flow.md          새 화면에 Flow를 만들지, 기존 Flow에 단계만 넣을지, 만들지 않을지
     └── gotchas.md                   증상 → 원인 → 대응
 ```
 
