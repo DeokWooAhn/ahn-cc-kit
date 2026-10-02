@@ -142,6 +142,61 @@ footer{padding:44px 0 64px;color:var(--muted);font-size:14px;border-top:1px soli
 footer a{color:var(--muted)}
 [hidden]{display:none!important}
 
+/* 카드를 누르면 그 플러그인의 설치·호출·진행 순서를 순서도로 보여 줍니다. */
+.card[data-plugin]{cursor:pointer;display:flex;flex-direction:column}
+.card[data-plugin]:focus-visible{outline:2px solid var(--clay);outline-offset:3px}
+.card .tags{margin-top:auto}
+.card .more{display:inline-block;margin-top:14px;font:600 13px Inter,sans-serif;color:var(--clay)}
+.card[data-plugin]:hover .more{text-decoration:underline}
+html:has(dialog[open]){overflow:hidden}
+.fd{width:min(760px,calc(100% - 32px));max-height:calc(100dvh - 48px);padding:0;border:1px solid var(--line);
+  border-radius:18px;background:var(--paper);color:var(--ink);box-shadow:0 30px 80px -30px rgba(32,36,44,.45)}
+.fd::backdrop{background:rgba(32,36,44,.4);backdrop-filter:blur(3px)}
+.fd[open]{display:flex;flex-direction:column}
+.fd-head{display:flex;align-items:flex-start;gap:16px;padding:20px 24px 16px;border-bottom:1px solid var(--line);
+  background:rgba(250,248,245,.94)}
+.fd-head .eyebrow{margin:0 0 4px}
+.fd-head h3{margin:0;font:700 19px "JetBrains Mono",monospace;color:var(--clay)}
+.fd-x{margin-left:auto;padding:6px 11px;font-size:15px;line-height:1}
+.fd-body{padding:20px 24px 26px;overflow-y:auto}
+.fd-body > .sub{margin:0 0 22px}
+.fd-src{margin:22px 0 0;font-size:13.5px}
+.fc{list-style:none;margin:0;padding:0}
+.fc > li{position:relative;margin:0 0 26px}
+.fc > li:last-child{margin-bottom:0}
+.fc > li:not(:last-child)::after{content:"";position:absolute;left:22px;bottom:-22px;width:0;height:18px;
+  border-left:1.5px solid #b6b1a6}
+.fc > li:not(:last-child)::before{content:"";position:absolute;left:18px;bottom:-24px;border:4.5px solid transparent;
+  border-top:6px solid #b6b1a6;border-bottom:0}
+.fc .n{background:var(--card-hi);border:1px solid var(--line);border-left:3px solid #b6b1a6;border-radius:12px;
+  padding:13px 16px;box-shadow:0 1px 2px rgba(32,36,44,.04)}
+.fc .n b{display:block;font-size:14.5px;margin:0 0 2px}
+.fc .n p{margin:0;font-size:13.8px;color:var(--muted);line-height:1.65}
+.fc .n pre{margin:10px 0 0;font-size:12.5px;padding:10px 12px;white-space:pre-wrap;word-break:break-word}
+.fc .k-cmd .n{border-left-color:var(--clay)}
+.fc .k-ask .n{border-left-color:var(--indigo);background:rgba(37,69,111,.05)}
+.fc .k-end .n{border-left-color:var(--clay);background:rgba(184,85,46,.05)}
+.fc .k-phase{margin-bottom:12px}
+.fc .k-phase::before,.fc .k-phase::after{display:none}
+.fc .k-phase span{display:inline-block;font:700 11.5px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;
+  color:#fff;background:linear-gradient(135deg,var(--clay),var(--indigo));border-radius:99px;padding:4px 12px}
+.fc .q{font:700 13.5px Inter,sans-serif;margin:0 0 9px;display:flex;align-items:center;gap:8px}
+.fc .q::before{content:"◆";color:var(--indigo);font-size:11px}
+.fc .opts{display:grid;gap:10px;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr))}
+.fc .o{border:1px solid var(--line);border-radius:11px;padding:11px 14px;background:var(--card-hi)}
+.fc .o b{display:block;font-size:13.5px;margin:0 0 2px}
+.fc .o p{margin:0;font-size:13px;color:var(--muted);line-height:1.6}
+.fc .o-block{border-color:rgba(194,64,58,.3);background:rgba(194,64,58,.05)} .fc .o-block b{color:var(--block)}
+.fc .o-warn{border-color:rgba(156,111,21,.3);background:rgba(156,111,21,.06)} .fc .o-warn b{color:var(--warn)}
+.fc .o-pass{border-color:rgba(47,115,85,.28);background:rgba(47,115,85,.05)} .fc .o-pass b{color:var(--pass)}
+.fc .o-yes b,.fc .o-info b{color:var(--indigo)}
+.fc code{background:var(--code);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:.86em}
+@media(max-width:560px){
+  .fd{width:calc(100% - 16px);max-height:calc(100dvh - 16px)}
+  .fd-head{padding:16px 16px 12px} .fd-body{padding:16px 16px 22px}
+  .fc .opts{grid-template-columns:1fr}
+}
+
 /* 스크롤에 맞춰 섹션이 올라오게 합니다. 모션을 줄이기로 한 사용자에게는 적용하지 않습니다. */
 .js .rise{opacity:0;transform:translateY(16px)}
 .js .rise.in{animation:rise .55s cubic-bezier(.16,1,.3,1) forwards}
@@ -224,30 +279,35 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
   <h2 data-i18n="plugins.title">플러그인</h2>
   <p class="sub" data-i18n="plugins.sub">훅은 하네스가 실행합니다 — 모델이 우회할 수 없고 컨텍스트도 쓰지 않습니다. 스킬은 모델이 필요할 때 읽습니다. 다섯 중 셋은 Android·Gradle을 전제하고, <code>maestro-e2e</code>는 Android와 iOS를 함께 다루며, <code>git-guard</code>만 플랫폼과 무관합니다.</p>
   <div class="cards">
-    <div class="card">
+    <div class="card" data-plugin="android-review" tabindex="0" role="button" aria-haspopup="dialog">
       <h3>android-review</h3>
       <p data-i18n="plugins.review">Compose 기준 코드 리뷰. 정확성 → 회귀 위험 → 범위 이탈 → 보안 → 테스트 누락 순으로 봅니다. 코드를 고치지 않고 설명만 냅니다.</p>
-      <span class="tag scope" data-i18n="scope.android">Android · Compose</span><span class="tag" data-i18n="tag.skill">스킬 1</span><span class="tag">~72 tok</span>
+      <div class="tags"><span class="tag scope" data-i18n="scope.android">Android · Compose</span><span class="tag" data-i18n="tag.skill">스킬 1</span><span class="tag">~72 tok</span></div>
+      <span class="more" data-i18n="ui.more">설치와 진행 순서 보기 →</span>
     </div>
-    <div class="card">
+    <div class="card" data-plugin="android-guard" tabindex="0" role="button" aria-haspopup="dialog">
       <h3>android-guard</h3>
       <p data-i18n="plugins.aguard">서명 자격 증명 접근, wrapper 변조, Gradle 캐시 삭제를 막고, 서명 없는 release 빌드와 Manifest 노출 변경을 알립니다.</p>
-      <span class="tag scope" data-i18n="scope.gradle">Android · Gradle</span><span class="tag" data-i18n="tag.hook6">훅 6</span><span class="tag">0 tok</span>
+      <div class="tags"><span class="tag scope" data-i18n="scope.gradle">Android · Gradle</span><span class="tag" data-i18n="tag.hook6">훅 6</span><span class="tag">0 tok</span></div>
+      <span class="more" data-i18n="ui.more">설치와 진행 순서 보기 →</span>
     </div>
-    <div class="card">
+    <div class="card" data-plugin="git-guard" tabindex="0" role="button" aria-haspopup="dialog">
       <h3>git-guard</h3>
       <p data-i18n="plugins.gguard">보호 브랜치 직접 push, <code>--force</code> push, <code>reset --hard</code>·<code>clean -fd</code> 같은 되돌리기 어려운 명령을 막습니다.</p>
-      <span class="tag scope" data-i18n="scope.any">모든 저장소</span><span class="tag" data-i18n="tag.hook3">훅 3</span><span class="tag">0 tok</span>
+      <div class="tags"><span class="tag scope" data-i18n="scope.any">모든 저장소</span><span class="tag" data-i18n="tag.hook3">훅 3</span><span class="tag">0 tok</span></div>
+      <span class="more" data-i18n="ui.more">설치와 진행 순서 보기 →</span>
     </div>
-    <div class="card">
+    <div class="card" data-plugin="android-audit" tabindex="0" role="button" aria-haspopup="dialog">
       <h3>android-audit</h3>
       <p data-i18n="plugins.audit">훅이 막는 것과 같은 문제를 <em>이미 들어와 있는</em> 저장소에서 찾습니다. 값은 출력하지 않고 위치만 보고하며, 고치지 않습니다.</p>
-      <span class="tag scope" data-i18n="scope.gradle">Android · Gradle</span><span class="tag" data-i18n="tag.skill">스킬 1</span><span class="tag">~70 tok</span>
+      <div class="tags"><span class="tag scope" data-i18n="scope.gradle">Android · Gradle</span><span class="tag" data-i18n="tag.skill">스킬 1</span><span class="tag">~70 tok</span></div>
+      <span class="more" data-i18n="ui.more">설치와 진행 순서 보기 →</span>
     </div>
-    <div class="card">
+    <div class="card" data-plugin="maestro-e2e" tabindex="0" role="button" aria-haspopup="dialog">
       <h3>maestro-e2e</h3>
       <p data-i18n="plugins.maestro">Android·iOS에 Maestro E2E를 4단계로 도입합니다. 두 플랫폼이 Flow 하나를 같이 쓰고, 테스트 id와 테스트 모드, Flow, CI smoke, 릴리스 관문 순서로 단계마다 PR을 냅니다. CI를 멈추게 했던 원인을 피하는 템플릿이 들어 있습니다.</p>
-      <span class="tag scope" data-i18n="scope.maestro">Android · iOS</span><span class="tag" data-i18n="tag.skill2">스킬 2</span><span class="tag">~168 tok</span>
+      <div class="tags"><span class="tag scope" data-i18n="scope.maestro">Android · iOS</span><span class="tag" data-i18n="tag.skill2">스킬 2</span><span class="tag">~168 tok</span></div>
+      <span class="more" data-i18n="ui.more">설치와 진행 순서 보기 →</span>
     </div>
   </div>
 </section>
@@ -305,6 +365,18 @@ android-audit ~/work/app --history</pre>
 
 </main>
 
+<dialog class="fd" id="fd" aria-labelledby="fd-title">
+  <div class="fd-head">
+    <div><p class="eyebrow" id="fd-kind"></p><h3 id="fd-title"></h3></div>
+    <button class="btn fd-x" id="fd-close" type="button">✕</button>
+  </div>
+  <div class="fd-body">
+    <p class="sub" id="fd-sum"></p>
+    <ol class="fc" id="fd-flow"></ol>
+    <p class="fd-src"><a id="fd-src" href="#"></a></p>
+  </div>
+</dialog>
+
 <footer class="wrap">
   MIT · <a href="https://github.com/DeokWooAhn/ahn-cc-kit">GitHub</a>
   · <a href="https://github.com/DeokWooAhn/ahn-cc-kit/blob/main/CREDITS.md">CREDITS</a>
@@ -351,7 +423,8 @@ const I18N = {
     "audit.c1":"exit 0 when clean, 1 when it finds something — drop it into CI",
     "audit.note.h":"It prints no values, and it fixes nothing.",
     "audit.note.b":"Locations only, never the secret itself — an audit must not become a new leak. There is no <code>--fix</code> either: a committed secret survives in history after the file is gone, so calling it \"cleaned up\" is the most dangerous outcome. Exposed keys need rotating, and rewriting history forces every collaborator to re-clone, so that call belongs to you.",
-    "ui.cases":" cases","ui.err":"Could not load cases.json."
+    "ui.cases":" cases","ui.err":"Could not load cases.json.",
+    "ui.more":"Install and walkthrough →"
   }
 };
 const KO = {};
@@ -364,6 +437,7 @@ function apply(){
   document.documentElement.lang = lang;
   document.getElementById("lang").textContent = lang === "ko" ? "EN" : "한국어";
   render();
+  renderFlow();
 }
 document.getElementById("lang").onclick = () => { lang = lang === "ko" ? "en" : "ko"; apply(); };
 
@@ -451,9 +525,208 @@ if(!matchMedia("(prefers-reduced-motion: reduce)").matches){
   });
 }
 
+// 카드별 순서도. 각 플러그인 README·SKILL.md의 절차를 옮긴 것이라, 플러그인 동작을 바꾸면 여기도 고친다.
+// 노드: cmd(설치) · ask(요청) · step · branch(질문과 갈래) · phase(단계 머리) · end
+const FLOWS = {
+  "android-review": {
+    ko: { kind:"스킬 · Android · Compose", sum:"리뷰를 요청하면 스킬이 불리고, 변경분을 우선순위대로 본 뒤 설명만 냅니다. 코드는 고치지 않습니다.", steps:[
+      {k:"cmd", t:"설치", code:"claude plugin install android-review@ahn-cc-kit", d:"<code>android</code> CLI가 있으면 Google 공식 스킬을 함께 참고합니다(선택)."},
+      {k:"ask", t:"리뷰를 요청합니다", d:"\"코드리뷰 해줘\", \"브랜치 변경분 리뷰해줘\", \"PR 검토해줘\" — 또는 <code>/android-review:review</code>"},
+      {k:"step", t:"대상 범위를 정합니다", d:"Kotlin·Gradle·Manifest·proguard·테스트를 보고, build·generated·kapt 산출물은 뺍니다."},
+      {k:"step", t:"상태 관리 트랙을 확인합니다", d:"주변 화면이 StateFlow 직접인지 Orbit MVI인지 보고, 한 화면에서 섞였을 때만 지적합니다."},
+      {k:"branch", t:"AGP·R8·targetSdk·intent 보안·Play 정책이 걸린 변경인가?", items:[
+        {v:"yes", t:"예", d:"<code>android skills list</code>로 Google 공식 스킬을 찾아 저장소 밖 임시 폴더에 받아 읽습니다."},
+        {v:"no", t:"아니오 · CLI 없음", d:"이 단계를 건너뜁니다."}]},
+      {k:"step", t:"우선순위대로 검토합니다", d:"정확성 → 회귀 위험 → 범위 이탈 → 보안 → 테스트 누락. 주변 코드와 같은 스타일은 지적하지 않습니다."},
+      {k:"end", t:"심각도 순으로 보고합니다", d:"파일·라인을 함께 적습니다. 문제가 없으면 \"큰 이슈 없음\"과 남은 리스크만 씁니다. <strong>요청하기 전에는 코드를 고치지 않습니다.</strong>"}]},
+    en: { kind:"Skill · Android · Compose", sum:"Ask for a review and the skill loads, reads the diff in priority order, and explains. It never edits your code.", steps:[
+      {k:"cmd", t:"Install", code:"claude plugin install android-review@ahn-cc-kit", d:"If the <code>android</code> CLI is present, Google's official skills are consulted too (optional)."},
+      {k:"ask", t:"Ask for a review", d:"\"Review this code\", \"review my branch\", \"check this PR\" — or <code>/android-review:review</code>"},
+      {k:"step", t:"Scope the change", d:"Kotlin, Gradle, Manifest, proguard and tests are in; build, generated and kapt output are out."},
+      {k:"step", t:"Identify the state-management track", d:"Plain StateFlow or Orbit MVI, whichever neighbouring screens use. Mixing both on one screen is flagged."},
+      {k:"branch", t:"Does it touch AGP, R8, targetSdk, intent security or Play policy?", items:[
+        {v:"yes", t:"Yes", d:"Find Google's official skill with <code>android skills list</code>, fetch it into a temp folder outside the repo, and read it."},
+        {v:"no", t:"No · no CLI", d:"Skip this step."}]},
+      {k:"step", t:"Review in priority order", d:"Correctness → regression risk → scope creep → security → missing tests. Style that matches the surrounding code is left alone."},
+      {k:"end", t:"Report by severity", d:"With file and line. If nothing is wrong it says so and lists only residual risk. <strong>No code changes unless you ask.</strong>"}]}
+  },
+  "android-guard": {
+    ko: { kind:"훅 6 · Android · Gradle", sum:"설치하면 끝입니다. 부를 필요 없이 Claude가 도구를 쓸 때마다 하네스가 훅을 돌립니다.", steps:[
+      {k:"cmd", t:"설치", code:"claude plugin install android-guard@ahn-cc-kit --scope local", d:"필요: <code>bash</code>, <code>jq</code>. 원하는 저장소에서만 켜려면 범위를 지정합니다."},
+      {k:"step", t:"세션이 시작됩니다", d:"<code>deps-check</code>가 <code>jq</code>를 확인하고 없으면 알립니다. jq가 없으면 아무것도 막지 못합니다."},
+      {k:"step", t:"Claude가 도구를 호출합니다", d:"Read · Edit · Write · Grep · Bash"},
+      {k:"step", t:"실행 전에 PreToolUse 훅 4종이 판정합니다", d:"<code>signing-secrets</code> 서명 파일 접근 · <code>gradle-wrapper</code> wrapper 변조 · <code>gradle-cache</code> <code>~/.gradle/caches</code> 삭제 · <code>signing-literal</code> 서명 password 평문"},
+      {k:"branch", t:"되돌리기 비싼 행동인가?", items:[
+        {v:"block", t:"차단", d:"실행되지 않습니다(exit 2). 이유와 대안이 Claude에게 전달됩니다."},
+        {v:"pass", t:"통과", d:"그대로 실행됩니다."}]},
+      {k:"step", t:"실행 뒤 PostToolUse 훅 2종이 봅니다", d:"<code>unsigned-release-check</code> 서명 없이 성공한 release 빌드 · <code>manifest-risk-check</code> 새로 추가된 <code>exported=\"true\"</code> 등"},
+      {k:"branch", t:"알릴 것이 있나?", items:[
+        {v:"warn", t:"경고", d:"막지 않고 알립니다."},
+        {v:"pass", t:"조용", d:"아무 말도 하지 않습니다."}]},
+      {k:"end", t:"끄려면", code:"ANDROID_GUARD_DISABLE_GRADLE_CACHE=1 claude", d:"훅마다 환경 변수 하나로 끕니다. 끈 훅은 위험한 경우까지 통과시킵니다."}]},
+    en: { kind:"6 hooks · Android · Gradle", sum:"Install it and you're done. Nothing to call — the harness runs the hooks every time Claude uses a tool.", steps:[
+      {k:"cmd", t:"Install", code:"claude plugin install android-guard@ahn-cc-kit --scope local", d:"Needs <code>bash</code> and <code>jq</code>. Pick a scope to enable it only where you want."},
+      {k:"step", t:"Session starts", d:"<code>deps-check</code> looks for <code>jq</code> and tells you if it's missing. Without jq nothing is blocked."},
+      {k:"step", t:"Claude calls a tool", d:"Read · Edit · Write · Grep · Bash"},
+      {k:"step", t:"Four PreToolUse hooks decide first", d:"<code>signing-secrets</code> signing files · <code>gradle-wrapper</code> wrapper tampering · <code>gradle-cache</code> deleting <code>~/.gradle/caches</code> · <code>signing-literal</code> plaintext signing passwords"},
+      {k:"branch", t:"Expensive to undo?", items:[
+        {v:"block", t:"Block", d:"It never runs (exit 2). The reason and an alternative go back to Claude."},
+        {v:"pass", t:"Allow", d:"Runs as is."}]},
+      {k:"step", t:"Two PostToolUse hooks look afterwards", d:"<code>unsigned-release-check</code> a release build that succeeded unsigned · <code>manifest-risk-check</code> newly added <code>exported=\"true\"</code> and friends"},
+      {k:"branch", t:"Anything to report?", items:[
+        {v:"warn", t:"Warn", d:"Tells you without blocking."},
+        {v:"pass", t:"Quiet", d:"Says nothing."}]},
+      {k:"end", t:"Turning one off", code:"ANDROID_GUARD_DISABLE_GRADLE_CACHE=1 claude", d:"One environment variable per hook. A disabled hook lets even the dangerous cases through."}]}
+  },
+  "git-guard": {
+    ko: { kind:"훅 3 · 모든 저장소", sum:"설치하면 끝입니다. Claude가 Bash로 git 명령을 실행하려 할 때마다 판정합니다.", steps:[
+      {k:"cmd", t:"설치", code:"claude plugin install git-guard@ahn-cc-kit --scope local", d:"필요: <code>bash</code>, <code>jq</code>, <code>git</code>."},
+      {k:"step", t:"세션이 시작됩니다", d:"<code>deps-check</code>가 <code>jq</code>를 확인하고 없으면 알립니다."},
+      {k:"step", t:"Claude가 Bash 명령을 실행하려 합니다"},
+      {k:"step", t:"명령을 다듬습니다", d:"<code>\\</code> 줄 잇기를 합치고, heredoc 본문과 따옴표 안 글자를 지운 뒤, <code>&&</code>·<code>;</code>·<code>|</code>·줄바꿈으로 나눠 명령마다 봅니다. 커밋 메시지 속 <code>git push</code>는 명령이 아닙니다."},
+      {k:"step", t:"훅 3종이 판정합니다", d:"<code>protected-branch</code> 보호 브랜치 직접 push(인자 없는 <code>git push</code>는 실제 목적지를 읽음) · <code>force-push</code> <code>--force</code>와 <code>+refspec</code> · <code>destructive-git</code> reflog로 복구되지 않는 명령"},
+      {k:"branch", t:"되돌리기 어려운가?", items:[
+        {v:"block", t:"차단", d:"<code>git push origin main</code>, <code>--force</code>, <code>reset --hard</code>, <code>clean -fd</code>, <code>branch -D</code>"},
+        {v:"pass", t:"통과", d:"<code>--force-with-lease</code>, <code>git restore 파일</code>, <code>clean -nd</code>, <code>branch -d</code>, <code>reset --soft</code>"}]},
+      {k:"end", t:"보호 목록 바꾸기 · 끄기", code:"GIT_GUARD_PROTECTED_BRANCHES=\"main,release/*,hotfix/*\" claude", d:"기본 보호 목록은 <code>main,master,release/*</code>입니다. 훅마다 환경 변수로 끌 수 있습니다."}]},
+    en: { kind:"3 hooks · Any repo", sum:"Install it and you're done. Every time Claude is about to run a git command through Bash, it gets judged.", steps:[
+      {k:"cmd", t:"Install", code:"claude plugin install git-guard@ahn-cc-kit --scope local", d:"Needs <code>bash</code>, <code>jq</code> and <code>git</code>."},
+      {k:"step", t:"Session starts", d:"<code>deps-check</code> looks for <code>jq</code> and tells you if it's missing."},
+      {k:"step", t:"Claude is about to run a Bash command"},
+      {k:"step", t:"The command is normalised", d:"<code>\\</code> continuations are joined, heredoc bodies and quoted text are dropped, then it is split on <code>&&</code>, <code>;</code>, <code>|</code> and newlines and each command is judged. A <code>git push</code> inside a commit message is not a command."},
+      {k:"step", t:"Three hooks decide", d:"<code>protected-branch</code> direct pushes to protected branches (a bare <code>git push</code> reads the real destination) · <code>force-push</code> <code>--force</code> and <code>+refspec</code> · <code>destructive-git</code> commands reflog can't undo"},
+      {k:"branch", t:"Hard to undo?", items:[
+        {v:"block", t:"Block", d:"<code>git push origin main</code>, <code>--force</code>, <code>reset --hard</code>, <code>clean -fd</code>, <code>branch -D</code>"},
+        {v:"pass", t:"Allow", d:"<code>--force-with-lease</code>, <code>git restore &lt;file&gt;</code>, <code>clean -nd</code>, <code>branch -d</code>, <code>reset --soft</code>"}]},
+      {k:"end", t:"Changing the list · turning off", code:"GIT_GUARD_PROTECTED_BRANCHES=\"main,release/*,hotfix/*\" claude", d:"The default protected list is <code>main,master,release/*</code>. Each hook has its own off switch."}]}
+  },
+  "android-audit": {
+    ko: { kind:"스킬 1 · Android · Gradle", sum:"훅이 앞으로의 유입을 막는다면, 이건 이미 저장소에 들어와 있는 것을 찾습니다. 위치만 보고하고 고치지 않습니다.", steps:[
+      {k:"cmd", t:"설치", code:"claude plugin install android-audit@ahn-cc-kit", d:"필요: <code>bash</code>, <code>git</code>."},
+      {k:"ask", t:"감사를 요청합니다", d:"\"시크릿 검사해줘\", \"커밋된 키스토어 있는지 봐줘\", \"보안 감사해줘\" — 또는 <code>/android-audit:audit</code>"},
+      {k:"step", t:"Claude가 감사 도구를 실행합니다", code:"android-audit\nandroid-audit ~/work/app --history", d:"<code>--history</code>를 붙이면 히스토리까지 봅니다(느립니다)."},
+      {k:"branch", t:"Gradle 프로젝트인가?", items:[
+        {v:"yes", t:"예", d:"추적 서명 파일, 평문 password, <code>.gitignore</code> 규칙, Gradle 배포본 출처, Manifest 플래그를 모두 봅니다."},
+        {v:"no", t:"아니오", d:"추적 파일 검사만 하고 안드로이드 항목은 건너뜁니다."}]},
+      {k:"branch", t:"종료 코드", items:[
+        {v:"pass", t:"0", d:"발견 없음"},
+        {v:"block", t:"1", d:"발견 있음 — CI에 걸면 실패합니다"},
+        {v:"warn", t:"2", d:"경로가 없거나 git 저장소가 아님"}]},
+      {k:"step", t:"위치만 보고합니다", d:"파일과 줄 번호만 나옵니다. 값은 출력하지도, 채팅에 옮기지도 않습니다."},
+      {k:"end", t:"고치지 않습니다 — 높음이 나오면 이 순서로", d:"① 키 회전 → ② 새 값은 CI 변수에 → ③ 추적 제외와 <code>.gitignore</code> → ④ 히스토리 정리는 사용자가 결정합니다."}]},
+    en: { kind:"1 skill · Android · Gradle", sum:"The hooks stop new problems coming in; this finds the ones already in the repo. It reports locations and fixes nothing.", steps:[
+      {k:"cmd", t:"Install", code:"claude plugin install android-audit@ahn-cc-kit", d:"Needs <code>bash</code> and <code>git</code>."},
+      {k:"ask", t:"Ask for an audit", d:"\"Scan for secrets\", \"is a keystore committed?\", \"run a security audit\" — or <code>/android-audit:audit</code>"},
+      {k:"step", t:"Claude runs the audit tool", code:"android-audit\nandroid-audit ~/work/app --history", d:"<code>--history</code> also walks history (slow)."},
+      {k:"branch", t:"Is it a Gradle project?", items:[
+        {v:"yes", t:"Yes", d:"Tracked signing files, plaintext passwords, <code>.gitignore</code> rules, Gradle distribution source and Manifest flags."},
+        {v:"no", t:"No", d:"Tracked-file check only; Android items are skipped."}]},
+      {k:"branch", t:"Exit code", items:[
+        {v:"pass", t:"0", d:"Nothing found"},
+        {v:"block", t:"1", d:"Findings — fails a CI job"},
+        {v:"warn", t:"2", d:"Path missing or not a git repo"}]},
+      {k:"step", t:"Locations only", d:"File and line numbers. Values are never printed or pasted into chat."},
+      {k:"end", t:"It doesn't fix — for a HIGH finding, in order", d:"① Rotate the key → ② put the new value in CI variables → ③ untrack it and add it to <code>.gitignore</code> → ④ rewriting history is your call."}]}
+  },
+  "maestro-e2e": {
+    ko: { kind:"스킬 2 · Android · iOS", sum:"도입은 4단계, 단계마다 PR 하나입니다. 도입이 끝나면 PR마다 CI smoke가 돌고, 그 밖의 일은 요청할 때 합니다.", steps:[
+      {k:"cmd", t:"설치", code:"claude plugin install maestro-e2e@ahn-cc-kit --scope project", d:"필요: Maestro CLI(2.1.0 기준), Java 17, Android는 <code>adb</code>, iOS는 Xcode. 팀원도 받도록 project 범위로 넣습니다."},
+      {k:"ask", t:"도입을 요청합니다", d:"\"마에스트로 도입해줘\" — 또는 <code>/maestro-e2e:setup</code>"},
+      {k:"step", t:"시작 전에 확인합니다", d:"플랫폼, 테스트를 막는 것(광고 동의·광고·트래킹 SDK·온보딩), smoke/release로 나눌 화면, CI와 KVM, 연결된 기기를 표로 보여 줍니다."},
+      {k:"phase", t:"1단계 · PR"},
+      {k:"step", t:"앱을 테스트할 수 있게", d:"이미 붙은 id를 먼저 쓰고, 없는 곳만 위치와 이름을 제안한 뒤 붙입니다. <code>UI_TESTING</code> 실행 인자로 막는 것을 끕니다(Android는 debug 빌드에서만)."},
+      {k:"phase", t:"2단계 · PR"},
+      {k:"step", t:"Flow와 MCP", code:"claude mcp add maestro -- maestro mcp", d:"템플릿을 <code>.maestro/</code>로 복사하고 smoke 2~3개·release 1~2개로 시작합니다. MCP는 local 등록이 기본입니다."},
+      {k:"phase", t:"3단계 · PR"},
+      {k:"branch", t:"CI에서 에뮬레이터를 띄울 수 있나?", items:[
+        {v:"pass", t:"예", d:"PR마다 smoke를 돌리는 job을 붙이고, 두 번 이상 통과하는지 봅니다."},
+        {v:"warn", t:"아니오 (KVM 없는 GitLab 등)", d:"관문이 없습니다. 러너·Maestro Cloud로 만들지, 당분간 릴리스 전 수동 실행으로 갈지 사용자가 정합니다."}]},
+      {k:"phase", t:"4단계 · PR"},
+      {k:"step", t:"릴리스 관문", d:"릴리스 빌드·업로드 job이 <code>e2e_smoke</code>를 기다립니다. release Flow는 태그 커밋의 debug 빌드로 실기기에서 돌립니다. 릴리스 빌드에는 Maestro를 돌리지 않습니다."},
+      {k:"phase", t:"도입 후"},
+      {k:"step", t:"PR마다 CI smoke가 자동으로 돕니다", d:"팀 공통 관문입니다. 화면 작업마다 기기에서 돌리는 건 팀 규칙이 아니라 개인 지침으로 둡니다."},
+      {k:"branch", t:"그 밖에는 요청할 때", items:[
+        {v:"info", t:"\"이 화면 플로우 만들어줘\"", d:"만들지부터 판단 → 기존 id 확인 → 작성 → 처음부터 두 번 통과"},
+        {v:"info", t:"\"마에스트로 돌려줘\"", d:"debug 빌드 설치 → 실행. 넘길 변수가 없는 Flow는 건너뜁니다"},
+        {v:"info", t:"\"플로우 리뷰해줘\"", d:"체크리스트로 보고만 합니다"},
+        {v:"info", t:"\"Maestro 테스트 왜 실패해\"", d:"Flow · 앱 · 환경 중 하나로 판정하고 근거와 조치를 적습니다"}]}]},
+    en: { kind:"2 skills · Android · iOS", sum:"Adoption is four steps, one PR each. Afterwards CI runs smoke on every PR, and everything else happens when you ask.", steps:[
+      {k:"cmd", t:"Install", code:"claude plugin install maestro-e2e@ahn-cc-kit --scope project", d:"Needs the Maestro CLI (2.1.0), Java 17, <code>adb</code> for Android and Xcode for iOS. Project scope so collaborators get it too."},
+      {k:"ask", t:"Ask to set it up", d:"\"Set up Maestro\" — or <code>/maestro-e2e:setup</code>"},
+      {k:"step", t:"Check before starting", d:"Platforms, what blocks tests (ad consent, ads, tracking SDKs, onboarding), which screens are smoke vs release, CI and KVM, connected devices — shown as a table."},
+      {k:"phase", t:"Step 1 · PR"},
+      {k:"step", t:"Make the app testable", d:"Reuse ids that already exist; propose locations and names before adding the rest. A <code>UI_TESTING</code> launch argument switches off the blockers (debug builds only on Android)."},
+      {k:"phase", t:"Step 2 · PR"},
+      {k:"step", t:"Flows and MCP", code:"claude mcp add maestro -- maestro mcp", d:"Copy the templates into <code>.maestro/</code> and start with 2–3 smoke and 1–2 release flows. MCP is registered at local scope by default."},
+      {k:"phase", t:"Step 3 · PR"},
+      {k:"branch", t:"Can CI start an emulator?", items:[
+        {v:"pass", t:"Yes", d:"Add a job that runs smoke on every PR and make sure it passes at least twice."},
+        {v:"warn", t:"No (e.g. GitLab without KVM)", d:"There is no gate. You decide: build one with a runner or Maestro Cloud, or run by hand before releases for now."}]},
+      {k:"phase", t:"Step 4 · PR"},
+      {k:"step", t:"Release gate", d:"Release build and upload jobs wait for <code>e2e_smoke</code>. Release flows run on a real device against the tagged commit's debug build. Maestro never runs on release builds."},
+      {k:"phase", t:"After adoption"},
+      {k:"step", t:"CI smoke runs on every PR", d:"That is the team gate. Running on a device after every screen change is a personal instruction, not a team rule."},
+      {k:"branch", t:"Everything else, on request", items:[
+        {v:"info", t:"\"Add a flow for this screen\"", d:"Decide whether it needs one → reuse ids → write → pass twice from scratch"},
+        {v:"info", t:"\"Run Maestro\"", d:"Install the debug build → run. Flows whose variables can't be supplied are skipped"},
+        {v:"info", t:"\"Review the flows\"", d:"Reports against the checklist; no edits"},
+        {v:"info", t:"\"Why is Maestro failing?\"", d:"Classifies it as flow, app or environment, with evidence and a fix"}]}]}
+  }
+};
+
+const fd = document.getElementById("fd");
+let fdName = null;
+function flowNode(s){
+  const code = s.code ? `<pre>${esc(s.code)}</pre>` : "";
+  if(s.k === "phase") return `<li class="k-phase"><span>${s.t}</span></li>`;
+  // 갈래가 넷이면 2x2로, 그 밖에는 한 줄에 둡니다. 마지막 칸 하나만 홀로 남지 않게 합니다.
+  const cols = s.items && (s.items.length === 4 ? 2 : s.items.length);
+  if(s.k === "branch") return `<li class="k-branch"><p class="q">${s.t}</p><div class="opts" style="--cols:${cols}">${
+    s.items.map(o => `<div class="o o-${o.v}"><b>${o.t}</b><p>${o.d}</p></div>`).join("")}</div></li>`;
+  return `<li class="k-${s.k}"><div class="n"><b>${s.t}</b>${s.d ? `<p>${s.d}</p>` : ""}${code}</div></li>`;
+}
+function renderFlow(){
+  if(!fdName) return;
+  const f = FLOWS[fdName][lang];
+  document.getElementById("fd-kind").textContent = f.kind;
+  document.getElementById("fd-title").textContent = fdName;
+  document.getElementById("fd-sum").textContent = f.sum;
+  document.getElementById("fd-flow").innerHTML = f.steps.map(flowNode).join("");
+  const src = document.getElementById("fd-src");
+  src.href = `https://github.com/DeokWooAhn/ahn-cc-kit/tree/main/plugins/${fdName}`;
+  src.textContent = lang === "ko" ? "README와 스킬 원문 보기 →" : "Read the README and skill source →";
+  document.getElementById("fd-close").setAttribute("aria-label", lang === "ko" ? "닫기" : "Close");
+}
+function openFlow(name){
+  if(!FLOWS[name]) return;
+  fdName = name;
+  renderFlow();
+  if(!fd.open) fd.showModal();
+  fd.querySelector(".fd-body").scrollTop = 0;
+  history.replaceState(null, "", "#flow-" + name);
+}
+document.querySelectorAll(".card[data-plugin]").forEach(c => {
+  c.addEventListener("click", e => { if(!e.target.closest("a")) openFlow(c.dataset.plugin); });
+  c.addEventListener("keydown", e => {
+    if(e.key === "Enter" || e.key === " "){ e.preventDefault(); openFlow(c.dataset.plugin); }
+  });
+});
+document.getElementById("fd-close").onclick = () => fd.close();
+// 대화상자 바깥(배경)을 누르면 닫습니다.
+fd.addEventListener("click", e => { if(e.target === fd) fd.close(); });
+fd.addEventListener("close", () => {
+  if(location.hash.startsWith("#flow-")) history.replaceState(null, "", location.pathname + location.search);
+  const card = document.querySelector(`.card[data-plugin="${fdName}"]`);
+  if(card) card.focus({preventScroll:true});
+  fdName = null;
+});
+
 fetch("./cases.json").then(r => r.json()).then(d => { DATA = d; render(); })
   .catch(() => render());
 apply();
+// 주소에 #flow-<플러그인>이 있으면 그 순서도를 엽니다. 링크로 바로 공유할 수 있습니다.
+if(location.hash.startsWith("#flow-")) openFlow(location.hash.slice(6));
+addEventListener("hashchange", () => { if(location.hash.startsWith("#flow-")) openFlow(location.hash.slice(6)); });
 </script>
 </body>
 </html>
