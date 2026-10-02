@@ -2,10 +2,11 @@
 name: flows
 description: >-
   Android·iOS 앱의 Maestro Flow(.maestro/)를 만들거나 수정·실행·리뷰하거나 실패 원인을 찾을 때 사용합니다.
-  "smoke 테스트 만들어줘", "마에스트로 돌려줘", "이 화면 플로우 추가해줘", "마에스트로 플로우 리뷰해줘",
-  "Maestro 테스트 왜 실패해" 같은 요청이 해당됩니다.
+  "smoke 테스트 만들어줘", "마에스트로 돌려줘", "이 화면 플로우 추가해줘", "이 화면도 플로우 필요해?",
+  "마에스트로 플로우 리뷰해줘", "Maestro 테스트 왜 실패해" 같은 요청이 해당됩니다.
   Creating, running, reviewing, or debugging Maestro flows for an Android or iOS app — project analysis
-  (app id, existing ids), smoke flow creation, selector rules, and triaging failures as flow, app, or environment.
+  (app id, existing ids), deciding whether a screen needs a flow, smoke flow creation, selector rules, and
+  triaging failures as flow, app, or environment.
 metadata:
   category: testing
   status: draft
@@ -44,6 +45,16 @@ Flow를 새로 만들기 전에 확인한다. 방법은 `references/project-anal
 5. 기기에서 CLI로 **처음부터 두 번 연속** 통과하는지 본다. 두 플랫폼이 다 있으면 양쪽에서 본다.
 6. 실패하면 아래 "실패했을 때"로 원인을 판정한다. Flow 문제면 고치고, 앱 문제면 Flow로 가리지 말고 보고한다.
 
+## Flow를 만들지 정하기
+
+새 화면이 생겼다고 Flow가 꼭 필요하지는 않다. 판단 순서와 경우별 표는 `references/when-to-add-flow.md`.
+
+- 깨지면 앱의 핵심을 못 쓰는 화면인가. 아니면 대부분 만들지 않는다.
+- 기존 Flow에 단계 하나로 되나. 열리는지만 보면 되는 화면은 기존 탭 이동 smoke에 한 단계를 넣는다.
+- 서버가 필요한가. 필요 없으면 `smoke`, 필요하면 `release`.
+
+물을 때는 권하는 방법(새 Flow / 기존 Flow에 단계 추가 / 만들지 않음)과 이유를 붙인다.
+
 ## 기기 고르기
 
 - 바꾼 플랫폼에서 돌린다. 두 플랫폼 공통 Flow를 고쳤으면 양쪽 다 돌린다.
@@ -66,11 +77,15 @@ maestro --device <serial 또는 udid> test .maestro -e APP_ID=<applicationId 또
 - `APP_ID`는 플랫폼마다 다르다. 대소문자까지 확인한다.
 - **Android는 돌리기 전에 바꾼 코드로 debug 빌드를 설치한다.** 안 그러면 기기에 남아 있던 예전 빌드를 대상으로
   통과할 수 있다. Gradle이면 앱 모듈의 `installDebug`(예: `./gradlew :app:installDebug`), flavor가 있으면
-  `install<Flavor>Debug`.
+  `install<Flavor>Debug`. 이 작업은 **연결된 기기 전부**에 설치한다. 기기가 여러 대면
+  `ANDROID_SERIAL=<serial> ./gradlew :app:installDebug`로 Maestro를 돌릴 기기에만 설치한다. 서명 불일치로 실패하면
+  위 "기기 고르기"의 스토어판 규칙을 따른다.
 - iOS도 먼저 시뮬레이터용으로 빌드해 설치한다. 명령은 `setup` 스킬의 `references/ios.md`.
 - **Flow가 받는 변수(계정 등)가 없으면 그 Flow는 돌리지 말고 건너뛰었다고 보고한다.** Flow와 그 Flow가 부르는
   subflow의 `${...}`를 보고, `-e`나 `MAESTRO_`로 시작하는 환경 변수로 모두 넘길 수 있는지 확인한다. 값 없이 돌리면
   매번 "환경" 실패가 나와 보고가 시끄러워진다. 건너뛸 Flow는 파일을 골라 넘기거나 태그로 거른다.
+  Flow의 `env:`에 `${NAME || "기본값"}` 꼴로 기본값을 둔 변수는 넘기지 않아도 된다. `env:`에 값만 적은 것은
+  상수라서 밖에서 넘긴 값을 덮어쓴다.
 - 태그로 거른다: `--include-tags=smoke`. 실패 스크린샷을 남기려면 `--test-output-dir=<dir>`.
 - 화면 계층: `maestro --device <serial> hierarchy --compact`. id가 실제로 어떻게 보이는지 여기서 확인한다.
 
