@@ -64,7 +64,13 @@ maestro --device <serial 또는 udid> test .maestro -e APP_ID=<applicationId 또
 ```
 
 - `APP_ID`는 플랫폼마다 다르다. 대소문자까지 확인한다.
-- iOS는 먼저 시뮬레이터용으로 빌드해 설치한다. 명령은 `setup` 스킬의 `references/ios.md`.
+- **Android는 돌리기 전에 바꾼 코드로 debug 빌드를 설치한다.** 안 그러면 기기에 남아 있던 예전 빌드를 대상으로
+  통과할 수 있다. Gradle이면 앱 모듈의 `installDebug`(예: `./gradlew :app:installDebug`), flavor가 있으면
+  `install<Flavor>Debug`.
+- iOS도 먼저 시뮬레이터용으로 빌드해 설치한다. 명령은 `setup` 스킬의 `references/ios.md`.
+- **Flow가 받는 변수(계정 등)가 없으면 그 Flow는 돌리지 말고 건너뛰었다고 보고한다.** Flow와 그 Flow가 부르는
+  subflow의 `${...}`를 보고, `-e`나 `MAESTRO_`로 시작하는 환경 변수로 모두 넘길 수 있는지 확인한다. 값 없이 돌리면
+  매번 "환경" 실패가 나와 보고가 시끄러워진다. 건너뛸 Flow는 파일을 골라 넘기거나 태그로 거른다.
 - 태그로 거른다: `--include-tags=smoke`. 실패 스크린샷을 남기려면 `--test-output-dir=<dir>`.
 - 화면 계층: `maestro --device <serial> hierarchy --compact`. id가 실제로 어떻게 보이는지 여기서 확인한다.
 
