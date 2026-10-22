@@ -53,7 +53,7 @@ claude plugin install maestro-e2e@ahn-cc-kit
 | `android-guard` | Gradle·서명·Manifest 사고 방지 훅 (차단 4 + 경고 2) | stable |
 | `git-guard` | 보호 브랜치·force push·파괴적 git 차단 (차단 3) | stable |
 | `android-audit` | 이미 들어와 있는 시크릿·설정 문제 감사 | stable |
-| `maestro-e2e` | Maestro E2E 도입 절차와 Flow 작성·실행 규칙 | draft |
+| `maestro-e2e` | Maestro E2E 도입 절차와 Flow 작성·실행 규칙, 화면 작업 뒤 실행 알림 훅 | draft |
 
 ### android-review
 
@@ -96,8 +96,8 @@ Android·iOS 앱에 Maestro E2E를 도입할 때("마에스트로 도입해줘")
 ("smoke 테스트 만들어줘", "마에스트로 돌려줘") 불립니다. Flow를 만들기 전에 그 프로젝트의 `APP_ID`와 이미 붙은 id를 찾아
 씁니다. 실패는 Flow·앱·환경 중 무엇 때문인지 판정합니다. 두 플랫폼에 같은 id를 붙여 Flow 하나로 양쪽을 돌립니다. 도입은 4단계로 나눠 단계마다 PR을 냅니다. 테스트 id와 테스트 모드 → Flow와 MCP →
 CI smoke → 릴리스 관문 순서입니다.
-팀에 거는 규칙은 PR마다 CI에서 도는 `smoke`뿐이고, 화면 작업 뒤 기기 실행을 강제하는 규칙을 프로젝트 CLAUDE.md에
-넣지 않습니다.
+화면 코드를 바꾼 작업을 마치려 할 때 Stop 훅이 smoke와 release를 돌리라고 한 번 알리고, 새 화면이면 Flow를 만들지
+묻게 합니다. 팀 공통 관문은 PR마다 CI에서 도는 `smoke`입니다.
 
 실제로 CI를 멈추게 했던 원인을 피하는 템플릿(공통 실행 subflow, 에뮬레이터 안정화 스크립트, CI job)이
 들어 있습니다. 정규식 id, 권한 기본값 때문의 APK 전송 멈춤, 데이터 삭제 직후 재실행 레이스 같은 것들입니다.

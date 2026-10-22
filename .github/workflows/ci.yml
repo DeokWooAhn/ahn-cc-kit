@@ -41,6 +41,9 @@ jobs:
       - name: android-audit
         run: python3 plugins/android-audit/tests/test_audit.py
 
+      - name: maestro-e2e
+        run: python3 plugins/maestro-e2e/hooks/test_hooks.py
+
   docs:
     name: Manifests, case table, plugin validation
     runs-on: ubuntu-latest
