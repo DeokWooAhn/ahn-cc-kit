@@ -1,0 +1,27 @@
+{
+  "description": "화면 코드를 바꾼 작업을 마치려 할 때 Maestro를 돌리라고 한 번 알린다. 새 화면이면 Flow를 만들지 묻게 한다.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/flow-reminder.sh\" mark",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/flow-reminder.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

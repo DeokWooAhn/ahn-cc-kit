@@ -24,9 +24,10 @@ claude plugin install maestro-e2e@ahn-cc-kit --scope project
 - 기존 Flow를 체크리스트로 리뷰하고, 실패는 **Flow·앱·환경** 중 무엇 때문인지 판정해 보고합니다.
   앱 버그를 Flow를 느슨하게 고쳐 가리지 않습니다.
 - 실기기가 있으면 실기기로 돌립니다. 스토어판 앱을 지워야 하면 먼저 묻습니다.
-- 팀에 거는 규칙은 **CI에서 도는 `smoke`** 하나입니다. 화면을 고칠 때마다 기기에서 Maestro를 돌리라는 규칙을
-  프로젝트 CLAUDE.md에 넣지 않습니다. 기기 실행은 요청할 때만 하고, 매번 돌리고 싶은 사람은 개인 지침에 둡니다.
-  모든 저장소면 `~/.claude/CLAUDE.md`, 그 저장소에서만이면 루트의 `CLAUDE.local.md`(`.gitignore`에 추가)입니다.
+- **화면 작업을 마칠 때 훅이 알립니다.** 이번 작업에서 화면 코드가 바뀌었으면 Claude가 마치려 할 때 Stop 훅이
+  "smoke와 release를 돌리고 보고하라"고 한 번 알립니다. 새 화면 파일이 생겼으면 Flow를 만들지 판단해 묻게 합니다.
+  실행은 Claude가 `flows` 스킬대로 하고, 기기나 넘길 변수가 없으면 건너뛰고 알립니다. 아래 "훅"을 보세요.
+- 팀 공통 관문은 PR마다 CI에서 도는 `smoke`입니다.
 - CI에서 smoke를 못 돌리면(KVM이 없는 GitLab 러너 등) 관문이 없다고 알리고, 러너를 둘지 릴리스 전 수동 실행으로
   갈지 사용자가 정하게 합니다.
 - 실제로 CI를 멈추게 했던 원인(정규식 id, 권한 설정 때문의 APK 전송 멈춤, 데이터 삭제 직후 재실행 레이스,
@@ -43,6 +44,29 @@ claude plugin install maestro-e2e@ahn-cc-kit --scope project
   파이프라인에서 검증하지 않았습니다**. GitLab 러너에서 에뮬레이터를 띄우려면 KVM이 필요해 인프라 결정이 먼저입니다.
 - 이 플러그인은 절차와 규칙만 담습니다. **프로젝트의 id 표와 Flow는 그 저장소에 둡니다.**
 
+## 훅
+
+| 훅 | 언제 | 하는 일 | opt-out |
+| --- | --- | --- | --- |
+| `flow-reminder` | UserPromptSubmit | 지금 화면 파일 상태를 턴 시작 기록으로 남깁니다. 아무것도 출력하지 않습니다 | `MAESTRO_E2E_DISABLE_FLOW_REMINDER` |
+| `flow-reminder` | Stop | 이번 턴에 바뀐 화면 파일이 있으면 마치지 말고 Maestro를 돌리라고 알립니다(exit 2) | 위와 같음 |
+
+- **화면 파일**: 저장소 루트에 `.maestro/`가 있을 때, 커밋하지 않은 `.kt` 중 `@Composable`이 든 것, `.swift` 중
+  SwiftUI `View`가 든 것. 테스트·`build/` 경로는 뺍니다. `.maestro/`가 없는 저장소에서는 아무것도 하지 않습니다.
+- **이번 턴에 바뀐 것만** 봅니다. 미리 고쳐 둔 화면 파일이 있는 저장소에서 질문만 했는데 기기 테스트가 시작되지
+  않게 하려는 것입니다. 세션 중간에 켜서 턴 시작 기록이 없으면 커밋하지 않은 화면 변경 전체를 봅니다.
+- 한 번 알리면 같은 턴에는 다시 알리지 않습니다. 알림 때문에 이어서 일하는 중(`stop_hook_active`)에도 알리지 않습니다.
+- Maestro를 훅이 직접 돌리지 않습니다. 기기 선택, 스토어판 확인, 변수가 없는 Flow 건너뛰기는 스킬의 절차입니다.
+- 필요: `bash`, `git`. `jq`는 쓰지 않습니다. 턴 시작 기록은 `.git/maestro-e2e-turn-start`에 둡니다.
+
+```bash
+MAESTRO_E2E_DISABLE_FLOW_REMINDER=1 claude
+```
+
+```bash
+python3 plugins/maestro-e2e/hooks/test_hooks.py
+```
+
 ## 상태
 
 `draft`입니다. Android·iOS 앱 저장소 하나(GitHub Actions)에서 4단계를 모두 거쳐 CI 관문까지 운영한 구성을 일반화했고,
@@ -51,6 +75,10 @@ claude plugin install maestro-e2e@ahn-cc-kit --scope project
 ## 구성
 
 ```text
+hooks/
+├── hooks.json                       UserPromptSubmit(턴 시작 기록), Stop(알림)
+├── flow-reminder.sh
+└── test_hooks.py                    임시 git 저장소로 상태별 판정을 고정
 skills/setup/
 ├── SKILL.md                         도입 4단계, 시작 전 확인 사항
 ├── references/
