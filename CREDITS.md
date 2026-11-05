@@ -37,3 +37,10 @@ Android 에뮬레이터·실기기와 iOS 26 시뮬레이터에서 직접 돌려
 CI 템플릿은 [android-emulator-runner](https://github.com/ReactiveCircus/android-emulator-runner)(Apache-2.0)를
 Action으로 **사용**할 뿐 코드를 포함하지 않습니다. 템플릿 스크립트와 Flow는 작성자의 다른 저장소에서 쓰던 것을
 일반화했습니다.
+
+## explain-diff
+
+[Geoffrey Litt의 explain-diff gist](https://gist.github.com/geoffreylitt/a29df1b5f9865506e8952488eac3d524)에서
+페이지 구성(배경·직관·코드·퀴즈 5문항), 날짜로 시작하는 파일명을 저장소 밖에 두는 방식, 그림 원칙(그림 종류를 몇 가지로
+정해 되풀이, ASCII 그림 금지, 코드 블록 줄바꿈 확인)을 가져왔습니다. gist에 라이선스 표기가 없어 원문은 옮기지 않고
+한국어로 새로 썼습니다. Notion 버전은 가져오지 않았습니다. 퀴즈 골격 코드와 점검 목록은 직접 작성했습니다.

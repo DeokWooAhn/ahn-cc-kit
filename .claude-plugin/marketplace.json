@@ -102,6 +102,25 @@
         "ci",
         "emulator"
       ]
+    },
+    {
+      "name": "explain-diff",
+      "source": "explain-diff",
+      "description": "코드 변경(diff·브랜치·PR)을 배경, 직관, 코드 설명, 퀴즈 5문항으로 풀어 한 장짜리 HTML 페이지로 만듭니다.",
+      "version": "0.1.0",
+      "author": {
+        "name": "DeokWooAhn"
+      },
+      "license": "MIT",
+      "category": "documentation",
+      "keywords": [
+        "diff",
+        "pull-request",
+        "explanation",
+        "onboarding",
+        "html",
+        "quiz"
+      ]
     }
   ]
 }

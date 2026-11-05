@@ -2,8 +2,8 @@
 
 **모바일 앱 프로젝트를 위한** Claude Code 플러그인 마켓플레이스. 플러그인 하나는 문제 하나만 다룹니다.
 
-다섯 중 셋은 Android·Gradle을 전제하고, `maestro-e2e`는 Android와 iOS를 함께 다룹니다. `git-guard`만
-플랫폼과 무관합니다 — Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
+여섯 중 셋은 Android·Gradle을 전제하고, `maestro-e2e`는 Android와 iOS를 함께 다룹니다. `git-guard`와
+`explain-diff`는 플랫폼과 무관합니다 — Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
 
 | 플러그인 | 전제 | 이런 저장소에서 |
 | --- | --- | --- |
@@ -12,6 +12,7 @@
 | `android-audit` | Android · Gradle | Gradle이 아니면 추적 파일만 보고 나머지는 건너뜁니다 |
 | `git-guard` | **없음** | 어느 언어·플랫폼이든 동작합니다 |
 | `maestro-e2e` | Android · iOS · Maestro CLI | Android는 Compose, iOS는 SwiftUI(시뮬레이터) 기준입니다. CI 템플릿은 GitHub Actions의 Android용입니다 |
+| `explain-diff` | **없음** | 어느 언어·플랫폼이든 동작합니다. PR을 대상으로 하려면 `gh`가 있으면 편합니다 |
 
 iOS 프로젝트에서 `android-guard`를 켜 두면 조용히 있을 뿐 `.p12`나 provisioning profile을
 지켜주지는 않습니다.
@@ -45,6 +46,10 @@ claude plugin install android-audit@ahn-cc-kit
 claude plugin install maestro-e2e@ahn-cc-kit
 ```
 
+```bash
+claude plugin install explain-diff@ahn-cc-kit
+```
+
 ## 플러그인
 
 | 플러그인 | 내용 | 상태 |
@@ -54,6 +59,7 @@ claude plugin install maestro-e2e@ahn-cc-kit
 | `git-guard` | 보호 브랜치·force push·파괴적 git 차단 (차단 3) | stable |
 | `android-audit` | 이미 들어와 있는 시크릿·설정 문제 감사 | stable |
 | `maestro-e2e` | Maestro E2E 도입 절차와 Flow 작성·실행 규칙, 화면 작업 뒤 실행 알림 훅 | draft |
+| `explain-diff` | 코드 변경을 배경·직관·코드·퀴즈로 푸는 HTML 설명 페이지 | draft |
 
 ### android-review
 
@@ -103,6 +109,15 @@ CI smoke → 릴리스 관문 순서입니다.
 들어 있습니다. 정규식 id, 권한 기본값 때문의 APK 전송 멈춤, 데이터 삭제 직후 재실행 레이스 같은 것들입니다.
 GitLab CI와 iOS CI는 문서만 있고 검증하지 않았습니다. 자세한 내용은
 [plugins/maestro-e2e/README.md](plugins/maestro-e2e/README.md)에 있습니다.
+
+### explain-diff
+
+코드 변경을 이해하도록 돕는 설명 페이지를 만들 때("이 PR 설명해줘", "이 브랜치에서 뭐가 바뀐 건지 풀어줘") 불립니다.
+`android-review`가 변경이 맞는지 판정한다면, 이 스킬은 읽는 사람이 변경을 이해했는지를 돕고 코드를 바꾸지 않습니다.
+배경(처음 보는 사람용은 접힘) → 직관(예시 데이터와 그림) → 코드(이해하기 쉬운 순서로 묶음) → 퀴즈 5문항 순서의
+HTML 한 장을 저장소 밖(`~/explain-diff/`, `EXPLAIN_DIFF_DIR`)에 날짜로 시작하는 이름으로 저장합니다. 비공개 페이지를
+게시하는 도구가 세션에 있으면 비공개 링크도 줍니다. 자세한 내용은
+[plugins/explain-diff/README.md](plugins/explain-diff/README.md)에 있습니다.
 
 ## 원하는 프로젝트에서만 켜기
 
