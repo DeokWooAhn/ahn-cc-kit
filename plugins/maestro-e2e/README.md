@@ -24,9 +24,11 @@ claude plugin install maestro-e2e@ahn-cc-kit --scope project
 - 기존 Flow를 체크리스트로 리뷰하고, 실패는 **Flow·앱·환경** 중 무엇 때문인지 판정해 보고합니다.
   앱 버그를 Flow를 느슨하게 고쳐 가리지 않습니다.
 - 실기기가 있으면 실기기로 돌립니다. 스토어판 앱을 지워야 하면 먼저 묻습니다.
-- **화면 작업을 마칠 때 훅이 알립니다.** 이번 작업에서 화면 코드가 바뀌었으면 Claude가 마치려 할 때 Stop 훅이
-  "smoke와 release를 돌리고 보고하라"고 한 번 알립니다. 새 화면 파일이 생겼으면 Flow를 만들지 판단해 묻게 합니다.
-  실행은 Claude가 `flows` 스킬대로 하고, 기기나 넘길 변수가 없으면 건너뛰고 알립니다. 아래 "훅"을 보세요.
+- **화면 작업은 Maestro 결과가 있어야 마칩니다.** 이번 작업에서 화면 코드가 바뀌었으면, 바꾼 플랫폼마다 화면을
+  바꾼 뒤에 만들어진 JUnit 리포트(실패 0개)나 건너뛴 이유가 있어야 Stop 훅이 Claude를 마치게 둡니다.
+  "돌렸습니다"라는 보고가 아니라 Maestro가 만든 파일로 확인합니다. 새 화면 파일이 생겼으면 Flow를 만들지 판단해
+  묻게 합니다. 실행은 Claude가 `flows` 스킬대로 하고, 기기나 넘길 변수가 없으면 이유를 남기고 건너뜁니다.
+  아래 "훅"을 보세요.
 - 팀 공통 관문은 PR마다 CI에서 도는 `smoke`입니다.
 - CI에서 smoke를 못 돌리면(KVM이 없는 GitLab 러너 등) 관문이 없다고 알리고, 러너를 둘지 릴리스 전 수동 실행으로
   갈지 사용자가 정하게 합니다.
@@ -48,16 +50,28 @@ claude plugin install maestro-e2e@ahn-cc-kit --scope project
 
 | 훅 | 언제 | 하는 일 | opt-out |
 | --- | --- | --- | --- |
-| `flow-reminder` | UserPromptSubmit | 지금 화면 파일 상태를 턴 시작 기록으로 남깁니다. 아무것도 출력하지 않습니다 | `MAESTRO_E2E_DISABLE_FLOW_REMINDER` |
-| `flow-reminder` | Stop | 이번 턴에 바뀐 화면 파일이 있으면 마치지 말고 Maestro를 돌리라고 알립니다(exit 2) | 위와 같음 |
+| `flow-reminder` | UserPromptSubmit | 지금 화면 파일 상태를 턴 시작 기록으로 남기고 막은 횟수를 지웁니다. 아무것도 출력하지 않습니다 | `MAESTRO_E2E_DISABLE_FLOW_REMINDER` |
+| `flow-reminder` | Stop | 이번 턴에 바뀐 화면 파일이 있는데 그 뒤의 Maestro 결과가 없거나 실패면 마치지 못하게 막습니다(exit 2). 통과·건너뜀은 사용자에게 한 줄로 알립니다 | 위와 같음 |
 
 - **화면 파일**: 저장소 루트에 `.maestro/`가 있을 때, 커밋하지 않은 `.kt` 중 `@Composable`이 든 것, `.swift` 중
   SwiftUI `View`가 든 것. 테스트·`build/` 경로는 뺍니다. `.maestro/`가 없는 저장소에서는 아무것도 하지 않습니다.
 - **이번 턴에 바뀐 것만** 봅니다. 미리 고쳐 둔 화면 파일이 있는 저장소에서 질문만 했는데 기기 테스트가 시작되지
   않게 하려는 것입니다. 세션 중간에 켜서 턴 시작 기록이 없으면 커밋하지 않은 화면 변경 전체를 봅니다.
-- 한 번 알리면 같은 턴에는 다시 알리지 않습니다. 알림 때문에 이어서 일하는 중(`stop_hook_active`)에도 알리지 않습니다.
+- **증거 파일**: 플랫폼마다 git 디렉터리(`git rev-parse --absolute-git-dir`)의 아래 둘 중 하나가 그 플랫폼의 바뀐
+  화면 파일보다 새로워야 통과합니다. 둘 다 있으면 더 새로운 쪽을 봅니다. 경로는 훅이 막을 때 알려 줍니다.
+
+  | 파일 | 만드는 법 | 통과 조건 |
+  | --- | --- | --- |
+  | `maestro-e2e-android.xml`, `maestro-e2e-ios.xml` | `maestro test … --format=JUNIT --output=<경로>` | `testcase`가 하나 이상이고 `failure`가 없음 |
+  | `maestro-e2e-android.skip`, `maestro-e2e-ios.skip` | 돌릴 수 없는 이유 한 줄 | 첫 줄이 비어 있지 않음. 이유를 사용자에게 그대로 보여 줌 |
+
+- 실패한 Flow가 있으면 이름을 보여 주고 Flow·앱·환경 판정을 하게 합니다. 결과를 남긴 뒤 화면 파일을 또 고치면
+  다시 막습니다.
+- **같은 턴에 세 번까지 막습니다.** 그래도 결과가 없으면 마치게 두고, 결과 없이 끝났다고 사용자에게 알립니다.
+  기기가 끝내 잡히지 않아도 무한 반복하지 않게 하려는 것입니다. `stop_hook_active`여도 결과가 없으면 막습니다.
 - Maestro를 훅이 직접 돌리지 않습니다. 기기 선택, 스토어판 확인, 변수가 없는 Flow 건너뛰기는 스킬의 절차입니다.
-- 필요: `bash`, `git`. `jq`는 쓰지 않습니다. 턴 시작 기록은 `.git/maestro-e2e-turn-start`에 둡니다.
+- 필요: `bash`, `git`. `jq`는 쓰지 않습니다. 턴 시작 기록은 `maestro-e2e-turn-start`, 막은 횟수는
+  `maestro-e2e-stop-count`로 같은 git 디렉터리에 둡니다.
 
 ```bash
 MAESTRO_E2E_DISABLE_FLOW_REMINDER=1 claude
@@ -76,7 +90,7 @@ python3 plugins/maestro-e2e/hooks/test_hooks.py
 
 ```text
 hooks/
-├── hooks.json                       UserPromptSubmit(턴 시작 기록), Stop(알림)
+├── hooks.json                       UserPromptSubmit(턴 시작 기록), Stop(결과 확인)
 ├── flow-reminder.sh
 └── test_hooks.py                    임시 git 저장소로 상태별 판정을 고정
 skills/setup/
