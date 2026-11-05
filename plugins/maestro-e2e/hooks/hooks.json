@@ -1,5 +1,5 @@
 {
-  "description": "화면 코드를 바꾼 작업을 마치려 할 때 Maestro를 돌리라고 한 번 알린다. 새 화면이면 Flow를 만들지 묻게 한다.",
+  "description": "화면 코드를 바꾼 작업은 그 뒤에 만든 Maestro 결과(JUnit 리포트나 건너뛴 이유)가 있어야 마치게 한다. 새 화면이면 Flow를 만들지 묻게 한다.",
   "hooks": {
     "UserPromptSubmit": [
       {
