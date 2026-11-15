@@ -18,6 +18,10 @@ plugins/<name>/
 `skills/`, `hooks/`, `agents/`는 **플러그인 루트**에 둡니다. `.claude-plugin/` 안에는
 `plugin.json`만 들어갑니다. 공식 문서가 "Common mistake"로 지목하는 지점입니다.
 
+`orchestrator/`는 플러그인이 아닙니다. `agent-orchestrator`가 문서로 정한 왕복 절차를
+기계가 돌리는 파이썬 패키지라 마켓플레이스에 올리지 않습니다. 절차 문서는 플러그인에 한 벌만 두고
+런타임이 그것을 읽습니다. 자세한 것은 `orchestrator/README.md`에 있습니다.
+
 ## 스킬을 쓸 때
 
 - `SKILL.md`는 진입점입니다. 짧게 유지하고 상세는 `references/`로 내립니다.
