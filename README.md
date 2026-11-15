@@ -2,8 +2,8 @@
 
 **모바일 앱 프로젝트를 위한** Claude Code 플러그인 마켓플레이스. 플러그인 하나는 문제 하나만 다룹니다.
 
-여섯 중 셋은 Android·Gradle을 전제하고, `maestro-e2e`는 Android와 iOS를 함께 다룹니다. `git-guard`와
-`explain-diff`는 플랫폼과 무관합니다 — Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
+일곱 중 셋은 Android·Gradle을 전제하고, `maestro-e2e`는 Android와 iOS를 함께 다룹니다. `git-guard`와
+`explain-diff`, `agent-relay`는 플랫폼과 무관합니다 — Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
 
 | 플러그인 | 전제 | 이런 저장소에서 |
 | --- | --- | --- |
@@ -13,6 +13,7 @@
 | `git-guard` | **없음** | 어느 언어·플랫폼이든 동작합니다 |
 | `maestro-e2e` | Android · iOS · Maestro CLI | Android는 Compose, iOS는 SwiftUI(시뮬레이터) 기준입니다. CI 템플릿은 GitHub Actions의 Android용입니다 |
 | `explain-diff` | **없음** | 어느 언어·플랫폼이든 동작합니다. PR을 대상으로 하려면 `gh`가 있으면 편합니다 |
+| `agent-relay` | **없음** | 넘길 상대(`codex` 같은 다른 에이전트)와, 결과를 판정할 테스트·빌드·린트가 있으면 동작합니다 |
 
 iOS 프로젝트에서 `android-guard`를 켜 두면 조용히 있을 뿐 `.p12`나 provisioning profile을
 지켜주지는 않습니다.
@@ -50,6 +51,10 @@ claude plugin install maestro-e2e@ahn-cc-kit
 claude plugin install explain-diff@ahn-cc-kit
 ```
 
+```bash
+claude plugin install agent-relay@ahn-cc-kit
+```
+
 ## 플러그인
 
 | 플러그인 | 내용 | 상태 |
@@ -60,6 +65,7 @@ claude plugin install explain-diff@ahn-cc-kit
 | `android-audit` | 이미 들어와 있는 시크릿·설정 문제 감사 | stable |
 | `maestro-e2e` | Maestro E2E 도입 절차와 Flow 작성·실행 규칙, 화면 작업 뒤 실행 알림 훅 | draft |
 | `explain-diff` | 코드 변경을 배경·직관·코드·퀴즈로 푸는 HTML 설명 페이지 | draft |
+| `agent-relay` | 계획·구현·리뷰를 다른 에이전트와 세션에 나누는 왕복 절차와 범위 검증 | draft |
 
 ### android-review
 
@@ -118,6 +124,17 @@ GitLab CI와 iOS CI는 문서만 있고 검증하지 않았습니다. 자세한 
 HTML 한 장을 저장소 밖(`~/explain-diff/`, `EXPLAIN_DIFF_DIR`)에 날짜로 시작하는 이름으로 저장합니다. 비공개 페이지를
 게시하는 도구가 세션에 있으면 비공개 링크도 줍니다. 자세한 내용은
 [plugins/explain-diff/README.md](plugins/explain-diff/README.md)에 있습니다.
+
+### agent-relay
+
+계획·구현·리뷰를 서로 다른 에이전트와 세션에 나눠 맡깁니다. 자기가 쓴 것을 자기가 검사하면 통과시키기 때문입니다.
+
+구현자는 대화 맥락 없이 계획 파일만 읽고 일하고, `scope-guard.sh`가 계획이 허용한 파일만 바뀌었는지
+내용 해시로 확인합니다. 교차 리뷰 브리프에서는 구현자의 결론을 뺍니다 — 결론을 주면 "맞습니다"가 돌아옵니다.
+
+산출물은 `.claude/relay/`에 두고 `.git/info/exclude`로 뺍니다. **팀 저장소 파일을 하나도 고치지 않습니다.**
+
+[plugins/agent-relay/README.md](plugins/agent-relay/README.md)에 있습니다.
 
 ## 원하는 프로젝트에서만 켜기
 
