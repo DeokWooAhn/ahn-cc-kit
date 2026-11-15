@@ -1,9 +1,9 @@
 ---
-name: relay
+name: orchestrate
 description: >-
-  계획·구현·리뷰를 서로 다른 에이전트와 세션에 나눠 맡기는 왕복 개발을 할 때 사용합니다.
+  계획·구현·리뷰를 서로 다른 에이전트와 세션에 나눠 맡기는 왕복 개발을 지휘할 때 사용합니다.
   "코덱스에 넘겨줘", "다른 에이전트로 구현해줘", "교차 리뷰해줘", "왕복으로 해보자",
-  "계획만 세워줘" 같은 요청이 해당됩니다. Relaying work between agents — a plan artifact
+  "오케스트레이션 해줘", "계획만 세워줘" 같은 요청이 해당됩니다. Relaying work between agents — a plan artifact
   another agent implements from, scope verification that only the planned files changed,
   and a cross-review from a separate session that never sees the implementer's conclusion.
 metadata:
@@ -11,9 +11,10 @@ metadata:
   status: draft
 ---
 
-# 왕복 개발
+# 에이전트 오케스트레이션
 
 한 에이전트가 계획하고, 다른 에이전트가 구현하고, 또 다른 세션이 리뷰한다.
+이 왕복을 지휘하는 것이 이 스킬이 하는 일이다.
 나누는 이유는 손이 모자라서가 아니라 **자기가 쓴 것을 자기가 검사하면 통과시키기 때문**이다.
 
 ## 언제 쓰나
@@ -53,13 +54,13 @@ Planner와 Verifier는 같은 세션이어도 된다. **Implementer와 Reviewer�
 저장소를 더럽히지 않는다. 팀 저장소에서도 파일 하나 고치지 않고 쓸 수 있어야 한다.
 
 ```
-.claude/relay/          산출물 (계획·프롬프트·로그·리뷰)
+.claude/orchestrate/          산출물 (계획·프롬프트·로그·리뷰)
 ```
 
-`.git/info/exclude`에 `.claude/relay/`를 넣는다. 이 파일 자체가 커밋되지 않으므로 팀 설정을 건드리지 않는다.
+`.git/info/exclude`에 `.claude/orchestrate/`를 넣는다. 이 파일 자체가 커밋되지 않으므로 팀 설정을 건드리지 않는다.
 
 ```bash
-grep -q '^\.claude/relay/$' .git/info/exclude || echo '.claude/relay/' >> .git/info/exclude
+grep -q '^\.claude/orchestrate/$' .git/info/exclude || echo '.claude/orchestrate/' >> .git/info/exclude
 ```
 
 번호를 붙여 순서를 남긴다: `01-plan.md`, `02-prompt.txt`, `02-output.log`, `03-review.md`, `04-fix-plan.md`.
@@ -69,7 +70,7 @@ grep -q '^\.claude/relay/$' .git/info/exclude || echo '.claude/relay/' >> .git/i
 산출물 파일 경로를 주고 **그것을 읽게** 한다. 프롬프트에 계획을 통째로 붙이지 않는다.
 
 ```bash
-codex exec -s workspace-write "$(cat .claude/relay/02-prompt.txt)" < /dev/null > .claude/relay/02-output.log 2>&1
+codex exec -s workspace-write "$(cat .claude/orchestrate/02-prompt.txt)" < /dev/null > .claude/orchestrate/02-output.log 2>&1
 ```
 
 `< /dev/null`을 빠뜨리면 멈춘다. 이유와 나머지 함정은 `references/gotchas.md`에 있다.
