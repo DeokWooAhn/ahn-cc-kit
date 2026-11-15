@@ -44,6 +44,29 @@ jobs:
       - name: maestro-e2e
         run: python3 plugins/maestro-e2e/hooks/test_hooks.py
 
+  orchestrator:
+    name: Orchestrator runtime (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # git 동작이 플랫폼마다 조금씩 다르다. 범위·git 검사가 거기에 기대므로 양쪽에서 돌린다.
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # StrEnum 과 hashlib.file_digest 를 쓴다. 러너 기본 python 에 기대지 않는다.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Unit tests
+        working-directory: orchestrator
+        run: PYTHONPATH=src:tests python3 -m unittest discover -s tests -t tests
+
   docs:
     name: Manifests, case table, plugin validation
     runs-on: ubuntu-latest
