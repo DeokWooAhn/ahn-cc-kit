@@ -1,15 +1,15 @@
-# agent-relay
+# agent-orchestrator
 
-계획·구현·리뷰를 서로 다른 에이전트와 세션에 나눠 맡기는 왕복 개발 절차.
+계획·구현·리뷰를 서로 다른 에이전트와 세션에 나눠 맡기고, 그 왕복을 지휘하는 절차.
 
 ```bash
-claude plugin install agent-relay@ahn-cc-kit
+claude plugin install agent-orchestrator@ahn-cc-kit
 ```
 
 ## 언제 불리나
 
 "코덱스에 넘겨줘", "다른 에이전트로 구현해줘", "교차 리뷰해줘", "왕복으로 해보자", "계획만 세워줘"
-같은 요청에서 모델이 자동으로 불러옵니다. 직접 부르려면 `/agent-relay:relay`.
+같은 요청에서 모델이 자동으로 불러옵니다. 직접 부르려면 `/agent-orchestrator:orchestrate`.
 
 ## 왜 나누나
 
@@ -26,7 +26,7 @@ claude plugin install agent-relay@ahn-cc-kit
 - **범위를 검증합니다.** `scope-guard.sh`가 계획이 허용한 파일만 바뀌었는지 보고,
   위반이면 리뷰로 보내지 않습니다. untracked 파일 수정도 잡도록 내용 해시로 비교합니다
 - **리뷰 브리프에서 구현자의 결론을 뺍니다.** 이 한 줄이 리뷰 품질을 가릅니다
-- **산출물을 저장소 밖으로 뺍니다.** `.claude/relay/`에 두고 `.git/info/exclude`에 넣습니다.
+- **산출물을 저장소 밖으로 뺍니다.** `.claude/orchestrate/`에 두고 `.git/info/exclude`에 넣습니다.
   그 파일 자체가 커밋되지 않으므로 **팀 저장소 파일을 하나도 고치지 않고** 쓸 수 있습니다
 
 ## 전제
@@ -39,10 +39,10 @@ claude plugin install agent-relay@ahn-cc-kit
 
 | 파일 | 내용 |
 | --- | --- |
-| `skills/relay/SKILL.md` | 절차 전체와 역할 경계 |
-| `skills/relay/references/plan-template.md` | 계획 산출물 형식 |
-| `skills/relay/references/review-brief.md` | 교차 리뷰 브리프 규칙 |
-| `skills/relay/references/gotchas.md` | 실제로 겪은 함정 |
+| `skills/orchestrate/SKILL.md` | 절차 전체와 역할 경계 |
+| `skills/orchestrate/references/plan-template.md` | 계획 산출물 형식 |
+| `skills/orchestrate/references/review-brief.md` | 교차 리뷰 브리프 규칙 |
+| `skills/orchestrate/references/gotchas.md` | 실제로 겪은 함정 |
 | `bin/scope-guard.sh` | 범위 검증 |
 
 ## scope-guard만 따로 쓰기
@@ -51,10 +51,10 @@ claude plugin install agent-relay@ahn-cc-kit
 
 ```bash
 # 구현을 넘기기 직전
-scope-guard.sh snapshot .claude/relay/snapshot.txt
+scope-guard.sh snapshot .claude/orchestrate/snapshot.txt
 
 # 구현이 끝난 뒤
-scope-guard.sh check .claude/relay/plan.md .claude/relay/snapshot.txt
+scope-guard.sh check .claude/orchestrate/plan.md .claude/orchestrate/snapshot.txt
 ```
 
 계획 파일의 `## 건드릴 파일` 아래 첫 코드 블록을 읽어 허용 목록으로 씁니다.
