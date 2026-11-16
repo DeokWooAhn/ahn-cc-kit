@@ -3,7 +3,8 @@
 계획·구현·리뷰를 서로 다른 에이전트에 넘기는 왕복을 지휘하는 런타임.
 `agent-orchestrator` 플러그인이 문서로 정한 절차를, 사람이 매번 명령을 치지 않아도 돌게 한다.
 
-**1단계만 들어 있다.** 아직 에이전트를 부르지 않는다. 상태·범위·git 검사만 한다.
+**1·2단계가 들어 있다.** 에이전트를 부르고 제시간에 끊는 것까지 한다.
+상태 전이 규칙과 CLI는 아직 없어서, 부르는 순서는 사람이 정한다.
 
 ## 왜 있나
 
@@ -11,7 +12,7 @@
 
 | 겪은 일 | 이 런타임이 맡는 것 |
 | --- | --- |
-| `codex exec`가 stdin EOF를 못 받아 40분 멈춤 | timeout, 종료 코드 확인 (2단계) |
+| `codex exec`가 stdin EOF를 못 받아 40분 멈춤 | stdin 차단, 전체 타임아웃, **무활동 감지** |
 | 어디까지 갔는지 사람 머릿속에만 있음 | 상태 머신 + 파일 저장 |
 | "커밋하지 마라"를 프롬프트에 적고 확인은 안 함 | 호출 후 git 검사 |
 
@@ -26,6 +27,7 @@ src/orchestrator/
   state.py     RunState, TaskState, StateStore
   scope.py     스냅샷, 계획의 허용 목록 파싱, 범위 대조
   guards.py    커밋·브랜치·스테이징·푸시 감지
+  adapters.py  codex·claude 호출, 타임아웃, 무활동 감지
   gitio.py     git 호출
   errors.py
 ```
@@ -84,6 +86,56 @@ HEAD, 브랜치, 업스트림, 스테이징을 전후로 비교한다. 파일을
 
 **되돌리기는 하지 않는다.** 위반을 보고하고 멈출 뿐, `git reset`을 대신 돌리지 않는다.
 
+### adapters
+
+```python
+from orchestrator import AgentRequest, CodexAdapter
+
+request = AgentRequest(
+    role="implementer",
+    prompt_file=Path(".claude/orchestrate/작업/02-implement-prompt.txt"),
+    log_file=Path(".claude/orchestrate/작업/02-implement.log"),
+    cwd=repo,
+)
+result = CodexAdapter().run(request)
+
+result.ok          # outcome 이 "ok" 인가
+result.outcome     # ok | failed | timeout | stalled | missing_command
+result.returncode
+result.duration_seconds
+result.log_bytes
+```
+
+`CodexAdapter`는 `codex exec -s workspace-write <프롬프트>`,
+`ClaudeAdapter`는 `claude -p <프롬프트>`를 만든다.
+`read_only=True`면 codex는 `-s read-only`, claude는 `--allowed-tools Read Glob Grep`로 좁힌다.
+headless claude는 호출마다 새 세션이라 **Implementer와 Reviewer의 세션 분리가 저절로 지켜진다.**
+
+기본 제한 시간은 역할마다 다르다. implementer·fixer 20분, planner 15분, reviewer 10분.
+
+- **stdin을 막는다.** 프롬프트를 인자로 주고 stdin은 `DEVNULL`이다.
+  `< /dev/null`을 빠뜨려 40분 멈춘 사건이 `gotchas.md`에 있다. 빠뜨릴 수 없게 했다
+- **로그는 파일로 직접 받는다.** 파이프를 거치지 않으므로 큰 출력에 막히지 않고 종료 코드도 잃지 않는다
+- **프로세스 그룹째 끊는다.** 넘긴 명령이 띄운 하위 프로세스가 고아로 남지 않는다
+- 명령이 없으면 예외 대신 `missing_command`로 돌려준다. 환경 문제와 에이전트 실패를 가르기 위해서다
+
+#### 무활동을 따로 본다
+
+40분 멈춤의 본질은 "오래 걸린 것"이 아니라 **첫 줄에서 멈춘 것**이었다.
+전체 제한 시간만 두면 구현자 몫인 20분을 그대로 날리고서야 안다.
+로그 크기가 `stall_seconds`(기본 180초) 동안 그대로면 그 전에 끊는다.
+
+대신 출력이 드문 명령은 오판할 수 있다. 자식이 파일에 쓸 때는 블록 버퍼링이라 더 뜸해진다.
+그런 명령에는 `stall_seconds=0`으로 끈다.
+
+#### killpg는 자기 자신을 죽일 수 있다
+
+`start_new_session=True` 없이 띄운 자식은 **오케스트레이터와 같은 프로세스 그룹**에 있다.
+그 상태에서 `os.killpg`를 부르면 자기 자신과 자기를 띄운 셸까지 SIGTERM을 받는다.
+
+테스트를 쓰다가 러너가 통째로 죽어서 알았다. 그래서 자식의 그룹이 자기 그룹과 같으면
+그룹을 건드리지 않고 그 프로세스에만 신호를 보낸다.
+
 ## 테스트
 
 의존성이 없다. 표준 라이브러리만 쓴다.
@@ -92,9 +144,11 @@ HEAD, 브랜치, 업스트림, 스테이징을 전후로 비교한다. 파일을
 cd orchestrator && PYTHONPATH=src:tests python3 -m unittest discover -s tests -t tests
 ```
 
+멈추는 명령을 실제로 띄워 끊는 테스트가 있어서 15초쯤 걸린다.
+
 ## 아직 없는 것
 
-2단계부터다. `adapters.py`(codex·claude 호출과 timeout), `prompts.py`(역할별 지시문 조립),
-`pipeline.py`(상태 전이 규칙), CLI(`orch init|run|step|status|resume`).
+3단계부터다. `prompts.py`(역할별 지시문 조립), `pipeline.py`(상태 전이 규칙),
+CLI(`orch init|run|step|status|resume`).
 
 `pyproject.toml`의 `orch` 스크립트는 그 CLI가 생긴 뒤에 동작한다.

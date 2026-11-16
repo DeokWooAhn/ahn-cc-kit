@@ -33,3 +33,13 @@ class InvalidTransition(OrchestratorError):
         super().__init__(f"{current}에서 {target}으로 갈 수 없다")
         self.current = current
         self.target = target
+
+
+class PromptFileError(OrchestratorError):
+    pass
+
+
+class UnknownAdapter(OrchestratorError):
+    def __init__(self, name):
+        super().__init__(f"모르는 어댑터: {name}")
+        self.name = name
