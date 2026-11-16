@@ -526,6 +526,90 @@ class RunTest(PipelineTestCase):
         self.assertEqual(result.state, RunState.PLAN_APPROVAL)
         self.assertIn("환율 로딩을 고친다", later.adapters[PLANNER].prompts[0])
 
+class ReviewBriefTest(PipelineTestCase):
+    def two_rounds(self) -> Settings:
+        settings = self.reach_implementing(
+            self.settings(
+                {
+                    IMPLEMENTER: "echo 첫째 >> a.txt",
+                    REVIEWER: "echo 리뷰",
+                    FIXER: "echo 둘째 >> b.txt",
+                }
+            ),
+            paths=("a.txt", "b.txt"),
+        )
+        for _ in range(3):
+            pipeline.step(settings)
+        settings.paths.fix_plan.write_text("# 수정 계획\n", encoding="utf-8")
+        pipeline.request_fix(settings)
+        for _ in range(3):
+            pipeline.step(settings)
+        return settings
+
+    def test_the_second_review_still_sees_the_first_round_changes(self) -> None:
+        settings = self.two_rounds()
+
+        first, second = settings.adapters[REVIEWER].prompts
+
+        self.assertIn("`a.txt`", first)
+        self.assertNotIn("`b.txt`", first)
+        self.assertIn("`a.txt`", second)
+        self.assertIn("`b.txt`", second)
+
+    def test_a_fix_does_not_overwrite_the_baseline(self) -> None:
+        settings = self.reach_implementing(
+            self.settings(
+                {
+                    IMPLEMENTER: "echo 첫째 >> a.txt",
+                    REVIEWER: "echo 리뷰",
+                    FIXER: "echo 둘째 >> b.txt",
+                }
+            ),
+            paths=("a.txt", "b.txt"),
+        )
+        for _ in range(3):
+            pipeline.step(settings)
+        baseline = settings.paths / pipeline.BASELINE
+        taken_at_start = baseline.read_text(encoding="utf-8")
+
+        settings.paths.fix_plan.write_text("# 수정 계획\n", encoding="utf-8")
+        pipeline.request_fix(settings)
+        pipeline.step(settings)
+
+        self.assertEqual(baseline.read_text(encoding="utf-8"), taken_at_start)
+
+    def test_the_scope_check_still_looks_at_the_latest_handoff(self) -> None:
+        settings = self.two_rounds()
+
+        self.assertEqual(settings.store.load().state, RunState.WAITING_HUMAN)
+
+
+class VerifyReportTest(PipelineTestCase):
+    def test_verify_reports_time_and_log_size_per_command(self) -> None:
+        settings = self.settings({IMPLEMENTER: "echo 고침 >> a.txt", REVIEWER: "echo 리뷰"})
+        self.reach_implementing(settings, verify="echo 검증했다")
+        for _ in range(3):
+            pipeline.step(settings)
+
+        pipeline.request_verify(settings)
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.COMPLETED)
+        self.assertIn("echo 검증했다", result.detail)
+        self.assertIn("초", result.detail)
+        self.assertIn("바이트", result.detail)
+
+    def test_verify_warns_that_a_build_cache_may_be_reused(self) -> None:
+        settings = self.settings({IMPLEMENTER: "echo 고침 >> a.txt", REVIEWER: "echo 리뷰"})
+        self.reach_implementing(settings)
+        for _ in range(3):
+            pipeline.step(settings)
+
+        pipeline.request_verify(settings)
+        result = pipeline.step(settings)
+
+        self.assertIn("캐시", result.detail)
+
 
 if __name__ == "__main__":
     unittest.main()
