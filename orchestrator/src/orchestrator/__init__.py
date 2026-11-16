@@ -17,7 +17,9 @@ from .errors import (
     StateFileError,
     UnknownAdapter,
 )
+from .errors import PipelineError, PluginDocsMissing
 from .guards import GitSnapshot, GitViolation
+from .pipeline import Settings, StepResult, TaskPaths
 from .scope import ScopeResult, Snapshot
 from .state import RunState, StateStore, TaskState
 
@@ -28,6 +30,11 @@ __all__ = [
     "ClaudeAdapter",
     "CodexAdapter",
     "GitCommandFailed",
+    "PipelineError",
+    "PluginDocsMissing",
+    "Settings",
+    "StepResult",
+    "TaskPaths",
     "GitSnapshot",
     "GitViolation",
     "InvalidTransition",
@@ -46,4 +53,4 @@ __all__ = [
     "adapter_for",
 ]
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

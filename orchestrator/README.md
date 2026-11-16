@@ -3,8 +3,8 @@
 계획·구현·리뷰를 서로 다른 에이전트에 넘기는 왕복을 지휘하는 런타임.
 `agent-orchestrator` 플러그인이 문서로 정한 절차를, 사람이 매번 명령을 치지 않아도 돌게 한다.
 
-**1·2단계가 들어 있다.** 에이전트를 부르고 제시간에 끊는 것까지 한다.
-상태 전이 규칙과 CLI는 아직 없어서, 부르는 순서는 사람이 정한다.
+**1·2·3단계가 들어 있다.** `orch step`으로 한 작업을 계획부터 검증까지 돌릴 수 있다.
+한 걸음씩만 간다. 승인 지점에서 저절로 넘어가는 자율 모드(`orch run`)는 아직 없다.
 
 ## 왜 있나
 
@@ -28,9 +28,41 @@ src/orchestrator/
   scope.py     스냅샷, 계획의 허용 목록 파싱, 범위 대조
   guards.py    커밋·브랜치·스테이징·푸시 감지
   adapters.py  codex·claude 호출, 타임아웃, 무활동 감지
+  prompts.py   플러그인 문서를 읽어 역할별 지시문 조립
+  pipeline.py  상태 전이 규칙
+  __main__.py  CLI
   gitio.py     git 호출
   errors.py
 ```
+
+## 쓰는 법
+
+```bash
+orch init 20261116-작업이름 --plan 계획.md   # 계획을 이미 썼을 때
+orch init 20261116-작업이름 --task "무엇을 한다"   # 계획부터 세울 때
+
+orch step      # 다음 한 걸음
+orch status    # 지금 상태와 다음에 할 일
+orch approve   # 계획을 승인해 구현으로 넘긴다
+orch fix       # 04-fix-plan.md 를 넘겨 다시 구현시킨다
+orch verify    # 계획의 검증 명령을 돌린다
+orch resume    # 막힌 자리에서 다시 시작한다
+```
+
+작업이 하나뿐이면 이름을 생략할 수 있다. 막힌 상태면 종료 코드가 1이다.
+
+역할이 쓸 어댑터는 `--route`로 바꾼다. 기본은 Planner·Reviewer가 claude,
+Implementer·Fixer가 codex다.
+
+```bash
+orch step --route reviewer=codex
+```
+
+**Implementer와 Reviewer를 같은 어댑터로 두어도 세션은 갈린다.** 둘 다 호출마다
+새 프로세스이고, 리뷰어는 구현 로그를 받지 않는다.
+
+산출물은 `.claude/orchestrate/<작업이름>/`에 쌓이고, `init`이 그 디렉터리를
+`.git/info/exclude`에 넣는다. 팀 저장소에서도 추적 파일을 하나도 건드리지 않는다.
 
 ### state
 
@@ -136,6 +168,50 @@ headless claude는 호출마다 새 세션이라 **Implementer와 Reviewer의 �
 테스트를 쓰다가 러너가 통째로 죽어서 알았다. 그래서 자식의 그룹이 자기 그룹과 같으면
 그룹을 건드리지 않고 그 프로세스에만 신호를 보낸다.
 
+### prompts
+
+플러그인 문서를 읽어 역할별 지시문을 만든다. 문서를 두 벌로 갈라 두지 않기 위해서다.
+`ORCH_PLUGIN_DIR`, 설치된 마켓플레이스, 이 저장소 순으로 찾는다.
+
+역할마다 싣는 것이 다르다.
+
+| 역할 | 싣는 것 | 싣지 않는 것 |
+| --- | --- | --- |
+| Planner | `plan-template.md` 전문 | |
+| Implementer | 계획 **파일 경로**와 `gotchas.md` | 계획 본문 |
+| Reviewer | 계획의 `## 목적`, 바뀐 파일 목록, 따질 것 | **구현자의 보고와 결론** |
+| Fixer | 수정 계획 경로와 `gotchas.md` | 반영하지 않기로 한 지적 |
+
+**리뷰어 브리프에 구현자의 결론이 들어갈 길이 없다.** `review_prompt()`는 구현 로그를
+인자로 받지 않는다. 사람이 하면 "구현자가 이렇게 말했는데"를 붙이기 쉬운 자리다.
+
+### pipeline
+
+```python
+from orchestrator import Settings, pipeline
+
+settings = Settings(repo=repo, task_id="20261116-작업이름")
+pipeline.init(settings)
+result = pipeline.step(settings)
+result.state      # 지금 상태
+result.stopped    # 사람을 기다리며 멈췄나
+```
+
+한 걸음은 **지금 상태가 가리키는 일을 하고 다음 상태로 간다.**
+
+```text
+CREATED → PLANNING → PLAN_APPROVAL ┄┄ 멈춤 ┄┄ IMPLEMENTING → SCOPE_CHECK
+      → REVIEWING → WAITING_HUMAN ┄┄ 멈춤 ┄┄ FIXING → SCOPE_CHECK → ...
+                                              또는 VERIFYING → COMPLETED
+```
+
+- **스냅샷은 넘기기 직전에 찍는다.** 사람이 순서를 틀릴 자리를 없앴다.
+  Planner가 문서를 고친 뒤 스냅샷을 안 찍어 그 변경이 구현자의 위반으로 잡히던 함정이다
+- **범위 위반이면 리뷰로 보내지 않는다.** `SCOPE_CHECK`가 별도 상태인 이유다
+- `PLAN_APPROVAL`과 `WAITING_HUMAN`에서는 반드시 멈춘다. 멈출 때 다음에 뭘 해야 하는지 함께 적는다
+- 검증 명령은 계획의 `## 검증` 절 첫 코드 블록에서 읽는다. 사람이 승인한 계획에 적힌 것만 돌린다
+- 되돌리기는 하지 않는다. 막히면 멈추고 사람이 고친 뒤 `orch resume`
+
 ## 테스트
 
 의존성이 없다. 표준 라이브러리만 쓴다.
@@ -144,11 +220,12 @@ headless claude는 호출마다 새 세션이라 **Implementer와 Reviewer의 �
 cd orchestrator && PYTHONPATH=src:tests python3 -m unittest discover -s tests -t tests
 ```
 
-멈추는 명령을 실제로 띄워 끊는 테스트가 있어서 15초쯤 걸린다.
+멈추는 명령을 실제로 띄워 끊는 테스트와, 진짜 git 저장소에서 파이프라인을 끝까지 돌리는
+테스트가 있어서 40초쯤 걸린다. 에이전트 자리에는 셸 스크립트를 끼워 넣으므로 codex·claude를
+부르지 않는다. 그래서 범위 위반·커밋 감지까지 실제로 검사한다.
 
 ## 아직 없는 것
 
-3단계부터다. `prompts.py`(역할별 지시문 조립), `pipeline.py`(상태 전이 규칙),
-CLI(`orch init|run|step|status|resume`).
+4단계는 `orch run`(승인 지점까지 자동으로 진행), 5단계는 실전 적용과 회고다.
 
-`pyproject.toml`의 `orch` 스크립트는 그 CLI가 생긴 뒤에 동작한다.
+Model Router, Context Builder, worktree 격리는 1차 범위 밖이다. 왜 뺐는지는 설계안에 있다.
