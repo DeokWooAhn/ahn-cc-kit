@@ -66,7 +66,7 @@ class InitTest(PipelineTestCase):
         pipeline.init(settings)
 
         exclude = (self.repo / ".git/info/exclude").read_text(encoding="utf-8")
-        self.assertIn(".claude/orchestrate/", exclude.splitlines())
+        self.assertIn(".orchestrate/", exclude.splitlines())
 
     def test_exclude_is_not_added_twice(self) -> None:
         settings = self.settings()
@@ -75,7 +75,7 @@ class InitTest(PipelineTestCase):
         pipeline.init(settings)
 
         exclude = (self.repo / ".git/info/exclude").read_text(encoding="utf-8")
-        self.assertEqual(exclude.count(".claude/orchestrate/"), 1)
+        self.assertEqual(exclude.count(".orchestrate/"), 1)
 
     def test_copies_a_plan_that_was_written_elsewhere(self) -> None:
         settings = self.settings()
@@ -121,7 +121,7 @@ class PlanningTest(PipelineTestCase):
     def test_without_a_plan_the_planner_is_called(self) -> None:
         plan_body = plan_text(["a.txt"]).replace("'", "")
         settings = self.settings(
-            {PLANNER: f"cat > .claude/orchestrate/{TASK_ID}/01-plan.md <<'EOF'\n{plan_body}\nEOF"},
+            {PLANNER: f"cat > .orchestrate/{TASK_ID}/01-plan.md <<'EOF'\n{plan_body}\nEOF"},
             task="환율 로딩을 고친다",
         )
         pipeline.init(settings)
@@ -425,6 +425,106 @@ class WholeRunTest(PipelineTestCase):
 
         self.assertEqual(result.state, RunState.COMPLETED)
         self.assertTrue(result.stopped)
+
+class RunTest(PipelineTestCase):
+    def test_run_stops_at_the_approval(self) -> None:
+        settings = self.start(self.settings())
+
+        results = pipeline.run(settings)
+
+        self.assertEqual(results[-1].state, RunState.PLAN_APPROVAL)
+        self.assertTrue(results[-1].stopped)
+
+    def test_run_goes_from_implementing_to_the_review_wait(self) -> None:
+        settings = self.reach_implementing(
+            self.settings({IMPLEMENTER: "echo 고침 >> a.txt", REVIEWER: "echo 리뷰"})
+        )
+
+        results = pipeline.run(settings)
+
+        self.assertEqual(
+            [result.state for result in results],
+            [RunState.SCOPE_CHECK, RunState.REVIEWING, RunState.WAITING_HUMAN],
+        )
+
+    def test_run_stops_when_it_is_blocked(self) -> None:
+        settings = self.reach_implementing(
+            self.settings({IMPLEMENTER: "echo 고침 >> a.txt; echo 침범 > b.txt"})
+        )
+
+        results = pipeline.run(settings)
+
+        self.assertEqual(results[-1].state, RunState.BLOCKED_SCOPE)
+        self.assertFalse(results[-1].ok)
+
+    def test_run_never_passes_the_approval_on_its_own(self) -> None:
+        settings = self.start(self.settings({IMPLEMENTER: "echo 고침 >> a.txt"}))
+
+        pipeline.run(settings)
+        again = pipeline.run(settings)
+
+        self.assertEqual(settings.store.load().state, RunState.PLAN_APPROVAL)
+        self.assertEqual(len(again), 1)
+
+    def test_a_step_budget_that_is_too_small_is_an_error(self) -> None:
+        settings = self.reach_implementing(
+            self.settings({IMPLEMENTER: "echo 고침 >> a.txt", REVIEWER: "echo 리뷰"})
+        )
+
+        with self.assertRaises(PipelineError) as caught:
+            pipeline.run(settings, max_steps=1)
+
+        self.assertIn("1걸음", str(caught.exception))
+
+    def test_the_callbacks_see_every_step(self) -> None:
+        settings = self.reach_implementing(
+            self.settings({IMPLEMENTER: "echo 고침 >> a.txt", REVIEWER: "echo 리뷰"})
+        )
+        entered: list[RunState] = []
+        finished: list[RunState] = []
+
+        pipeline.run(
+            settings,
+            before=entered.append,
+            after=lambda result: finished.append(result.state),
+        )
+
+        self.assertEqual(
+            entered, [RunState.IMPLEMENTING, RunState.SCOPE_CHECK, RunState.REVIEWING]
+        )
+        self.assertEqual(
+            finished, [RunState.SCOPE_CHECK, RunState.REVIEWING, RunState.WAITING_HUMAN]
+        )
+
+    def test_run_on_a_finished_task_does_nothing(self) -> None:
+        settings = self.start(self.settings())
+        settings.store.transition(RunState.COMPLETED, note="끝났다")
+
+        results = pipeline.run(settings)
+
+        self.assertEqual(len(results), 1)
+        self.assertTrue(results[0].stopped)
+
+    def test_the_task_description_survives_until_the_next_command(self) -> None:
+        settings = self.settings({PLANNER: "true"}, task="환율 로딩을 고친다")
+        pipeline.init(settings)
+
+        later = self.settings({PLANNER: "true"})
+
+        self.assertEqual(pipeline.stored_task(later), "환율 로딩을 고친다")
+
+    def test_a_stored_task_reaches_the_planner(self) -> None:
+        plan_body = plan_text(["a.txt"]).replace("'", "")
+        written = self.settings(task="환율 로딩을 고친다")
+        pipeline.init(written)
+
+        later = self.settings(
+            {PLANNER: f"cat > .orchestrate/{TASK_ID}/01-plan.md <<'EOF'\n{plan_body}\nEOF"}
+        )
+        result = pipeline.step(later)
+
+        self.assertEqual(result.state, RunState.PLAN_APPROVAL)
+        self.assertIn("환율 로딩을 고친다", later.adapters[PLANNER].prompts[0])
 
 
 if __name__ == "__main__":

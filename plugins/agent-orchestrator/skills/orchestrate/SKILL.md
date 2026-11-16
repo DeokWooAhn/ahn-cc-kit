@@ -54,13 +54,13 @@ Planner와 Verifier는 같은 세션이어도 된다. **Implementer와 Reviewer�
 저장소를 더럽히지 않는다. 팀 저장소에서도 파일 하나 고치지 않고 쓸 수 있어야 한다.
 
 ```
-.claude/orchestrate/          산출물 (계획·프롬프트·로그·리뷰)
+.orchestrate/          산출물 (계획·프롬프트·로그·리뷰)
 ```
 
-`.git/info/exclude`에 `.claude/orchestrate/`를 넣는다. 이 파일 자체가 커밋되지 않으므로 팀 설정을 건드리지 않는다.
+`.git/info/exclude`에 `.orchestrate/`를 넣는다. 이 파일 자체가 커밋되지 않으므로 팀 설정을 건드리지 않는다.
 
 ```bash
-grep -q '^\.claude/orchestrate/$' .git/info/exclude || echo '.claude/orchestrate/' >> .git/info/exclude
+grep -q '^\.orchestrate/$' .git/info/exclude || echo '.orchestrate/' >> .git/info/exclude
 ```
 
 번호를 붙여 순서를 남긴다: `01-plan.md`, `02-prompt.txt`, `02-output.log`, `03-review.md`, `04-fix-plan.md`.
@@ -70,7 +70,7 @@ grep -q '^\.claude/orchestrate/$' .git/info/exclude || echo '.claude/orchestrate
 산출물 파일 경로를 주고 **그것을 읽게** 한다. 프롬프트에 계획을 통째로 붙이지 않는다.
 
 ```bash
-codex exec -s workspace-write "$(cat .claude/orchestrate/02-prompt.txt)" < /dev/null > .claude/orchestrate/02-output.log 2>&1
+codex exec -s workspace-write "$(cat .orchestrate/02-prompt.txt)" < /dev/null > .orchestrate/02-output.log 2>&1
 ```
 
 `< /dev/null`을 빠뜨리면 멈춘다. 이유와 나머지 함정은 `references/gotchas.md`에 있다.

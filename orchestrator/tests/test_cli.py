@@ -197,6 +197,34 @@ class CliTest(unittest.TestCase):
         self.assertEqual(code, EXIT_ERROR)
         self.assertIn("모르는 역할", err)
 
+    def test_run_stops_at_the_approval(self) -> None:
+        self.write_plan()
+        self.run_cli("init", TASK_ID)
+
+        code, out, _ = self.run_cli("run", TASK_ID)
+
+        self.assertEqual(code, EXIT_OK)
+        self.assertIn("plan_approval", out)
+        self.assertIn("→", out)
+
+    def test_run_exits_nonzero_when_blocked(self) -> None:
+        settings = self.write_plan()
+        self.run_cli("init", TASK_ID)
+        settings.store.transition(RunState.BLOCKED_GIT, note="커밋이 생겼다")
+
+        code, out, _ = self.run_cli("run", TASK_ID)
+
+        self.assertEqual(code, EXIT_BLOCKED)
+        self.assertIn("blocked_git", out)
+
+    def test_run_takes_a_step_budget(self) -> None:
+        self.write_plan()
+        self.run_cli("init", TASK_ID)
+
+        code, _, _ = self.run_cli("run", TASK_ID, "--max-steps", "3")
+
+        self.assertEqual(code, EXIT_OK)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -150,17 +150,33 @@ class BuildCommandTest(unittest.TestCase):
         self.assertEqual(command[-1], "넘길 말")
 
     def test_claude_runs_headless(self) -> None:
-        command = ClaudeAdapter().build_command(self.request(role=REVIEWER), "리뷰해라")
+        command = ClaudeAdapter().build_command(self.request(), "구현해라")
 
-        self.assertEqual(command, ["claude", "-p", "리뷰해라"])
+        self.assertEqual(command[:3], ["claude", "-p", "구현해라"])
 
-    def test_claude_read_only_narrows_the_tools(self) -> None:
+    def test_claude_always_names_its_tools(self) -> None:
+        command = ClaudeAdapter().build_command(self.request(), "구현해라")
+
+        self.assertIn("--allowed-tools", command)
+        self.assertIn("Write", command)
+        self.assertIn("Bash", command)
+
+    def test_claude_read_only_keeps_write_tools_out(self) -> None:
         command = ClaudeAdapter().build_command(
             self.request(role=REVIEWER, read_only=True), "리뷰해라"
         )
 
         self.assertEqual(command[3], "--allowed-tools")
-        self.assertEqual(command[4:], ["Read", "Glob", "Grep"])
+        self.assertNotIn("Write", command)
+        self.assertNotIn("Edit", command)
+        self.assertNotIn("Bash", command)
+
+    def test_claude_read_only_still_sees_the_diff(self) -> None:
+        command = ClaudeAdapter().build_command(
+            self.request(role=REVIEWER, read_only=True), "리뷰해라"
+        )
+
+        self.assertIn("Bash(git diff:*)", command)
 
     def test_prompt_is_one_argument(self) -> None:
         prompt = "여러 줄\n짜리 프롬프트 'quoted' $HOME"
@@ -338,6 +354,22 @@ class ProcessGroupTest(WorkspaceTestCase):
 
         self.assertEqual(result.outcome, OK)
         self.assertNotEqual(int(self.log_text().strip()), os.getpgrp())
+
+class InterruptTest(WorkspaceTestCase):
+    def test_an_interrupt_takes_the_child_down_with_it(self) -> None:
+        pid_file = self.dir / "child.pid"
+        script = f'echo $$ > "{pid_file}"; sleep 30'
+
+        def interrupt_after_the_child_starts(*args, **kwargs):
+            time.sleep(0.3)
+            raise KeyboardInterrupt
+
+        with mock.patch.object(adapters, "_watch", interrupt_after_the_child_starts):
+            with self.assertRaises(KeyboardInterrupt):
+                run_command(["sh", "-c", script], self.request())
+
+        pid = int(pid_file.read_text(encoding="utf-8").strip())
+        self.assertFalse(alive(pid), "중단했는데 넘긴 명령이 살아남았다")
 
 
 if __name__ == "__main__":
