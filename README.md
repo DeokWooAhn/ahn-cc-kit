@@ -132,7 +132,7 @@ HTML 한 장을 저장소 밖(`~/explain-diff/`, `EXPLAIN_DIFF_DIR`)에 날짜�
 구현자는 대화 맥락 없이 계획 파일만 읽고 일하고, `scope-guard.sh`가 계획이 허용한 파일만 바뀌었는지
 내용 해시로 확인합니다. 교차 리뷰 브리프에서는 구현자의 결론을 뺍니다 — 결론을 주면 "맞습니다"가 돌아옵니다.
 
-산출물은 `.claude/orchestrate/`에 두고 `.git/info/exclude`로 뺍니다. **팀 저장소 파일을 하나도 고치지 않습니다.**
+산출물은 `.orchestrate/`에 두고 `.git/info/exclude`로 뺍니다. **팀 저장소 파일을 하나도 고치지 않습니다.**
 
 [plugins/agent-orchestrator/README.md](plugins/agent-orchestrator/README.md)에 있습니다.
 

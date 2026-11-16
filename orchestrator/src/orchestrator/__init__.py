@@ -53,4 +53,4 @@ __all__ = [
     "adapter_for",
 ]
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

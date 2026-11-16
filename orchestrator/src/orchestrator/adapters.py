@@ -32,7 +32,15 @@ TIMEOUT = "timeout"
 STALLED = "stalled"
 MISSING_COMMAND = "missing_command"
 
-READ_ONLY_CLAUDE_TOOLS = ("Read", "Glob", "Grep")
+READ_ONLY_CLAUDE_TOOLS = (
+    "Read",
+    "Glob",
+    "Grep",
+    "Bash(git diff:*)",
+    "Bash(git status:*)",
+    "Bash(git log:*)",
+)
+WRITE_CLAUDE_TOOLS = ("Read", "Glob", "Grep", "Write", "Edit", "Bash")
 
 
 def default_timeout_seconds(role: str) -> int:
@@ -116,7 +124,11 @@ def run_command(command: list[str], request: AgentRequest) -> AgentResult:
                 stderr=subprocess.STDOUT,
                 start_new_session=True,
             )
-            outcome, detail = _watch(process, log_file, request, started)
+            try:
+                outcome, detail = _watch(process, log_file, request, started)
+            except BaseException:
+                _terminate(process)
+                raise
     except FileNotFoundError:
         return _result(
             request,
@@ -180,9 +192,8 @@ class ClaudeAdapter(Adapter):
         command = [self.executable, "-p", prompt]
         if request.model:
             command.extend(["--model", request.model])
-        if request.read_only:
-            command.append("--allowed-tools")
-            command.extend(READ_ONLY_CLAUDE_TOOLS)
+        command.append("--allowed-tools")
+        command.extend(READ_ONLY_CLAUDE_TOOLS if request.read_only else WRITE_CLAUDE_TOOLS)
         return command
 
 

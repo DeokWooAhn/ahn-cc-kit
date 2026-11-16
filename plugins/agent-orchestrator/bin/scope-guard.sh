@@ -2,11 +2,11 @@
 # 계획이 허용한 파일만 바뀌었는지 본다.
 #
 #   scope-guard.sh snapshot [스냅샷파일]
-#       구현을 넘기기 직전 상태를 찍는다. 기본값 .claude/orchestrate/snapshot.txt
+#       구현을 넘기기 직전 상태를 찍는다. 기본값 .orchestrate/snapshot.txt
 #
 #   scope-guard.sh check [계획파일] [스냅샷파일]
 #       계획의 "건드릴 파일" 목록과 실제 변경을 대조한다.
-#       기본값 .claude/orchestrate/plan.md, .claude/orchestrate/snapshot.txt
+#       기본값 .orchestrate/plan.md, .orchestrate/snapshot.txt
 #
 # git status 표시만 보면 untracked 파일을 고친 것을 놓치므로 내용 해시로 비교한다.
 # 계획 파일은 "## 건드릴 파일" 아래 첫 코드 블록에 경로를 한 줄에 하나씩 적는다.
@@ -35,7 +35,7 @@ snapshot() {
 
 case "${1:-check}" in
   snapshot)
-    out="${2:-.claude/orchestrate/snapshot.txt}"
+    out="${2:-.orchestrate/snapshot.txt}"
     mkdir -p "$(dirname "$out")"
     snapshot > "$out"
     echo "스냅샷 저장: $out ($(wc -l < "$out" | tr -d ' ')개 파일)"
@@ -48,8 +48,8 @@ case "${1:-check}" in
     ;;
 esac
 
-plan="${2:-.claude/orchestrate/plan.md}"
-snap="${3:-.claude/orchestrate/snapshot.txt}"
+plan="${2:-.orchestrate/plan.md}"
+snap="${3:-.orchestrate/snapshot.txt}"
 
 [ -f "$plan" ] || { echo "계획 파일 없음: $plan" >&2; exit 2; }
 [ -f "$snap" ] || { echo "스냅샷 없음: $snap — 구현을 넘기기 전에 snapshot 을 찍어라" >&2; exit 2; }

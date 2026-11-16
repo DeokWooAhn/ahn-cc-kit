@@ -17,7 +17,7 @@ from orchestrator.scope import (
 )
 from support import TempRepo, plan_text
 
-WORK_DIR = ".claude/orchestrate"
+WORK_DIR = ".orchestrate"
 
 
 class ParseAllowedTest(unittest.TestCase):
@@ -60,16 +60,16 @@ class ParseAllowedTest(unittest.TestCase):
 class IgnoreTest(unittest.TestCase):
     def test_normalize_strips_slashes_and_blanks(self) -> None:
         self.assertEqual(
-            normalize_ignore([".claude/orchestrate/", "  ", "docs"]),
-            (".claude/orchestrate", "docs"),
+            normalize_ignore([".orchestrate/", "  ", "docs"]),
+            (".orchestrate", "docs"),
         )
 
     def test_matches_directory_boundary_only(self) -> None:
-        ignore = (".claude/orchestrate",)
+        ignore = (".orchestrate",)
 
-        self.assertTrue(is_ignored(".claude/orchestrate", ignore))
-        self.assertTrue(is_ignored(".claude/orchestrate/01-plan.md", ignore))
-        self.assertFalse(is_ignored(".claude/orchestrate-old/x.md", ignore))
+        self.assertTrue(is_ignored(".orchestrate", ignore))
+        self.assertTrue(is_ignored(".orchestrate/01-plan.md", ignore))
+        self.assertFalse(is_ignored(".orchestrate-old/x.md", ignore))
 
 
 class SnapshotTest(unittest.TestCase):

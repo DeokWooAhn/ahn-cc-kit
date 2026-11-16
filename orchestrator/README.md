@@ -3,8 +3,8 @@
 계획·구현·리뷰를 서로 다른 에이전트에 넘기는 왕복을 지휘하는 런타임.
 `agent-orchestrator` 플러그인이 문서로 정한 절차를, 사람이 매번 명령을 치지 않아도 돌게 한다.
 
-**1·2·3단계가 들어 있다.** `orch step`으로 한 작업을 계획부터 검증까지 돌릴 수 있다.
-한 걸음씩만 간다. 승인 지점에서 저절로 넘어가는 자율 모드(`orch run`)는 아직 없다.
+**1~4단계가 들어 있다.** `orch run`이 멈출 자리까지 알아서 가고,
+사람이 봐야 할 곳에서만 선다. 남은 것은 실전 적용과 회고다.
 
 ## 왜 있나
 
@@ -41,7 +41,8 @@ src/orchestrator/
 orch init 20261116-작업이름 --plan 계획.md   # 계획을 이미 썼을 때
 orch init 20261116-작업이름 --task "무엇을 한다"   # 계획부터 세울 때
 
-orch step      # 다음 한 걸음
+orch run       # 멈출 자리까지 자동으로
+orch step      # 한 걸음만
 orch status    # 지금 상태와 다음에 할 일
 orch approve   # 계획을 승인해 구현으로 넘긴다
 orch fix       # 04-fix-plan.md 를 넘겨 다시 구현시킨다
@@ -50,6 +51,18 @@ orch resume    # 막힌 자리에서 다시 시작한다
 ```
 
 작업이 하나뿐이면 이름을 생략할 수 있다. 막힌 상태면 종료 코드가 1이다.
+
+`run`은 **승인을 대신 누르지 않는다.** `PLAN_APPROVAL`과 `WAITING_HUMAN`에서 서고,
+막히거나 끝나도 선다. 사람이 `approve`·`fix`·`verify`로 다음 구간을 연다.
+
+```text
+orch run       → 계획을 세우고 PLAN_APPROVAL 에서 멈춘다
+orch approve
+orch run       → 구현·범위 검사·리뷰를 거쳐 WAITING_HUMAN 에서 멈춘다
+orch verify    → 검증하고 COMPLETED
+```
+
+`--max-steps`(기본 12)를 넘기면 멈추고 알린다. 상태가 돌고 있다는 뜻이다.
 
 역할이 쓸 어댑터는 `--route`로 바꾼다. 기본은 Planner·Reviewer가 claude,
 Implementer·Fixer가 codex다.
@@ -61,7 +74,7 @@ orch step --route reviewer=codex
 **Implementer와 Reviewer를 같은 어댑터로 두어도 세션은 갈린다.** 둘 다 호출마다
 새 프로세스이고, 리뷰어는 구현 로그를 받지 않는다.
 
-산출물은 `.claude/orchestrate/<작업이름>/`에 쌓이고, `init`이 그 디렉터리를
+산출물은 `.orchestrate/<작업이름>/`에 쌓이고, `init`이 그 디렉터리를
 `.git/info/exclude`에 넣는다. 팀 저장소에서도 추적 파일을 하나도 건드리지 않는다.
 
 ### state
@@ -69,7 +82,7 @@ orch step --route reviewer=codex
 ```python
 from orchestrator import RunState, StateStore
 
-store = StateStore(Path(".claude/orchestrate/작업이름/state.json"))
+store = StateStore(Path(".orchestrate/작업이름/state.json"))
 store.create("20261115-작업이름")
 store.transition(RunState.PLANNING, note="계획 시작")
 store.record_artifact("plan", "01-plan.md")
@@ -90,7 +103,7 @@ FIX_PLANNING → FIXING → VERIFYING → WAITING_HUMAN → COMPLETED`.
 ```python
 from orchestrator import scope
 
-scope.write_snapshot(repo, Path(".claude/orchestrate/작업/snapshot.json"))
+scope.write_snapshot(repo, Path(".orchestrate/작업/snapshot.json"))
 # 여기서 구현을 다른 에이전트에 넘긴다
 result = scope.check(repo, plan_path, snapshot_path)
 result.ok            # 범위 안에서만 바뀌었나
@@ -125,8 +138,8 @@ from orchestrator import AgentRequest, CodexAdapter
 
 request = AgentRequest(
     role="implementer",
-    prompt_file=Path(".claude/orchestrate/작업/02-implement-prompt.txt"),
-    log_file=Path(".claude/orchestrate/작업/02-implement.log"),
+    prompt_file=Path(".orchestrate/작업/02-implement-prompt.txt"),
+    log_file=Path(".orchestrate/작업/02-implement.log"),
     cwd=repo,
 )
 result = CodexAdapter().run(request)
@@ -140,7 +153,15 @@ result.log_bytes
 
 `CodexAdapter`는 `codex exec -s workspace-write <프롬프트>`,
 `ClaudeAdapter`는 `claude -p <프롬프트>`를 만든다.
-`read_only=True`면 codex는 `-s read-only`, claude는 `--allowed-tools Read Glob Grep`로 좁힌다.
+`read_only=True`면 codex는 `-s read-only`, claude는 Read·Glob·Grep 과 `git diff` 계열만 남긴다.
+그렇지 않으면 claude 는 Write·Edit·Bash 까지 받는다. **headless claude 는 도구를 명시하지 않으면
+승인을 물을 사람이 없어 아무것도 못 한다.**
+
+리뷰어에게 쓰기 도구를 주지 않는 것은 프롬프트가 아니라 이 목록이 막는다.
+`REVIEWING` 다음은 `WAITING_HUMAN`이라 범위 검사가 없어서, 리뷰어가 고치면 아무도 잡지 못한다.
+
+그래서 **리뷰어는 테스트를 돌리지 못한다.** 읽고 따져서 판단하고, 돌려 보지 못한 것은
+그렇다고 밝힌다. 명령을 직접 돌리는 것은 `VERIFYING` 단계의 일이다.
 headless claude는 호출마다 새 세션이라 **Implementer와 Reviewer의 세션 분리가 저절로 지켜진다.**
 
 기본 제한 시간은 역할마다 다르다. implementer·fixer 20분, planner 15분, reviewer 10분.
@@ -211,6 +232,10 @@ CREATED → PLANNING → PLAN_APPROVAL ┄┄ 멈춤 ┄┄ IMPLEMENTING → SCO
 - `PLAN_APPROVAL`과 `WAITING_HUMAN`에서는 반드시 멈춘다. 멈출 때 다음에 뭘 해야 하는지 함께 적는다
 - 검증 명령은 계획의 `## 검증` 절 첫 코드 블록에서 읽는다. 사람이 승인한 계획에 적힌 것만 돌린다
 - 되돌리기는 하지 않는다. 막히면 멈추고 사람이 고친 뒤 `orch resume`
+- `init --task "..."`로 준 작업 설명은 `task.txt`에 남는다. 다음 명령이 그것을 읽는다
+
+**중간에 Ctrl-C로 끊으면 넘긴 명령도 함께 죽는다.** 프로세스 그룹째 보낸다.
+자율 모드는 한 번에 20분씩 돌 수 있어서, 끊었을 때 codex 가 계속 파일을 고치고 있으면 곤란하다.
 
 ## 테스트
 
@@ -226,6 +251,6 @@ cd orchestrator && PYTHONPATH=src:tests python3 -m unittest discover -s tests -t
 
 ## 아직 없는 것
 
-4단계는 `orch run`(승인 지점까지 자동으로 진행), 5단계는 실전 적용과 회고다.
+5단계는 실전 적용과 회고다. 지금까지 돌린 것은 시험용으로 만든 작은 저장소뿐이다.
 
 Model Router, Context Builder, worktree 격리는 1차 범위 밖이다. 왜 뺐는지는 설계안에 있다.

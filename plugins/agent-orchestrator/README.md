@@ -26,7 +26,7 @@ claude plugin install agent-orchestrator@ahn-cc-kit
 - **범위를 검증합니다.** `scope-guard.sh`가 계획이 허용한 파일만 바뀌었는지 보고,
   위반이면 리뷰로 보내지 않습니다. untracked 파일 수정도 잡도록 내용 해시로 비교합니다
 - **리뷰 브리프에서 구현자의 결론을 뺍니다.** 이 한 줄이 리뷰 품질을 가릅니다
-- **산출물을 저장소 밖으로 뺍니다.** `.claude/orchestrate/`에 두고 `.git/info/exclude`에 넣습니다.
+- **산출물을 저장소 밖으로 뺍니다.** `.orchestrate/`에 두고 `.git/info/exclude`에 넣습니다.
   그 파일 자체가 커밋되지 않으므로 **팀 저장소 파일을 하나도 고치지 않고** 쓸 수 있습니다
 
 ## 전제
@@ -51,10 +51,10 @@ claude plugin install agent-orchestrator@ahn-cc-kit
 
 ```bash
 # 구현을 넘기기 직전
-scope-guard.sh snapshot .claude/orchestrate/snapshot.txt
+scope-guard.sh snapshot .orchestrate/snapshot.txt
 
 # 구현이 끝난 뒤
-scope-guard.sh check .claude/orchestrate/plan.md .claude/orchestrate/snapshot.txt
+scope-guard.sh check .orchestrate/plan.md .orchestrate/snapshot.txt
 ```
 
 계획 파일의 `## 건드릴 파일` 아래 첫 코드 블록을 읽어 허용 목록으로 씁니다.

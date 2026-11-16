@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -20,9 +21,10 @@ from .errors import PipelineError
 from .gitio import ensure_repository
 from .state import RunState, StateStore, TaskState, is_blocked, is_terminal, needs_human
 
-ORCHESTRATE_DIR = Path(".claude/orchestrate")
+ORCHESTRATE_DIR = Path(".orchestrate")
 
 STATE_FILE = "state.json"
+TASK_FILE = "task.txt"
 PLAN = "01-plan.md"
 PLAN_PROMPT = "01-plan-prompt.txt"
 PLAN_LOG = "01-plan.log"
@@ -43,6 +45,8 @@ DEFAULT_ROUTING = {
     REVIEWER: "claude",
     FIXER: "codex",
 }
+
+MAX_STEPS = 12
 
 VERIFY_ROLE = "verify"
 VERIFY_TIMEOUT_SECONDS = 1800
@@ -67,6 +71,10 @@ class TaskPaths:
     @property
     def fix_plan(self) -> Path:
         return self.root / FIX_PLAN
+
+    @property
+    def task_file(self) -> Path:
+        return self.root / TASK_FILE
 
 
 @dataclass
@@ -118,6 +126,9 @@ def init(settings: Settings, *, plan: Path | None = None) -> TaskState:
     paths.root.mkdir(parents=True, exist_ok=True)
     exclude_orchestrate(repo, settings.orchestrate_dir)
 
+    if settings.task:
+        paths.task_file.write_text(settings.task.strip() + "\n", encoding="utf-8")
+
     if plan is not None:
         source = Path(plan)
         if not source.is_file():
@@ -143,6 +154,13 @@ def exclude_orchestrate(repo: Path, orchestrate_dir: Path) -> None:
     exclude.write_text(f"{existing}{prefix}{line}\n", encoding="utf-8")
 
 
+def stored_task(settings: Settings) -> str:
+    path = settings.paths.task_file
+    if not path.is_file():
+        return ""
+    return path.read_text(encoding="utf-8").strip()
+
+
 def step(settings: Settings) -> StepResult:
     store = settings.store
     task = store.load()
@@ -159,6 +177,28 @@ def step(settings: Settings) -> StepResult:
     if handler is None:
         raise PipelineError(f"{state}에서 할 일이 정해져 있지 않다")
     return handler(settings, task)
+
+
+def run(
+    settings: Settings,
+    *,
+    max_steps: int = MAX_STEPS,
+    before: Callable[[RunState], None] | None = None,
+    after: Callable[[StepResult], None] | None = None,
+) -> list[StepResult]:
+    results: list[StepResult] = []
+    for _ in range(max_steps):
+        if before is not None:
+            before(settings.store.load().state)
+        result = step(settings)
+        results.append(result)
+        if after is not None:
+            after(result)
+        if result.stopped:
+            return results
+    raise PipelineError(
+        f"{max_steps}걸음 안에 멈추지 않았다. `orch status`로 보고 `orch step`으로 한 걸음씩 간다"
+    )
 
 
 def approve(settings: Settings, *, note: str = "") -> StepResult:
@@ -209,10 +249,14 @@ def resume(settings: Settings) -> StepResult:
 
 def _plan(settings: Settings, task: TaskState) -> StepResult:
     paths = settings.paths
-    if not settings.task:
-        raise PipelineError("계획을 세울 작업 설명이 없다")
+    description = settings.task.strip() or stored_task(settings)
+    if not description:
+        raise PipelineError(
+            "계획을 세울 작업 설명이 없다. `orch init <이름> --task \"...\"`로 주거나 "
+            f"{paths.plan}에 계획을 직접 쓴다"
+        )
     plugin_dir = prompts.find_plugin_dir(settings.plugin_dir)
-    prompt = prompts.plan_prompt(settings.task, paths.plan, plugin_dir)
+    prompt = prompts.plan_prompt(description, paths.plan, plugin_dir)
     result = _call(settings, PLANNER, prompt, paths / PLAN_PROMPT, paths / PLAN_LOG)
     if not result.ok:
         return _agent_failed(settings, PLANNER, result)

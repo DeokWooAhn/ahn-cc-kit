@@ -35,6 +35,15 @@ def _parser() -> argparse.ArgumentParser:
     _common(start)
     start.set_defaults(handler=_init)
 
+    auto = sub.add_parser("run", help="멈출 자리까지 자동으로 진행한다")
+    auto.add_argument("task_id", nargs="?")
+    auto.add_argument(
+        "--max-steps", type=int, default=pipeline.MAX_STEPS,
+        help=f"이 걸음 수를 넘기면 멈춘다 (기본 {pipeline.MAX_STEPS})",
+    )
+    _common(auto)
+    auto.set_defaults(handler=_run)
+
     for name, handler, help_text in (
         ("step", _step, "다음 한 걸음을 간다"),
         ("status", _status, "지금 상태와 다음에 할 일을 보여 준다"),
@@ -123,6 +132,21 @@ def _step(args) -> int:
     return _report(pipeline.step(_resolve(args)))
 
 
+def _run(args) -> int:
+    settings = _resolve(args)
+    results = pipeline.run(
+        settings,
+        max_steps=args.max_steps,
+        before=_announce,
+        after=_report,
+    )
+    return EXIT_BLOCKED if is_blocked(results[-1].state) else EXIT_OK
+
+
+def _announce(state: RunState) -> None:
+    print(f"→ {state} …", flush=True)
+
+
 def _approve(args) -> int:
     return _report(pipeline.approve(_resolve(args)))
 
@@ -177,7 +201,7 @@ def _status(args) -> int:
 
 
 def _report(result: StepResult) -> int:
-    print(f"[{result.state}] {result.did}")
+    print(f"[{result.state}] {result.did}", flush=True)
     if result.agent is not None:
         agent = result.agent
         print(
