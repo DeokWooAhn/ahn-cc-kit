@@ -8,7 +8,7 @@ description: >-
   and a cross-review from a separate session that never sees the implementer's conclusion.
 metadata:
   category: workflow
-  status: draft
+  status: review
 ---
 
 # 에이전트 오케스트레이션
