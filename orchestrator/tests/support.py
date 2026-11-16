@@ -4,6 +4,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from orchestrator.adapters import Adapter
+
 
 class TempRepo:
     def __init__(self) -> None:
@@ -72,7 +74,9 @@ class TempBareRepo:
         self._tmp.cleanup()
 
 
-def plan_text(paths: list[str], *, heading: str = "## 건드릴 파일") -> str:
+def plan_text(
+    paths: list[str], *, heading: str = "## 건드릴 파일", verify: str = "true"
+) -> str:
     listed = "\n".join(paths)
     return f"""# 시험용 계획
 
@@ -89,6 +93,20 @@ def plan_text(paths: list[str], *, heading: str = "## 건드릴 파일") -> str:
 ## 검증
 
 ```
-true
+{verify}
 ```
 """
+
+
+class ScriptedAdapter(Adapter):
+    name = "scripted"
+
+    def __init__(self, script: str = "true") -> None:
+        self.script = script
+        self.prompts: list[str] = []
+        self.read_only: list[bool] = []
+
+    def build_command(self, request, prompt: str) -> list[str]:
+        self.prompts.append(prompt)
+        self.read_only.append(request.read_only)
+        return ["sh", "-c", self.script]

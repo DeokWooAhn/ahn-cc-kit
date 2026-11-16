@@ -43,3 +43,14 @@ class UnknownAdapter(OrchestratorError):
     def __init__(self, name):
         super().__init__(f"모르는 어댑터: {name}")
         self.name = name
+
+
+class PluginDocsMissing(OrchestratorError):
+    def __init__(self, looked):
+        joined = ", ".join(str(path) for path in looked)
+        super().__init__(f"플러그인 문서를 찾지 못했다. 찾아본 곳: {joined}")
+        self.looked = tuple(looked)
+
+
+class PipelineError(OrchestratorError):
+    pass
