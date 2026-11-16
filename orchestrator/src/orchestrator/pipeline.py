@@ -25,6 +25,7 @@ ORCHESTRATE_DIR = Path(".orchestrate")
 
 STATE_FILE = "state.json"
 TASK_FILE = "task.txt"
+BASELINE = "00-baseline.json"
 PLAN = "01-plan.md"
 PLAN_PROMPT = "01-plan-prompt.txt"
 PLAN_LOG = "01-plan.log"
@@ -50,6 +51,11 @@ MAX_STEPS = 12
 
 VERIFY_ROLE = "verify"
 VERIFY_TIMEOUT_SECONDS = 1800
+
+CACHE_NOTE = (
+    "구현자가 같은 명령을 이미 돌렸으면 빌드 도구가 캐시를 그대로 쓴다. "
+    "시간이 너무 짧으면 다시 돈 것이 아니니 로그를 본다."
+)
 DEFAULT_RETRY_LIMIT = 2
 
 
@@ -292,12 +298,7 @@ def _implement(settings: Settings, task: TaskState) -> StepResult:
     paths = settings.paths
     repo = ensure_repository(settings.repo)
 
-    scope.write_snapshot(repo, paths / SNAPSHOT, ignore=settings.ignore())
-    before = guards.capture(repo)
-    (paths / GIT_BEFORE).write_text(
-        json.dumps(before.to_json_object(), ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    _take_snapshots(settings, repo)
 
     plugin_dir = prompts.find_plugin_dir(settings.plugin_dir)
     prompt = prompts.implement_prompt(paths.plan, plugin_dir)
@@ -318,12 +319,7 @@ def _fix(settings: Settings, task: TaskState) -> StepResult:
     if bumped.state == RunState.MAX_RETRY_EXCEEDED:
         return StepResult(RunState.MAX_RETRY_EXCEEDED, "재시도 한도를 넘겼다", bumped.note, stopped=True)
 
-    scope.write_snapshot(repo, paths / SNAPSHOT, ignore=settings.ignore())
-    before = guards.capture(repo)
-    (paths / GIT_BEFORE).write_text(
-        json.dumps(before.to_json_object(), ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    _take_snapshots(settings, repo)
 
     plugin_dir = prompts.find_plugin_dir(settings.plugin_dir)
     prompt = prompts.fix_prompt(paths.fix_plan, plugin_dir)
@@ -363,7 +359,7 @@ def _review(settings: Settings, task: TaskState) -> StepResult:
     paths = settings.paths
     repo = ensure_repository(settings.repo)
 
-    changed = sorted(scope.compare(repo, scope.read_snapshot(paths / SNAPSHOT)))
+    changed = sorted(scope.compare(repo, scope.read_snapshot(_baseline_or_snapshot(paths))))
     plugin_dir = prompts.find_plugin_dir(settings.plugin_dir)
     prompt = prompts.review_prompt(paths.plan, changed, plugin_dir)
     result = _call(
@@ -387,6 +383,7 @@ def _verify(settings: Settings, task: TaskState) -> StepResult:
     if not commands:
         return _block(settings, RunState.FAILED_VERIFY, "계획에 검증 명령이 없다")
 
+    ran: list[str] = []
     for index, command in enumerate(commands, start=1):
         log = paths / VERIFY_LOG.format(index=index)
         request = AgentRequest(
@@ -399,6 +396,7 @@ def _verify(settings: Settings, task: TaskState) -> StepResult:
         )
         result = run_command(["sh", "-c", command], request)
         settings.store.record_artifact(f"verify_{index}", log)
+        ran.append(_verify_line(index, command, result))
         if not result.ok:
             return _block(
                 settings,
@@ -408,7 +406,29 @@ def _verify(settings: Settings, task: TaskState) -> StepResult:
             )
 
     settings.store.transition(RunState.COMPLETED, note=f"검증 {len(commands)}개 통과")
-    return StepResult(RunState.COMPLETED, "검증을 통과했다", f"명령 {len(commands)}개")
+    detail = "\n".join([*ran, "", CACHE_NOTE])
+    return StepResult(RunState.COMPLETED, "검증을 통과했다", detail)
+
+
+def _verify_line(index: int, command: str, result: AgentResult) -> str:
+    return f"{index}. {command}\n   {result.duration_seconds:.1f}초, 로그 {result.log_bytes}바이트"
+
+
+def _take_snapshots(settings: Settings, repo: Path) -> None:
+    paths = settings.paths
+    if not (paths / BASELINE).is_file():
+        scope.write_snapshot(repo, paths / BASELINE, ignore=settings.ignore())
+    scope.write_snapshot(repo, paths / SNAPSHOT, ignore=settings.ignore())
+    before = guards.capture(repo)
+    (paths / GIT_BEFORE).write_text(
+        json.dumps(before.to_json_object(), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _baseline_or_snapshot(paths: TaskPaths) -> Path:
+    baseline = paths / BASELINE
+    return baseline if baseline.is_file() else paths / SNAPSHOT
 
 
 def _call(
