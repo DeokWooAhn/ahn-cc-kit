@@ -65,7 +65,7 @@ claude plugin install agent-orchestrator@ahn-cc-kit
 | `android-audit` | 이미 들어와 있는 시크릿·설정 문제 감사 | stable |
 | `maestro-e2e` | Maestro E2E 도입 절차와 Flow 작성·실행 규칙, 화면 작업 뒤 실행 알림 훅 | draft |
 | `explain-diff` | 코드 변경을 배경·직관·코드·퀴즈로 푸는 HTML 설명 페이지 | draft |
-| `agent-orchestrator` | 계획·구현·리뷰를 다른 에이전트와 세션에 나누는 왕복 절차와 범위 검증 | draft |
+| `agent-orchestrator` | 계획·구현·리뷰를 다른 에이전트와 세션에 나누는 왕복 절차와 범위 검증 | review |
 
 ### android-review
 
