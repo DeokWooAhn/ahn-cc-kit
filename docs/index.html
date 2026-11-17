@@ -289,7 +289,7 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
 <section id="plugins" class="rise">
   <p class="eyebrow" data-i18n="eyebrow.plugins">구성</p>
   <h2 data-i18n="plugins.title">플러그인</h2>
-  <p class="sub" data-i18n="plugins.sub">훅은 하네스가 실행합니다 — 모델이 우회할 수 없고 컨텍스트도 쓰지 않습니다. 스킬은 모델이 필요할 때 읽습니다. 여섯 중 셋은 Android·Gradle을 전제하고, <code>maestro-e2e</code>는 Android와 iOS를 함께 다루며, <code>git-guard</code>와 <code>explain-diff</code>는 플랫폼과 무관합니다.</p>
+  <p class="sub" data-i18n="plugins.sub">훅은 하네스가 실행합니다 — 모델이 우회할 수 없고 컨텍스트도 쓰지 않습니다. 스킬은 모델이 필요할 때 읽습니다. Android·Gradle 전용 플러그인과 Android·iOS를 함께 다루는 <code>maestro-e2e</code>, 플랫폼과 무관한 <code>context-pack</code> 같은 작업 도구로 나뉩니다.</p>
   <div class="cards">
     <div class="card" data-plugin="android-review" tabindex="0" role="button" aria-haspopup="dialog">
       <h3>android-review</h3>
@@ -325,6 +325,12 @@ claude plugin install android-guard@ahn-cc-kit --scope local</pre>
       <h3>explain-diff</h3>
       <p data-i18n="plugins.explain">코드 변경을 배경 → 직관 → 코드 → 퀴즈 5문항으로 풀어 HTML 한 장으로 만듭니다. 변경이 맞는지 판정하지 않고, 읽는 사람이 이해하도록 돕습니다.</p>
       <div class="tags"><span class="tag scope" data-i18n="scope.any">모든 저장소</span><span class="tag" data-i18n="tag.skill">스킬 1</span><span class="tag">~70 tok</span></div>
+      <span class="more" data-i18n="ui.more">설치와 진행 순서 보기 →</span>
+    </div>
+    <div class="card" data-plugin="context-pack" tabindex="0" role="button" aria-haspopup="dialog">
+      <h3>context-pack</h3>
+      <p data-i18n="plugins.context">한 번 도입하면 AI가 변경 작업 전에 문제·파일 경계·규칙·검증·완료 조건을 다섯 문서로 작성합니다. 기존 계획과 kit의 역할을 유지하고 그 기준으로 구현·검증합니다.</p>
+      <div class="tags"><span class="tag scope" data-i18n="scope.any">모든 저장소</span><span class="tag" data-i18n="tag.skill2">스킬 2</span></div>
       <span class="more" data-i18n="ui.more">설치와 진행 순서 보기 →</span>
     </div>
   </div>
@@ -414,13 +420,14 @@ const I18N = {
     "hero.step1":"add the marketplace","hero.step2":"install only what you need",
     "hero.req":"Hook plugins need <code>bash</code> and <code>jq</code>, plus <code>git</code> for git-guard. maestro-e2e needs the <code>maestro</code> CLI.",
     "plugins.title":"Plugins",
-    "plugins.sub":"Hooks run in the harness — the model cannot route around them and they cost no context. Skills are read by the model when a task needs them. Three of the six assume Android and Gradle, <code>maestro-e2e</code> covers Android and iOS, and <code>git-guard</code> and <code>explain-diff</code> are platform-agnostic.",
+    "plugins.sub":"Hooks run in the harness — the model cannot route around them and they cost no context. Skills are read by the model when a task needs them. Some plugins target Android and Gradle, <code>maestro-e2e</code> covers Android and iOS, and workflow tools such as <code>context-pack</code> are platform-agnostic.",
     "scope.android":"Android · Compose","scope.gradle":"Android · Gradle","scope.any":"Any repo","scope.maestro":"Android · iOS",
     "plugins.review":"Compose-first code review. Correctness → regression risk → scope creep → security → missing tests. It explains; it does not edit your code.",
     "plugins.aguard":"Blocks access to signing credentials, wrapper tampering and Gradle cache deletion. Warns on unsigned release builds and risky Manifest changes.",
     "plugins.audit":"Finds the same problems the hooks block, but in a repo where they are <em>already there</em>. Reports locations, never values, and never fixes.",
     "plugins.maestro":"Sets up Maestro E2E on Android and iOS in four steps, one flow shared by both — test ids and a test-mode flag, flows, CI smoke, then a release gate — one PR per step. Ships templates that avoid the causes that actually stalled CI, and a hook that won't let Claude finish screen work until a Maestro result exists.",
     "plugins.explain":"Turns a code change into one HTML page — background → intuition → code → a five-question quiz. It doesn't judge whether the change is right; it helps the reader understand it.",
+    "plugins.context":"Adopt once so the agent prepares five task documents before changes: problem, file boundaries, rules, checks and completion criteria. It reuses existing plans and kits, then implements and verifies against them.",
     "plugins.gguard":"Blocks direct pushes to protected branches, <code>--force</code> pushes, and hard-to-undo commands like <code>reset --hard</code> and <code>clean -fd</code>.",
     "tag.skill":"1 skill","tag.skill2":"2 skills","tag.hook1":"1 hook","tag.hook6":"6 hooks","tag.hook3":"3 hooks",
     "install.title":"Turn it on only where you want it",
@@ -555,6 +562,20 @@ if(!matchMedia("(prefers-reduced-motion: reduce)").matches){
 // 카드별 순서도. 각 플러그인 README·SKILL.md의 절차를 옮긴 것이라, 플러그인 동작을 바꾸면 여기도 고친다.
 // 노드: cmd(설치) · ask(요청) · step · branch(질문과 갈래) · phase(단계 머리) · end
 const FLOWS = {
+  "context-pack": {
+    ko: { kind:"스킬 2 · 모든 저장소", sum:"프로젝트 지침에 연결한 절차에 따라 AI가 작업 맥락을 작성합니다. 지침 기반 자동화이며 차단 훅이나 CI 관문을 대신하지 않습니다.", steps:[
+      {k:"cmd", t:"설치", code:"claude plugin install context-pack@ahn-cc-kit", d:"파일 생성기는 Python 3.9 이상을 씁니다."},
+      {k:"ask", t:"프로젝트에 한 번 도입합니다", d:"\"이 프로젝트에 컨텍스트팩 도입해줘\" 또는 <code>/context-pack:setup</code>. 기존 지침·메모·검증 원본을 조사하고 <code>.context-pack/</code>에 연결합니다."},
+      {k:"step", t:"평소처럼 변경을 요청합니다", d:"AI가 관련 근거로 <code>context/&lt;작업명&gt;/</code>의 다섯 문서를 내용까지 작성합니다. 질문에는 만들지 않고 사소한 변경은 채팅으로 축약합니다."},
+      {k:"step", t:"정한 범위로 구현·검증합니다", d:"기존 계획·승인·Maestro·guard의 규칙을 유지합니다. 실제 diff와 실행 결과를 완료 조건에 대조합니다."},
+      {k:"end", t:"결과와 한계를 보고합니다", d:"변경 파일·검증 결과·위험·변경하지 않은 주요 경계를 보고합니다. 앱 코드·CI를 자동 도입하거나 커밋·배포 권한을 추가하지 않습니다."}]},
+    en: { kind:"2 skills · Any repository", sum:"A project instruction points the agent to a task-context workflow. These are model instructions, not a blocking hook or CI gate.", steps:[
+      {k:"cmd", t:"Install", code:"claude plugin install context-pack@ahn-cc-kit", d:"The file generator needs Python 3.9 or later."},
+      {k:"ask", t:"Adopt once in the project", d:"Ask to adopt context packs, or run <code>/context-pack:setup</code>. It connects existing instructions, plans and checks through <code>.context-pack/</code>."},
+      {k:"step", t:"Request a change as usual", d:"The agent fills five task documents from relevant evidence in <code>context/&lt;task&gt;/</code>. Read-only questions need no pack; trivial changes use a short chat version."},
+      {k:"step", t:"Implement and verify within the scope", d:"Existing plans, approvals, Maestro and guards keep their contracts. The agent compares the actual diff and check results with the completion criteria."},
+      {k:"end", t:"Report the outcome and limits", d:"Report changed files, check results, risks and preserved boundaries. Adoption does not add app code, CI, or commit and deployment permissions."}]}
+  },
   "android-review": {
     ko: { kind:"스킬 · Android · Compose", sum:"리뷰를 요청하면 스킬이 불리고, 변경분을 우선순위대로 본 뒤 설명만 냅니다. 코드는 고치지 않습니다.", steps:[
       {k:"cmd", t:"설치", code:"claude plugin install android-review@ahn-cc-kit", d:"<code>android</code> CLI가 있으면 Google 공식 스킬을 함께 참고합니다(선택)."},
@@ -737,6 +758,10 @@ const FLOWS = {
 
 // 왜 쓰나 · md 파일로 적어 두는 것과 무엇이 다른가. 카드 대화상자의 순서도 위에 둡니다.
 const WHY = {
+  "context-pack": {
+    ko:{why:["작업마다 필요한 코드·규칙·파일 경계·검증 기준을 AI가 작성해 요청과 무관한 변경을 줄입니다.","기존 작업 메모나 오케스트레이터 계획을 정본으로 재사용해 두 벌의 계획이 어긋나지 않게 합니다."],md:["루트 지침에는 짧은 진입 규칙만 두고 프로젝트 안내와 작업별 맥락을 분리합니다.","도입 파일은 프로젝트에 남습니다. 플러그인 업데이트가 복사본을 덮어쓰지 않으며 변경을 검토해 병합합니다."]},
+    en:{why:["The agent prepares relevant code context, boundaries and checks for each task to limit unrelated changes.","Existing notes or orchestrator plans remain authoritative, avoiding conflicting duplicate plans."],md:["Root instructions keep a short entry rule; project references and task-specific context stay separate.","Adopted files stay in the project. Plugin updates do not overwrite them; changes require a reviewed merge."]}
+  },
   "android-review": {
     ko: { why:[
       "리뷰 기준이 사람·세션마다 달라지지 않습니다. 정확성 → 회귀 위험 → 범위 이탈 → 보안 → 테스트 누락 순서와 보고 형식이 고정됩니다.",
@@ -844,6 +869,9 @@ const WHY = {
 const PROJ_KO = "팀 모두에게 같게 걸려면 한 사람이 <code>--scope project</code>로 설치해 <code>.claude/settings.json</code>을 커밋합니다. 그 파일은 플러그인을 켜기만 하고 내려받지는 않으므로, 팀원은 각자 같은 설치 명령을 한 번 실행합니다. 설정 파일을 고쳐 커밋하는 건 한 사람입니다. 설치 뒤 그 파일에 차이(키 순서 등)가 생겨도 커밋하지 않습니다.";
 const PROJ_EN = "To give everyone the same setup, one person installs with <code>--scope project</code> and commits <code>.claude/settings.json</code>. That file only enables the plugin; it doesn't download it, so each teammate runs the same install command once. Only one person edits and commits the settings file. If installing leaves a diff in it (key order and the like), don't commit it.";
 const TEAM = {
+  "context-pack": {
+    ko:{t:"팀에서 쓸 때",d:"도입은 한 사람이 맡아 기존 지침·계획과 통합합니다. 작업별 팩은 다른 이름으로 나누고, 같은 계획을 두 세션이 동시에 고치지 않습니다. 개인 도입은 개인 지침에 연결하며 팀 파일로 옮기지 않습니다."},
+    en:{t:"Using it as a team",d:"One person adopts and integrates existing instructions and plans. Use distinct task names and avoid two writers on one plan. Personal adoption belongs in personal instructions, not team files."}},
   "android-review": {
     ko:{t:"팀에서 쓸 때", d:"각자 설치하면 됩니다. 리뷰는 저장소 파일을 바꾸지 않아 서로 겹칠 일이 없습니다."},
     en:{t:"Using it as a team", d:"Everyone installs it for themselves. A review changes no repository files, so nothing collides."}},

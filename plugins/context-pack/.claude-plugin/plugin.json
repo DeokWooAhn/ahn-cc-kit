@@ -1,0 +1,13 @@
+{
+  "name": "context-pack",
+  "description": "작업 전에 문제·파일 경계·규칙·테스트·완료 조건을 다섯 문서로 작성하고 그 기준으로 구현·검증하는 절차. 프로젝트에 한 번 도입하면 이후 변경 요청에서 자동으로 준비합니다.",
+  "version": "0.1.0",
+  "author": {
+    "name": "DeokWooAhn",
+    "url": "https://github.com/DeokWooAhn"
+  },
+  "homepage": "https://github.com/DeokWooAhn/ahn-cc-kit",
+  "repository": "https://github.com/DeokWooAhn/ahn-cc-kit",
+  "license": "MIT",
+  "keywords": ["context-pack", "context-engineering", "scope", "workflow", "handoff"]
+}
