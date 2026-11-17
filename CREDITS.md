@@ -2,6 +2,22 @@
 
 이 저장소에 들어온 외부 유래 구성 요소의 출처를 기록합니다.
 
+## context-pack
+
+K2 Lee의 [AI 코딩 에이전트 성능을 확 올리는 실전 스킬: Context Pack 만들기](https://www.keyflow.me/ko/@ekyu/post/2026-07-05-ai-코딩-에이전트-성능을-확-올리는-실전-스킬-context-pack-만들기)를 참고했습니다.
+다섯 작업 문서(task·files·rules·tests·done), 읽기와 수정 범위 구분, 제외 범위·중단 조건·검증 한계·
+변경하지 않은 영역 보고, 리뷰에 diff를 연결하는 아이디어를 반영했습니다.
+원문의 별도 라이선스를 확인하지 못해 문단·예제 코드·셸 스크립트는 복제하지 않았습니다.
+한국어 절차·템플릿과 Python 생성기·검사는 직접 작성했습니다.
+
+프로젝트 도입 후 AI의 내용 자동 작성, 기존 계획 정본 재사용, 다른 kit와의 역할 연결은 이 플러그인의 확장입니다.
+작성자가 관리하는 세 프로젝트에서 사용한 근거/가설 구분, 환경별 검증·확인 한계, 짧은 루트 지침과
+상세 문서 연결 방식을 일반화했으며, 프로젝트 고유 규칙·경로·실데이터는 넣지 않았습니다.
+
+스킬 발견·참조 파일 구조는 [Claude Code Skills](https://code.claude.com/docs/en/skills),
+프로젝트 지침 연결은 [Claude Code Memory](https://code.claude.com/docs/en/memory),
+패키징은 [Plugin Reference](https://code.claude.com/docs/en/plugins-reference)를 확인했습니다.
+
 ## android-review
 
 `android` CLI 사용법은 설치된 CLI의 `android skills --help`, `android skills add --help`,

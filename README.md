@@ -2,8 +2,8 @@
 
 **모바일 앱 프로젝트를 위한** Claude Code 플러그인 마켓플레이스. 플러그인 하나는 문제 하나만 다룹니다.
 
-일곱 중 셋은 Android·Gradle을 전제하고, `maestro-e2e`는 Android와 iOS를 함께 다룹니다. `git-guard`와
-`explain-diff`, `agent-orchestrator`는 플랫폼과 무관합니다 — Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
+여덟 중 셋은 Android·Gradle을 전제하고, `maestro-e2e`는 Android와 iOS를 함께 다룹니다. `git-guard`와
+`explain-diff`, `agent-orchestrator`, `context-pack`은 플랫폼과 무관합니다 — Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
 
 | 플러그인 | 전제 | 이런 저장소에서 |
 | --- | --- | --- |
@@ -14,6 +14,7 @@
 | `maestro-e2e` | Android · iOS · Maestro CLI | Android는 Compose, iOS는 SwiftUI(시뮬레이터) 기준입니다. CI 템플릿은 GitHub Actions의 Android용입니다 |
 | `explain-diff` | **없음** | 어느 언어·플랫폼이든 동작합니다. PR을 대상으로 하려면 `gh`가 있으면 편합니다 |
 | `agent-orchestrator` | **없음** | 넘길 상대(`codex` 같은 다른 에이전트)와, 결과를 판정할 테스트·빌드·린트가 있으면 동작합니다 |
+| `context-pack` | **없음** | 작업 전에 AI가 필요한 맥락·수정 경계·검증 기준을 정리하게 할 프로젝트. 파일 생성기는 Python 3.9 이상 |
 
 iOS 프로젝트에서 `android-guard`를 켜 두면 조용히 있을 뿐 `.p12`나 provisioning profile을
 지켜주지는 않습니다.
@@ -55,6 +56,10 @@ claude plugin install explain-diff@ahn-cc-kit
 claude plugin install agent-orchestrator@ahn-cc-kit
 ```
 
+```bash
+claude plugin install context-pack@ahn-cc-kit
+```
+
 ## 플러그인
 
 | 플러그인 | 내용 | 상태 |
@@ -66,6 +71,18 @@ claude plugin install agent-orchestrator@ahn-cc-kit
 | `maestro-e2e` | Maestro E2E 도입 절차와 Flow 작성·실행 규칙, 화면 작업 뒤 실행 알림 훅 | draft |
 | `explain-diff` | 코드 변경을 배경·직관·코드·퀴즈로 푸는 HTML 설명 페이지 | draft |
 | `agent-orchestrator` | 계획·구현·리뷰를 다른 에이전트와 세션에 나누는 왕복 절차와 범위 검증 | review |
+| `context-pack` | 작업별 다섯 문서 자동 작성·구현·검증 절차, 프로젝트 도입과 기존 kit 연결 | draft |
+
+### context-pack
+
+"이 프로젝트에 컨텍스트팩 도입해줘" 또는 `/context-pack:setup`으로 한 번 도입합니다.
+기존 지침·작업 메모·검증 경로를 조사해 프로젝트에 시작 규칙과 절차를 남깁니다.
+이후 변경 요청에서는 AI가 작업별 `task.md`·`files.md`·`rules.md`·`tests.md`·`done.md`를 내용까지 작성하고
+그 기준으로 구현·검증합니다. 사소한 변경은 채팅으로 축약하고 질문에는 팩을 만들지 않습니다.
+
+기존 계획을 정본으로 재사용하며 오케스트레이터·Maestro·리뷰·guard의 역할을 복제하지 않습니다.
+지침 기반 자동화이므로 차단 훅이나 CI 관문을 대신하지 않습니다. 자세한 내용은
+[plugins/context-pack/README.md](plugins/context-pack/README.md)에 있습니다.
 
 ### android-review
 
@@ -266,7 +283,7 @@ python3 scripts/check-manifests.py
 
 `.github/workflows/ci.yml`이 PR과 `main` 푸시마다 돌립니다.
 
-- **테스트 3종**을 Ubuntu와 macOS에서 돌립니다. macOS의 `/bin/bash` 3.2에서만 드러나는 버그가 있어 둘 다 봅니다.
+- **훅·감사·Context Pack 생성기 검사**를 Ubuntu와 macOS에서 돌립니다. macOS의 `/bin/bash` 3.2에서만 드러나는 버그가 있어 둘 다 봅니다.
 - **매니페스트 검사**(`scripts/check-manifests.py`).
 - **사례 표를 다시 만들고 차이가 없는지** 봅니다. 훅을 고치고 `gen-cases.py`를 돌리지 않으면 여기서 걸립니다.
   감사 샘플은 `--lang ko`로 고정해서 러너의 로케일과 상관없이 같은 결과가 나옵니다.
