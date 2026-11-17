@@ -857,6 +857,54 @@ class RiskPolicyTest(PipelineTestCase):
         self.assertIn("위험도: medium", result.detail)
         self.assertIn("기본값", result.detail)
 
+class RetryResumeTest(PipelineTestCase):
+    def reach_exceeded(self) -> Settings:
+        settings = self.reach_implementing(
+            self.settings(
+                {
+                    IMPLEMENTER: "echo 첫 >> a.txt",
+                    REVIEWER: "echo 리뷰",
+                    FIXER: "echo 또 >> b.txt",
+                }
+            ),
+            paths=("a.txt", "b.txt"),
+        )
+        settings.retry_limit = 1
+        for _ in range(3):
+            pipeline.step(settings)
+        settings.paths.fix_plan.write_text("# 수정 계획\n", encoding="utf-8")
+        for _ in range(2):
+            if settings.store.load().state != RunState.WAITING_HUMAN:
+                break
+            pipeline.request_fix(settings)
+            for _ in range(3):
+                pipeline.step(settings)
+        return settings
+
+    def test_resume_goes_back_to_fixing_not_the_review_wait(self) -> None:
+        settings = self.reach_exceeded()
+        self.assertEqual(settings.store.load().state, RunState.MAX_RETRY_EXCEEDED)
+
+        result = pipeline.resume(settings)
+
+        self.assertEqual(result.state, RunState.FIXING)
+
+    def test_a_blocked_attempt_does_not_eat_the_count(self) -> None:
+        settings = self.reach_exceeded()
+
+        self.assertEqual(settings.store.load().retry_count, 1)
+
+    def test_raising_the_limit_gives_exactly_one_more_round(self) -> None:
+        settings = self.reach_exceeded()
+        pipeline.resume(settings)
+        settings.retry_limit = 2
+
+        for _ in range(3):
+            pipeline.step(settings)
+
+        self.assertEqual(settings.store.load().state, RunState.WAITING_HUMAN)
+        self.assertEqual(settings.store.load().retry_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

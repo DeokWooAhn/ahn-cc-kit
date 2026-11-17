@@ -194,9 +194,22 @@ class StateStore:
 
     def bump_retry(self, *, limit: int) -> TaskState:
         state = self.load()
-        state.retry_count += 1
-        if state.retry_count > limit:
+        if state.retry_count >= limit:
+            # 이번 시도는 돌지 않으므로 세지 않는다. 한도를 올려 재개할 때
+            # 돌지도 않은 시도만큼 더 올려야 하던 것을 막는다.
+            note = f"재시도 {limit}회를 넘겼다"
+            state.history.append(
+                TransitionRecord(
+                    at=now_text(),
+                    previous=str(state.state),
+                    current=str(RunState.MAX_RETRY_EXCEEDED),
+                    note=note,
+                )
+            )
             state.state = RunState.MAX_RETRY_EXCEEDED
-            state.note = f"재시도 {limit}회를 넘겼다"
+            state.note = note
+            self.save(state)
+            return state
+        state.retry_count += 1
         self.save(state)
         return state

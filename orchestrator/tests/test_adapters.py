@@ -371,6 +371,48 @@ class InterruptTest(WorkspaceTestCase):
         pid = int(pid_file.read_text(encoding="utf-8").strip())
         self.assertFalse(alive(pid), "중단했는데 넘긴 명령이 살아남았다")
 
+class StreamingTest(WorkspaceTestCase):
+    def test_codex_output_is_watched_for_stalls(self) -> None:
+        self.assertTrue(CodexAdapter().streams_output)
+
+    def test_claude_output_is_not(self) -> None:
+        self.assertFalse(ClaudeAdapter().streams_output)
+
+    def test_a_silent_command_is_cut_when_output_is_watched(self) -> None:
+        result = run_command(
+            sleeping(30), self.request(timeout_seconds=30, stall_seconds=1), watch_stall=True
+        )
+
+        self.assertEqual(result.outcome, STALLED)
+
+    def test_a_silent_command_survives_when_output_is_not_watched(self) -> None:
+        # stall(1초)보다 길게 자야 감지 여부가 결과를 가른다.
+        result = run_command(
+            sleeping(2), self.request(timeout_seconds=30, stall_seconds=1), watch_stall=False
+        )
+
+        self.assertEqual(result.outcome, OK)
+        self.assertGreater(result.duration_seconds, 1)
+
+    def test_the_timeout_still_applies_without_stall_watching(self) -> None:
+        result = run_command(
+            sleeping(30), self.request(timeout_seconds=1, stall_seconds=1), watch_stall=False
+        )
+
+        self.assertEqual(result.outcome, TIMEOUT)
+
+    def test_an_adapter_that_does_not_stream_skips_stall_detection(self) -> None:
+        (self.dir / "prompt.txt").write_text("아무 말\n", encoding="utf-8")
+
+        class Quiet(ClaudeAdapter):
+            def build_command(self, request, prompt):
+                return sleeping(2)
+
+        result = Quiet().run(self.request(timeout_seconds=30, stall_seconds=1))
+
+        self.assertEqual(result.outcome, OK)
+        self.assertGreater(result.duration_seconds, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

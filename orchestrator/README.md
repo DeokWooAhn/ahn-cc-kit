@@ -66,6 +66,13 @@ orch verify    → 검증하고 COMPLETED
 
 `--max-steps`(기본 12)를 넘기면 멈추고 알린다. 상태가 돌고 있다는 뜻이다.
 
+`--retry-limit` 은 계획의 위험도보다 우선하고, `--stall-seconds 역할=초` 는 그 역할의
+무활동 감지 시간을 바꾼다(0 이면 끈다). 사람이 정한 추가 왕복을 돌릴 때 쓴다.
+
+```bash
+orch step --retry-limit 4 --stall-seconds verify=0
+```
+
 역할이 쓸 어댑터는 `--route`로 바꾼다. 기본은 Planner·Reviewer가 claude,
 Implementer·Fixer가 codex다.
 
@@ -266,7 +273,14 @@ headless claude는 호출마다 새 세션이라 **Implementer와 Reviewer의 �
 로그 크기가 `stall_seconds`(기본 180초) 동안 그대로면 그 전에 끊는다.
 
 대신 출력이 드문 명령은 오판할 수 있다. 자식이 파일에 쓸 때는 블록 버퍼링이라 더 뜸해진다.
-그런 명령에는 `stall_seconds=0`으로 끈다.
+그런 명령에는 `stall_seconds=0`으로 끄거나 `--stall-seconds 역할=0` 을 준다.
+
+**끝에 한 번에 뱉는 도구에는 아예 걸지 않는다.** 어댑터가 `streams_output` 으로 선언한다.
+`claude -p` 가 그렇다 — 도는 동안 로그가 한 글자도 안 자라므로 "자라지 않는다"가 신호가 되지 못한다.
+2026-11-17 CalcMoney 작업에서 180초를 넘긴 리뷰가 `stalled` 로 끊겼다. 그쪽은 전체 제한 시간에 맡긴다.
+
+`--output-format stream-json` 으로 흐르게 하는 길도 있었지만 쓰지 않았다.
+`03-review.log` 는 사람이 읽는 산출물이고, JSON 줄 더미가 되면 그 값을 잃는다.
 
 #### killpg는 자기 자신을 죽일 수 있다
 
@@ -327,6 +341,9 @@ CREATED → PLANNING → PLAN_APPROVAL ┄┄ 멈춤 ┄┄ IMPLEMENTING → SCO
   다시 돈 것이 아니다. 입력 해시 기반이라 결과는 유효하지만 독립적 재실행은 아니므로,
   시간을 보고 사람이 판단하게 둔다
 - 되돌리기는 하지 않는다. 막히면 멈추고 사람이 고친 뒤 `orch resume`
+- **한도를 넘겨 막힌 시도는 세지 않는다.** 돌지도 않은 시도가 `retry_count` 를 먹으면
+  한도를 올려 재개할 때 그만큼 더 올려야 한다. 그 전이는 `history` 에 남으므로
+  `orch resume` 이 `FIXING` 으로 제대로 돌아간다
 - `init --task "..."`로 준 작업 설명은 `task.txt`에 남는다. 다음 명령이 그것을 읽는다
 
 **중간에 Ctrl-C로 끊으면 넘긴 명령도 함께 죽는다.** 프로세스 그룹째 보낸다.

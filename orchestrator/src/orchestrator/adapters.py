@@ -109,7 +109,9 @@ def read_prompt(path: Path) -> str:
     return text
 
 
-def run_command(command: list[str], request: AgentRequest) -> AgentResult:
+def run_command(
+    command: list[str], request: AgentRequest, *, watch_stall: bool = True
+) -> AgentResult:
     log_file = Path(request.log_file)
     log_file.parent.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
@@ -125,7 +127,9 @@ def run_command(command: list[str], request: AgentRequest) -> AgentResult:
                 start_new_session=True,
             )
             try:
-                outcome, detail = _watch(process, log_file, request, started)
+                outcome, detail = _watch(
+                    process, log_file, request, started, watch_stall=watch_stall
+                )
             except BaseException:
                 _terminate(process)
                 raise
@@ -159,12 +163,19 @@ def run_command(command: list[str], request: AgentRequest) -> AgentResult:
 class Adapter:
     name = ""
 
+    # 출력이 도는 동안 흘러나오는가. False 면 무활동 감지를 쓰지 않는다.
+    # 끝에 한 번에 뱉는 도구는 "로그가 자란다"는 신호 자체가 없어서,
+    # 신호가 없는 것을 멈춤으로 읽는다. 그런 도구는 전체 제한 시간에 맡긴다.
+    streams_output = True
+
     def build_command(self, request: AgentRequest, prompt: str) -> list[str]:
         raise NotImplementedError
 
     def run(self, request: AgentRequest) -> AgentResult:
         prompt = read_prompt(request.prompt_file)
-        return run_command(self.build_command(request, prompt), request)
+        return run_command(
+            self.build_command(request, prompt), request, watch_stall=self.streams_output
+        )
 
 
 @dataclass(frozen=True)
@@ -187,6 +198,9 @@ class ClaudeAdapter(Adapter):
     executable: str = "claude"
 
     name = "claude"
+    # claude -p 는 끝날 때 한 번에 출력한다. 2026-11-17 CalcMoney 작업에서
+    # 180초를 넘긴 리뷰가 stalled 로 끊겼다.
+    streams_output = False
 
     def build_command(self, request: AgentRequest, prompt: str) -> list[str]:
         command = [self.executable, "-p", prompt]
@@ -210,9 +224,11 @@ def _watch(
     log_file: Path,
     request: AgentRequest,
     started: float,
+    *,
+    watch_stall: bool = True,
 ) -> tuple[str, str]:
     timeout = request.timeout
-    stall = request.stall
+    stall = request.stall if watch_stall else 0
     last_size = -1
     last_growth = started
 

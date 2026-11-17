@@ -71,6 +71,14 @@ def _common(parser: argparse.ArgumentParser) -> None:
         "--route", action="append", default=[], metavar="역할=어댑터",
         help="역할이 쓸 어댑터를 바꾼다. 예: --route reviewer=codex",
     )
+    parser.add_argument(
+        "--retry-limit", type=int, default=None,
+        help="자동 수정 횟수. 주지 않으면 계획의 위험도가 정한다",
+    )
+    parser.add_argument(
+        "--stall-seconds", action="append", default=[], metavar="역할=초",
+        help="그 역할의 무활동 감지 시간. 0 이면 끈다. 예: --stall-seconds verify=0",
+    )
 
 
 def _settings(args, task_id: str) -> Settings:
@@ -81,7 +89,28 @@ def _settings(args, task_id: str) -> Settings:
         orchestrate_dir=args.orchestrate_dir,
         plugin_dir=args.plugin_dir,
         routing=_routing(args.route),
+        retry_limit=args.retry_limit,
+        stall_seconds=_stall_seconds(args.stall_seconds),
     )
+
+
+def _stall_seconds(pairs: list[str]) -> dict[str, int]:
+    known = set(pipeline.DEFAULT_ROUTING) | {pipeline.VERIFY_ROLE}
+    found: dict[str, int] = {}
+    for pair in pairs:
+        role, separator, value = pair.partition("=")
+        if not separator or not value:
+            raise OrchestratorError(f"--stall-seconds 형식은 역할=초다: {pair}")
+        if role not in known:
+            raise OrchestratorError(f"모르는 역할: {role} (있는 것: {', '.join(sorted(known))})")
+        try:
+            seconds = int(value)
+        except ValueError:
+            raise OrchestratorError(f"초는 숫자로 적는다: {pair}") from None
+        if seconds < 0:
+            raise OrchestratorError(f"초는 0 이상이어야 한다: {pair}")
+        found[role] = seconds
+    return found
 
 
 def _routing(pairs: list[str]) -> dict[str, str]:

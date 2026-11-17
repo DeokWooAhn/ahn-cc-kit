@@ -225,6 +225,59 @@ class CliTest(unittest.TestCase):
 
         self.assertEqual(code, EXIT_OK)
 
+    def test_stall_seconds_is_parsed(self) -> None:
+        from orchestrator.__main__ import _stall_seconds
+
+        self.assertEqual(_stall_seconds(["reviewer=0", "verify=30"]), {"reviewer": 0, "verify": 30})
+
+    def test_stall_seconds_needs_a_pair(self) -> None:
+        code, _, err = self.run_cli("status", TASK_ID, "--stall-seconds", "reviewer")
+
+        self.assertEqual(code, EXIT_ERROR)
+        self.assertIn("역할=초", err)
+
+    def test_stall_seconds_rejects_an_unknown_role(self) -> None:
+        code, _, err = self.run_cli("status", TASK_ID, "--stall-seconds", "tester=0")
+
+        self.assertEqual(code, EXIT_ERROR)
+        self.assertIn("모르는 역할", err)
+
+    def test_stall_seconds_rejects_a_non_number(self) -> None:
+        code, _, err = self.run_cli("status", TASK_ID, "--stall-seconds", "reviewer=금방")
+
+        self.assertEqual(code, EXIT_ERROR)
+        self.assertIn("숫자", err)
+
+    def test_stall_seconds_rejects_a_negative(self) -> None:
+        code, _, err = self.run_cli("status", TASK_ID, "--stall-seconds", "reviewer=-1")
+
+        self.assertEqual(code, EXIT_ERROR)
+        self.assertIn("0 이상", err)
+
+    def test_retry_limit_reaches_the_settings(self) -> None:
+        settings = self.write_plan()
+        self.run_cli("init", TASK_ID)
+
+        from orchestrator.__main__ import _parser, _settings
+
+        args = _parser().parse_args(["step", TASK_ID, "--retry-limit", "4"])
+        built = _settings(args, TASK_ID)
+
+        self.assertEqual(built.retry_limit, 4)
+        self.assertEqual(built.retry_limit_for(settings.paths.plan), 4)
+
+    def test_without_the_option_the_plan_decides(self) -> None:
+        settings = self.write_plan()
+        self.run_cli("init", TASK_ID)
+
+        from orchestrator.__main__ import _parser, _settings
+
+        args = _parser().parse_args(["step", TASK_ID])
+        built = _settings(args, TASK_ID)
+
+        self.assertIsNone(built.retry_limit)
+        self.assertEqual(built.retry_limit_for(settings.paths.plan), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
