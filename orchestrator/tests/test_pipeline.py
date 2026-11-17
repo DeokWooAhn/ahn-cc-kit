@@ -653,6 +653,65 @@ class CommandGateTest(PipelineTestCase):
 
         self.assertNotIn("정책에 막히는", result.detail)
 
+class FailureRecordTest(PipelineTestCase):
+    def test_a_provider_failure_is_classified_and_saved(self) -> None:
+        settings = self.reach_implementing(
+            self.settings({IMPLEMENTER: "echo 'Failed to authenticate: OAuth session expired' >&2; exit 1"})
+        )
+
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.FAILED_AGENT)
+        self.assertIn("provider", result.detail)
+        saved = pipeline.read_failure(settings)
+        self.assertIsNotNone(saved)
+        self.assertEqual(saved.kind, "provider")
+        self.assertIn("failure", settings.store.load().artifacts)
+
+    def test_an_environment_failure_is_not_retryable(self) -> None:
+        settings = self.reach_implementing(
+            self.settings({IMPLEMENTER: "echo 'command not found: codex' >&2; exit 127"})
+        )
+
+        pipeline.step(settings)
+        saved = pipeline.read_failure(settings)
+
+        self.assertEqual(saved.kind, "environment")
+        self.assertFalse(saved.retryable)
+
+    def test_resume_warns_when_the_failure_was_not_retryable(self) -> None:
+        settings = self.reach_implementing(
+            self.settings({IMPLEMENTER: "echo 'Could not resolve host: example.invalid' >&2; exit 1"})
+        )
+        pipeline.step(settings)
+
+        result = pipeline.resume(settings)
+
+        self.assertIn("environment", result.detail)
+        self.assertIn("또 막힌다", result.detail)
+
+    def test_resume_stays_quiet_after_a_retryable_failure(self) -> None:
+        settings = self.reach_implementing(
+            self.settings({IMPLEMENTER: "echo '3 tests completed, 1 failed' >&2; exit 1"})
+        )
+        pipeline.step(settings)
+
+        result = pipeline.resume(settings)
+
+        self.assertEqual(result.detail, "")
+
+    def test_a_failing_verify_is_classified_too(self) -> None:
+        settings = self.settings({IMPLEMENTER: "echo 고침 >> a.txt", REVIEWER: "echo 리뷰"})
+        self.reach_implementing(settings, verify="echo 'JAVA_HOME is not set' >&2; exit 1")
+        for _ in range(3):
+            pipeline.step(settings)
+
+        pipeline.request_verify(settings)
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.FAILED_VERIFY)
+        self.assertIn("environment", result.detail)
+
 
 if __name__ == "__main__":
     unittest.main()

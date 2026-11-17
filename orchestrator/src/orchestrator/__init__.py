@@ -18,6 +18,7 @@ from .errors import (
     UnknownAdapter,
 )
 from .errors import PipelineError, PluginDocsMissing
+from .failures import Failure, classify
 from .guards import GitSnapshot, GitViolation
 from .policy import CommandVerdict, check_command
 from .pipeline import Settings, StepResult, TaskPaths
@@ -30,6 +31,7 @@ __all__ = [
     "AgentResult",
     "ClaudeAdapter",
     "CommandVerdict",
+    "Failure",
     "CodexAdapter",
     "GitCommandFailed",
     "PipelineError",
@@ -54,6 +56,7 @@ __all__ = [
     "UnknownAdapter",
     "adapter_for",
     "check_command",
+    "classify",
 ]
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
