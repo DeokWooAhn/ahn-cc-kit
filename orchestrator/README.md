@@ -28,6 +28,7 @@ src/orchestrator/
   scope.py     스냅샷, 계획의 허용 목록 파싱, 범위 대조
   guards.py    커밋·브랜치·스테이징·푸시 감지
   policy.py    검증 명령 게이트
+  failures.py  실패를 공급자·환경·에이전트로 가른다
   adapters.py  codex·claude 호출, 타임아웃, 무활동 감지
   prompts.py   플러그인 문서를 읽어 역할별 지시문 조립
   pipeline.py  상태 전이 규칙
@@ -157,6 +158,34 @@ check_command("git push origin main").allowed # False
 **막지 못하는 것이 있다.** 이 게이트는 런타임이 **직접 실행하는** 명령만 본다.
 codex 가 자기 안에서 돌리는 명령은 여기를 거치지 않는다. 그쪽은 codex 샌드박스와
 호출 후 `guards` 검사가 맡는다. 프롬프트에 적은 금지는 기준을 알려줄 뿐 차단하지 않는다.
+
+### failures
+
+막혔을 때 **무엇 때문인지** 가른다. 로그 끝 4KB 를 보고 분류하고 `failure.json` 에 남긴다.
+
+| 분류 | 뜻 | 다음 |
+| --- | --- | --- |
+| `provider` | 로그인 만료, 한도, 공급자 오류 | `--route` 로 어댑터를 바꿔 재개 |
+| `environment` | 명령·시뮬레이터·SDK 없음, 네트워크, 디스크 | **코드를 고쳐도 안 풀린다.** 환경을 고친 뒤 재개 |
+| `agent` | 비정상 종료, 제한 시간, 멈춤 | 로그를 읽고 계획이 과하면 줄인다 |
+| `verify` | 검증 명령 실패 | 코드 문제인지 테스트 문제인지 가른다 |
+
+`orch status` 가 그 분류와 다음에 할 일을 보여 주고, `orch resume` 은 **재시도해도 안 되는 실패**
+(환경 문제)였으면 "같은 조건이면 또 막힌다"고 경고한다.
+
+```text
+[failed_agent] 막혔다
+
+implementer 호출이 failed로 끝났다.
+로그인 세션이 만료됐다 (provider)
+   근거: Failed to authenticate: OAuth session expired
+   다음: 공급자 문제다. 로그인·한도를 확인하거나 `--route <역할>=<다른 어댑터>`로 바꿔 `orch resume`.
+```
+
+**검증 실패도 환경 문제일 수 있다.** `JAVA_HOME is not set` 으로 테스트가 깨졌으면 `verify` 가 아니라
+`environment` 로 분류한다. 코드를 고치게 두면 쓸데없는 diff 만 늘어난다.
+
+분류는 패턴 대조다. LLM 을 부르지 않는다. 틀릴 수 있으므로 근거로 삼은 로그 한 줄을 함께 적는다.
 
 ### adapters
 

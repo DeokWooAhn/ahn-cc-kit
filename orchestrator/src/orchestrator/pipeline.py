@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import guards, policy, prompts, scope
+from . import failures, guards, policy, prompts, scope
 from .adapters import (
     FIXER,
     IMPLEMENTER,
@@ -38,6 +38,7 @@ REVIEW_LOG = "03-review.log"
 FIX_PLAN = "04-fix-plan.md"
 FIX_PROMPT = "05-fix-prompt.txt"
 FIX_LOG = "05-fix.log"
+FAILURE = "failure.json"
 VERIFY_LOG = "verify-{index}.log"
 
 DEFAULT_ROUTING = {
@@ -249,9 +250,16 @@ def resume(settings: Settings) -> StepResult:
         raise PipelineError(f"막힌 상태가 아니다: {task.state}")
     if not task.history:
         raise PipelineError("되돌아갈 자리가 없다")
+    failure = read_failure(settings)
     target = RunState(task.history[-1].previous)
     store.transition(target, note=f"사람이 {task.state}에서 재개했다")
-    return StepResult(target, f"{target}에서 다시 시작한다")
+    detail = ""
+    if failure is not None and not failure.retryable:
+        detail = (
+            f"직전 실패는 {failure.kind}로 분류됐다 — {failure.summary}.\n"
+            "같은 조건이면 또 막힌다. 환경을 고쳤는지 확인한다."
+        )
+    return StepResult(target, f"{target}에서 다시 시작한다", detail)
 
 
 def _plan(settings: Settings, task: TaskState) -> StepResult:
@@ -410,10 +418,12 @@ def _verify(settings: Settings, task: TaskState) -> StepResult:
         settings.store.record_artifact(f"verify_{index}", log)
         ran.append(_verify_line(index, command, result))
         if not result.ok:
+            failure = failures.classify(result, role_failed=failures.VERIFY)
+            _record_failure(settings, failure)
             return _block(
                 settings,
                 RunState.FAILED_VERIFY,
-                f"검증 {index}번이 실패했다: {command}\n{result.detail}\n로그: {log}",
+                f"검증 {index}번이 실패했다: {command}\n{failure.describe()}\n   로그: {log}",
                 agent=result,
             )
 
@@ -467,8 +477,41 @@ def _call(
 
 
 def _agent_failed(settings: Settings, role: str, result: AgentResult) -> StepResult:
-    detail = f"{role} 호출이 {result.outcome}로 끝났다: {result.detail}\n로그: {result.log_file}"
+    failure = failures.classify(result)
+    _record_failure(settings, failure)
+    detail = (
+        f"{role} 호출이 {result.outcome}로 끝났다.\n"
+        f"{failure.describe()}\n"
+        f"   로그: {result.log_file}"
+    )
     return _block(settings, RunState.FAILED_AGENT, detail, agent=result)
+
+
+def _record_failure(settings: Settings, failure: failures.Failure) -> None:
+    path = settings.paths / FAILURE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(failure.to_json_object(), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    settings.store.record_artifact("failure", path)
+
+
+def read_failure(settings: Settings) -> failures.Failure | None:
+    path = settings.paths / FAILURE
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return failures.Failure(
+        kind=data.get("kind", failures.AGENT),
+        retryable=bool(data.get("retryable", True)),
+        summary=data.get("summary", ""),
+        evidence=data.get("evidence", ""),
+        next_step=data.get("next_step", ""),
+    )
 
 
 def _block(

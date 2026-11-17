@@ -186,7 +186,11 @@ def _status(args) -> int:
         print(hint)
     elif is_blocked(task.state):
         print()
-        print("고친 뒤 `orch resume`으로 직전 자리에서 다시 시작한다")
+        failure = pipeline.read_failure(settings)
+        if failure is not None:
+            print(failure.describe())
+        else:
+            print("고친 뒤 `orch resume`으로 직전 자리에서 다시 시작한다")
     elif task.state != RunState.COMPLETED:
         print()
         print("`orch step`으로 다음 걸음을 간다")
