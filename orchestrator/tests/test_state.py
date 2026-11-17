@@ -90,7 +90,31 @@ class StateStoreTest(unittest.TestCase):
         state = self.store.bump_retry(limit=2)
 
         self.assertEqual(state.state, RunState.MAX_RETRY_EXCEEDED)
-        self.assertEqual(state.retry_count, 3)
+        # 막힌 시도는 돌지 않았으므로 세지 않는다.
+        self.assertEqual(state.retry_count, 2)
+
+    def test_bump_retry_records_the_transition(self) -> None:
+        self.store.create("task")
+        self.store.transition(RunState.FIXING)
+        self.store.bump_retry(limit=1)
+
+        self.store.bump_retry(limit=1)
+
+        last = self.store.load().history[-1]
+        self.assertEqual(last.previous, str(RunState.FIXING))
+        self.assertEqual(last.current, str(RunState.MAX_RETRY_EXCEEDED))
+
+    def test_a_raised_limit_allows_one_more_round(self) -> None:
+        self.store.create("task")
+        self.store.bump_retry(limit=1)
+        self.store.bump_retry(limit=1)
+        self.assertEqual(self.store.load().state, RunState.MAX_RETRY_EXCEEDED)
+
+        self.store.transition(RunState.FIXING)
+        state = self.store.bump_retry(limit=2)
+
+        self.assertEqual(state.state, RunState.FIXING)
+        self.assertEqual(state.retry_count, 2)
 
     def test_load_rejects_broken_json(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
