@@ -92,11 +92,16 @@ class Settings:
     orchestrate_dir: Path = ORCHESTRATE_DIR
     plugin_dir: Path | None = None
     routing: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_ROUTING))
-    retry_limit: int = DEFAULT_RETRY_LIMIT
+    retry_limit: int | None = None
     timeouts: dict[str, int] = field(default_factory=dict)
     stall_seconds: dict[str, int] = field(default_factory=dict)
     adapters: dict[str, Adapter] = field(default_factory=dict)
     allow_commands: tuple[str, ...] = ()
+
+    def retry_limit_for(self, plan: Path) -> int:
+        if self.retry_limit is not None:
+            return self.retry_limit
+        return prompts.risk_retry_limit(prompts.read_risk(plan))
 
     def adapter(self, role: str) -> Adapter:
         if role in self.adapters:
@@ -340,7 +345,7 @@ def _fix(settings: Settings, task: TaskState) -> StepResult:
     paths = settings.paths
     repo = ensure_repository(settings.repo)
 
-    bumped = settings.store.bump_retry(limit=settings.retry_limit)
+    bumped = settings.store.bump_retry(limit=settings.retry_limit_for(paths.plan))
     if bumped.state == RunState.MAX_RETRY_EXCEEDED:
         return StepResult(RunState.MAX_RETRY_EXCEEDED, "재시도 한도를 넘겼다", bumped.note, stopped=True)
 
@@ -547,6 +552,14 @@ def waiting_hint(settings: Settings, state: RunState) -> str:
             commands = prompts.verify_commands(settings.paths.plan)
         except Exception:
             commands = []
+        risk = prompts.read_risk(settings.paths.plan)
+        stated = prompts.risk_is_stated(settings.paths.plan)
+        limit = prompts.risk_retry_limit(risk)
+        suffix = "" if stated else " (계획에 없어 기본값)"
+        lines.append("")
+        lines.append(f"위험도: {risk}{suffix} — 자동 수정은 {limit}회까지")
+        if risk == prompts.HIGH:
+            lines.append("  높음이다. 한 번 고치고 나면 사람이 다시 본다.")
         advisory = prompts.check_plan(settings.paths.plan).advisory
         if advisory:
             lines.append("")

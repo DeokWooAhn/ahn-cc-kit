@@ -771,6 +771,92 @@ class PlanCheckTest(PipelineTestCase):
         self.assertIn("권고 절이 빠졌다", result.detail)
         self.assertIn("확인할 수 없는 것", result.detail)
 
+class RiskPolicyTest(PipelineTestCase):
+    def plan_with_risk(self, risk: str) -> str:
+        body = plan_text(["a.txt", "b.txt"])
+        return body.replace("## 목적", f"## 위험도\n\n{risk}\n\n## 목적", 1)
+
+    def start_with_risk(self, risk: str, scripts: dict[str, str]) -> Settings:
+        settings = self.settings(scripts)
+        pipeline.init(settings)
+        settings.paths.plan.write_text(self.plan_with_risk(risk), encoding="utf-8")
+        pipeline.step(settings)
+        pipeline.approve(settings)
+        return settings
+
+    def fix_rounds_until_blocked(self, settings: Settings, limit: int = 6) -> int:
+        settings.paths.fix_plan.write_text("# 수정 계획\n", encoding="utf-8")
+        rounds = 0
+        for _ in range(limit):
+            if settings.store.load().state != RunState.WAITING_HUMAN:
+                break
+            pipeline.request_fix(settings)
+            for _ in range(3):
+                pipeline.step(settings)
+            rounds += 1
+            if settings.store.load().state == RunState.MAX_RETRY_EXCEEDED:
+                break
+        return rounds
+
+    def test_high_risk_allows_one_fix_round(self) -> None:
+        settings = self.start_with_risk(
+            "high",
+            {IMPLEMENTER: "echo 첫 >> a.txt", REVIEWER: "echo 리뷰", FIXER: "echo 또 >> b.txt"},
+        )
+        for _ in range(3):
+            pipeline.step(settings)
+
+        rounds = self.fix_rounds_until_blocked(settings)
+
+        self.assertEqual(settings.store.load().state, RunState.MAX_RETRY_EXCEEDED)
+        self.assertEqual(rounds, 2)
+
+    def test_low_risk_allows_more(self) -> None:
+        settings = self.start_with_risk(
+            "low",
+            {IMPLEMENTER: "echo 첫 >> a.txt", REVIEWER: "echo 리뷰", FIXER: "echo 또 >> b.txt"},
+        )
+        for _ in range(3):
+            pipeline.step(settings)
+
+        rounds = self.fix_rounds_until_blocked(settings)
+
+        self.assertEqual(rounds, 4)
+
+    def test_an_explicit_setting_overrides_the_plan(self) -> None:
+        settings = self.settings()
+        pipeline.init(settings)
+        settings.paths.plan.write_text(self.plan_with_risk("low"), encoding="utf-8")
+        settings.retry_limit = 1
+
+        self.assertEqual(settings.retry_limit_for(settings.paths.plan), 1)
+
+    def test_the_plan_decides_when_nothing_is_set(self) -> None:
+        settings = self.settings()
+        pipeline.init(settings)
+        settings.paths.plan.write_text(self.plan_with_risk("high"), encoding="utf-8")
+
+        self.assertEqual(settings.retry_limit_for(settings.paths.plan), 1)
+
+    def test_the_approval_hint_shows_the_risk(self) -> None:
+        settings = self.settings()
+        pipeline.init(settings)
+        settings.paths.plan.write_text(self.plan_with_risk("high"), encoding="utf-8")
+
+        result = pipeline.step(settings)
+
+        self.assertIn("위험도: high", result.detail)
+        self.assertIn("1회까지", result.detail)
+        self.assertIn("사람이 다시 본다", result.detail)
+
+    def test_the_approval_hint_says_when_the_risk_is_a_default(self) -> None:
+        settings = self.start(self.settings())
+
+        result = pipeline.step(settings)
+
+        self.assertIn("위험도: medium", result.detail)
+        self.assertIn("기본값", result.detail)
+
 
 if __name__ == "__main__":
     unittest.main()

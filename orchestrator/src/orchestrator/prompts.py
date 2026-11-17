@@ -19,6 +19,16 @@ LIMITS_SECTION = "이 작업으로 확인할 수 없는 것"
 RULES_SECTION = "지킬 것"
 STEPS_SECTION = "할 일"
 DONE_SECTION = "완료 조건"
+RISK_SECTION = "위험도"
+
+LOW = "low"
+MEDIUM = "medium"
+HIGH = "high"
+DEFAULT_RISK = MEDIUM
+
+# 높을수록 자동 수정 횟수를 줄인다. 사람이 변경 이력을 따라갈 수 있게 하려는 것이다.
+RISK_RETRY_LIMITS = {LOW: 3, MEDIUM: 2, HIGH: 1}
+RISK_WORDS = (HIGH, MEDIUM, LOW)
 
 REQUIRED_SECTIONS = (PURPOSE_SECTION, ALLOWED_SECTION, VERIFY_SECTION)
 BLOCK_SECTIONS = (ALLOWED_SECTION, VERIFY_SECTION)
@@ -137,6 +147,22 @@ class PlanCheck:
                 "권고(막지는 않음): " + ", ".join(f"`## {name}`" for name in self.advisory) + " 가 없다"
             )
         return "\n".join(lines)
+
+
+def read_risk(plan: Path) -> str:
+    body = section(plan, RISK_SECTION, required=False).lower()
+    for word in RISK_WORDS:
+        if re.search(rf"\b{word}\b", body):
+            return word
+    return DEFAULT_RISK
+
+
+def risk_retry_limit(risk: str) -> int:
+    return RISK_RETRY_LIMITS.get(risk, RISK_RETRY_LIMITS[DEFAULT_RISK])
+
+
+def risk_is_stated(plan: Path) -> bool:
+    return bool(section(plan, RISK_SECTION, required=False).strip())
 
 
 def check_plan(plan: Path) -> PlanCheck:
