@@ -37,6 +37,34 @@ metadata:
 
 Planner와 Verifier는 같은 세션이어도 된다. **Implementer와 Reviewer는 반드시 분리한다.**
 
+## 런타임이 있으면 그것에 맡긴다
+
+이 플러그인의 짝인 파이썬 런타임 `orch`가 설치돼 있으면, 아래 절차를 기계가 돌린다.
+상태 저장, 역할별 제한 시간, 멈춤 감지, 범위 검사, 호출 후 git 검사를 맡는다.
+**사람이 순서를 틀릴 자리가 없어진다** — 스냅샷을 넘기기 직전에 찍는 것도 런타임이 한다.
+
+```bash
+command -v orch
+```
+
+있으면 이렇게 돈다.
+
+```bash
+orch init 20261116-작업이름 --task "무엇을 한다"
+orch run       # 계획을 세우고 승인 자리에서 멈춘다
+orch approve   # 사람이 계획을 읽고 승인한다
+orch run       # 구현·범위 검사·리뷰를 거쳐 다시 멈춘다
+orch verify    # 계획의 검증 명령을 돌린다
+```
+
+리뷰 지적 중 반영할 것을 추려 `04-fix-plan.md`에 쓰고 `orch fix`를 치면 다시 돈다.
+막히면 `orch status`로 보고, 사람이 고친 뒤 `orch resume`으로 그 자리에서 다시 시작한다.
+
+**승인은 대신 누르지 않는다.** 계획과 리뷰는 사람이 읽는다. 자율 모드에서도 그 자리에서 선다.
+
+`orch`가 없으면 아래 절차를 손으로 따른다. 둘은 같은 참조 문서를 읽고 같은 일을 한다.
+설치는 `ahn-cc-kit` 저장소의 `orchestrator/README.md`에 있다.
+
 ## 절차
 
 1. **계획**을 쓴다 — `references/plan-template.md`
@@ -88,3 +116,4 @@ codex exec -s workspace-write "$(cat .orchestrate/02-prompt.txt)" < /dev/null > 
 - `references/plan-template.md` — 계획 산출물 형식
 - `references/review-brief.md` — 교차 리뷰 브리프 규칙
 - `references/gotchas.md` — 실제로 겪은 함정
+- `ahn-cc-kit` 저장소의 `orchestrator/` — 이 절차를 기계가 돌리는 런타임
