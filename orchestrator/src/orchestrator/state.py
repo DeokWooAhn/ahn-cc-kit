@@ -27,6 +27,7 @@ class RunState(StrEnum):
     COMPLETED = "completed"
     BLOCKED_SCOPE = "blocked_scope"
     BLOCKED_GIT = "blocked_git"
+    BLOCKED_POLICY = "blocked_policy"
     FAILED_AGENT = "failed_agent"
     FAILED_VERIFY = "failed_verify"
     MAX_RETRY_EXCEEDED = "max_retry_exceeded"
@@ -36,6 +37,7 @@ BLOCKED_STATES = frozenset(
     {
         RunState.BLOCKED_SCOPE,
         RunState.BLOCKED_GIT,
+        RunState.BLOCKED_POLICY,
         RunState.FAILED_AGENT,
         RunState.FAILED_VERIFY,
         RunState.MAX_RETRY_EXCEEDED,

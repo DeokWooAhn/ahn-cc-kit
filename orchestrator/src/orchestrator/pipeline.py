@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import guards, prompts, scope
+from . import guards, policy, prompts, scope
 from .adapters import (
     FIXER,
     IMPLEMENTER,
@@ -95,6 +95,7 @@ class Settings:
     timeouts: dict[str, int] = field(default_factory=dict)
     stall_seconds: dict[str, int] = field(default_factory=dict)
     adapters: dict[str, Adapter] = field(default_factory=dict)
+    allow_commands: tuple[str, ...] = ()
 
     def adapter(self, role: str) -> Adapter:
         if role in self.adapters:
@@ -383,6 +384,17 @@ def _verify(settings: Settings, task: TaskState) -> StepResult:
     if not commands:
         return _block(settings, RunState.FAILED_VERIFY, "계획에 검증 명령이 없다")
 
+    refused = policy.blocked(policy.check_all(commands, allow=settings.allow_commands))
+    if refused:
+        listed = "\n".join(f"- {verdict.describe()}" for verdict in refused)
+        return _block(
+            settings,
+            RunState.BLOCKED_POLICY,
+            "계획의 검증 명령이 정책에 막혔다. 하나라도 걸리면 아무것도 돌리지 않는다.\n"
+            f"{listed}\n\n"
+            "정말 필요한 명령이면 Settings.allow_commands 에 그 줄을 그대로 적는다.",
+        )
+
     ran: list[str] = []
     for index, command in enumerate(commands, start=1):
         log = paths / VERIFY_LOG.format(index=index)
@@ -477,9 +489,15 @@ def waiting_hint(settings: Settings, state: RunState) -> str:
         except Exception:
             commands = []
         if commands:
+            verdicts = policy.check_all(commands, allow=settings.allow_commands)
+            refused = policy.blocked(verdicts)
             lines.append("")
             lines.append("이 작업이 돌릴 검증 명령:")
             lines += [f"  {command}" for command in commands]
+            if refused:
+                lines.append("")
+                lines.append("⚠ 정책에 막히는 명령이 있다. 승인해도 검증 단계에서 멈춘다.")
+                lines += [f"  - {verdict.describe()}" for verdict in refused]
         return "\n".join(lines)
     if state == RunState.WAITING_HUMAN:
         return "\n".join(

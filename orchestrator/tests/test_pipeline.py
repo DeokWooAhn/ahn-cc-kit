@@ -610,6 +610,49 @@ class VerifyReportTest(PipelineTestCase):
 
         self.assertIn("캐시", result.detail)
 
+class CommandGateTest(PipelineTestCase):
+    def reach_waiting(self, verify: str) -> Settings:
+        settings = self.settings({IMPLEMENTER: "echo 고침 >> a.txt", REVIEWER: "echo 리뷰"})
+        self.reach_implementing(settings, verify=verify)
+        for _ in range(3):
+            pipeline.step(settings)
+        return settings
+
+    def test_a_refused_command_blocks_before_anything_runs(self) -> None:
+        settings = self.reach_waiting("echo 흔적 > 돌았다.txt; git push")
+
+        pipeline.request_verify(settings)
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.BLOCKED_POLICY)
+        self.assertIn("원격", result.detail)
+        self.assertFalse((self.repo / "돌았다.txt").exists(), "막혔는데 명령이 돌았다")
+
+    def test_an_allowance_lets_it_through(self) -> None:
+        settings = self.reach_waiting("git push --dry-run")
+        settings.allow_commands = ("git push --dry-run",)
+
+        pipeline.request_verify(settings)
+        result = pipeline.step(settings)
+
+        self.assertNotEqual(result.state, RunState.BLOCKED_POLICY)
+
+    def test_the_approval_hint_warns_before_approving(self) -> None:
+        settings = self.start(self.settings(), verify="rm -rf build")
+
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.PLAN_APPROVAL)
+        self.assertIn("정책에 막히는 명령", result.detail)
+        self.assertIn("재귀", result.detail)
+
+    def test_an_ordinary_plan_shows_no_warning(self) -> None:
+        settings = self.start(self.settings(), verify="./gradlew test")
+
+        result = pipeline.step(settings)
+
+        self.assertNotIn("정책에 막히는", result.detail)
+
 
 if __name__ == "__main__":
     unittest.main()
