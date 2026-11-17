@@ -1,6 +1,6 @@
 [project]
 name = "ahn-orchestrator"
-version = "0.6.0"
+version = "0.7.0"
 description = "계획·구현·리뷰를 서로 다른 에이전트에 넘기는 왕복을 지휘하는 런타임"
 requires-python = ">=3.12"
 dependencies = []

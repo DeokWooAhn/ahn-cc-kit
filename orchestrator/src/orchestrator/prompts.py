@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from .errors import PlanFormatError, PluginDocsMissing
@@ -16,6 +17,12 @@ ALLOWED_SECTION = "건드릴 파일"
 VERIFY_SECTION = "검증"
 LIMITS_SECTION = "이 작업으로 확인할 수 없는 것"
 RULES_SECTION = "지킬 것"
+STEPS_SECTION = "할 일"
+DONE_SECTION = "완료 조건"
+
+REQUIRED_SECTIONS = (PURPOSE_SECTION, ALLOWED_SECTION, VERIFY_SECTION)
+BLOCK_SECTIONS = (ALLOWED_SECTION, VERIFY_SECTION)
+ADVISORY_SECTIONS = (STEPS_SECTION, RULES_SECTION, LIMITS_SECTION, DONE_SECTION)
 
 HEADING = re.compile(r"^##\s+(.+?)\s*$")
 FENCE = re.compile(r"^\s*```")
@@ -104,6 +111,45 @@ def first_block(body: str) -> list[str]:
 
 def verify_commands(plan: Path) -> list[str]:
     return first_block(section(plan, VERIFY_SECTION))
+
+
+@dataclass(frozen=True)
+class PlanCheck:
+    missing: tuple[str, ...] = ()
+    empty_blocks: tuple[str, ...] = ()
+    advisory: tuple[str, ...] = ()
+
+    @property
+    def ok(self) -> bool:
+        return not self.missing and not self.empty_blocks
+
+    def describe(self) -> str:
+        lines: list[str] = []
+        if self.missing:
+            lines.append("없거나 비어 있는 절: " + ", ".join(f"`## {name}`" for name in self.missing))
+        if self.empty_blocks:
+            lines.append(
+                "코드 블록이 비어 있는 절: "
+                + ", ".join(f"`## {name}`" for name in self.empty_blocks)
+            )
+        if self.advisory:
+            lines.append(
+                "권고(막지는 않음): " + ", ".join(f"`## {name}`" for name in self.advisory) + " 가 없다"
+            )
+        return "\n".join(lines)
+
+
+def check_plan(plan: Path) -> PlanCheck:
+    found = read_sections(plan)
+
+    missing = tuple(name for name in REQUIRED_SECTIONS if not found.get(name, "").strip())
+    empty = tuple(
+        name
+        for name in BLOCK_SECTIONS
+        if name not in missing and not first_block(found.get(name, ""))
+    )
+    advisory = tuple(name for name in ADVISORY_SECTIONS if not found.get(name, "").strip())
+    return PlanCheck(missing=missing, empty_blocks=empty, advisory=advisory)
 
 
 def plan_prompt(task: str, plan_path: Path, plugin_dir: Path) -> str:
