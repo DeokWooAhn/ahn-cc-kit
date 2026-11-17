@@ -27,6 +27,7 @@ src/orchestrator/
   state.py     RunState, TaskState, StateStore
   scope.py     스냅샷, 계획의 허용 목록 파싱, 범위 대조
   guards.py    커밋·브랜치·스테이징·푸시 감지
+  policy.py    검증 명령 게이트
   adapters.py  codex·claude 호출, 타임아웃, 무활동 감지
   prompts.py   플러그인 문서를 읽어 역할별 지시문 조립
   pipeline.py  상태 전이 규칙
@@ -130,6 +131,32 @@ HEAD, 브랜치, 업스트림, 스테이징을 전후로 비교한다. 파일을
 (그건 `scope`가 본다). 커밋·브랜치 전환·스테이징·푸시가 생겼는지만 본다.
 
 **되돌리기는 하지 않는다.** 위반을 보고하고 멈출 뿐, `git reset`을 대신 돌리지 않는다.
+
+### policy
+
+계획에 적힌 검증 명령을 **돌리기 전에** 본다. 하나라도 걸리면 아무것도 실행하지 않고
+`BLOCKED_POLICY`로 멈춘다.
+
+```python
+from orchestrator import check_command
+
+check_command("./gradlew test").allowed       # True
+check_command("git push origin main").allowed # False
+```
+
+막는 것은 원격 밀기, 되돌리기 계열 git, 재귀 삭제, 내려받아 바로 실행, 환경 변수 덤프,
+비밀·서명 파일, 권한 상승, 배포·인프라 도구다.
+
+- **allowlist 가 아니라 denylist 다.** 프로젝트마다 검증 명령이 달라서 "기본 deny"를 두면
+  범용 런타임으로 쓸 수 없다. 정말 필요한 명령은 `Settings.allow_commands`에 **줄 전체**를
+  그대로 적어 예외로 둔다. 부분 일치는 통하지 않는다
+- 계획은 사람이 승인하지만 검증 명령까지 한 줄씩 보지는 않는다. `PLAN_APPROVAL`에서
+  막히는 명령이 있으면 **승인 전에 경고**한다
+- `env VAR=x 명령`은 통과하고 `env | ...`만 막는다. 앞에 변수를 붙이는 쓰임이 흔하다
+
+**막지 못하는 것이 있다.** 이 게이트는 런타임이 **직접 실행하는** 명령만 본다.
+codex 가 자기 안에서 돌리는 명령은 여기를 거치지 않는다. 그쪽은 codex 샌드박스와
+호출 후 `guards` 검사가 맡는다. 프롬프트에 적은 금지는 기준을 알려줄 뿐 차단하지 않는다.
 
 ### adapters
 

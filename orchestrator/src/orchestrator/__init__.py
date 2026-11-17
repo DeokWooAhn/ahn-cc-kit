@@ -19,6 +19,7 @@ from .errors import (
 )
 from .errors import PipelineError, PluginDocsMissing
 from .guards import GitSnapshot, GitViolation
+from .policy import CommandVerdict, check_command
 from .pipeline import Settings, StepResult, TaskPaths
 from .scope import ScopeResult, Snapshot
 from .state import RunState, StateStore, TaskState
@@ -28,6 +29,7 @@ __all__ = [
     "AgentRequest",
     "AgentResult",
     "ClaudeAdapter",
+    "CommandVerdict",
     "CodexAdapter",
     "GitCommandFailed",
     "PipelineError",
@@ -51,6 +53,7 @@ __all__ = [
     "TaskState",
     "UnknownAdapter",
     "adapter_for",
+    "check_command",
 ]
 
-__version__ = "0.4.1"
+__version__ = "0.5.0"
