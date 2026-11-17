@@ -282,6 +282,14 @@ def _plan(settings: Settings, task: TaskState) -> StepResult:
             f"계획 파일이 생기지 않았다: {paths.plan}",
             agent=result,
         )
+    checked = prompts.check_plan(paths.plan)
+    if not checked.ok:
+        return _block(
+            settings,
+            RunState.BLOCKED_PLAN,
+            f"계획의 형식이 맞지 않다: {paths.plan}\n{checked.describe()}",
+            agent=result,
+        )
     settings.store.record_artifact("plan", paths.plan)
     settings.store.transition(RunState.PLAN_APPROVAL, note="계획이 나왔다")
     return StepResult(
@@ -293,6 +301,14 @@ def _plan(settings: Settings, task: TaskState) -> StepResult:
 def _created(settings: Settings, task: TaskState) -> StepResult:
     paths = settings.paths
     if paths.plan.is_file():
+        checked = prompts.check_plan(paths.plan)
+        if not checked.ok:
+            return _block(
+                settings,
+                RunState.BLOCKED_PLAN,
+                f"계획의 형식이 맞지 않다: {paths.plan}\n{checked.describe()}\n\n"
+                "고친 뒤 `orch resume`으로 다시 본다.",
+            )
         settings.store.record_artifact("plan", paths.plan)
         settings.store.transition(RunState.PLAN_APPROVAL, note="계획 파일을 받았다")
         return StepResult(
@@ -531,6 +547,14 @@ def waiting_hint(settings: Settings, state: RunState) -> str:
             commands = prompts.verify_commands(settings.paths.plan)
         except Exception:
             commands = []
+        advisory = prompts.check_plan(settings.paths.plan).advisory
+        if advisory:
+            lines.append("")
+            lines.append(
+                "권고 절이 빠졌다: "
+                + ", ".join(f"`## {name}`" for name in advisory)
+            )
+            lines.append("  `## 이 작업으로 확인할 수 없는 것`이 없으면 결과가 실제보다 넓게 읽힌다.")
         if commands:
             verdicts = policy.check_all(commands, allow=settings.allow_commands)
             refused = policy.blocked(verdicts)

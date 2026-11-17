@@ -21,6 +21,7 @@ from .errors import PipelineError, PluginDocsMissing
 from .failures import Failure, classify
 from .guards import GitSnapshot, GitViolation
 from .policy import CommandVerdict, check_command
+from .prompts import PlanCheck, check_plan
 from .pipeline import Settings, StepResult, TaskPaths
 from .scope import ScopeResult, Snapshot
 from .state import RunState, StateStore, TaskState
@@ -32,6 +33,7 @@ __all__ = [
     "ClaudeAdapter",
     "CommandVerdict",
     "Failure",
+    "PlanCheck",
     "CodexAdapter",
     "GitCommandFailed",
     "PipelineError",
@@ -56,7 +58,8 @@ __all__ = [
     "UnknownAdapter",
     "adapter_for",
     "check_command",
+    "check_plan",
     "classify",
 ]
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"

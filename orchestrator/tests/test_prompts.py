@@ -175,6 +175,73 @@ class BuiltPromptTest(unittest.TestCase):
         self.assertIn("거기 적힌 것만 고친다", text)
         self.assertIn("빠진 지적을 겸사겸사 고치지 않는다", text)
 
+class CheckPlanTest(SectionTest):
+    def full_plan(self, **drop) -> str:
+        parts = {
+            "목적": "늦은 응답을 막는다.",
+            "할 일": "1. 고친다",
+            "건드릴 파일": "```\na.txt\n```",
+            "지킬 것": "- 커밋하지 않는다",
+            "검증": "```\ntrue\n```",
+            "이 작업으로 확인할 수 없는 것": "- 실기기 동작",
+            "완료 조건": "- 테스트가 통과한다",
+        }
+        parts.update(drop)
+        body = "\n\n".join(
+            f"## {name}\n\n{text}" for name, text in parts.items() if text is not None
+        )
+        return f"# 시험\n\n{body}\n"
+
+    def test_a_complete_plan_passes(self) -> None:
+        plan = self.write(self.full_plan())
+
+        checked = prompts.check_plan(plan)
+
+        self.assertTrue(checked.ok)
+        self.assertEqual(checked.advisory, ())
+
+    def test_a_missing_required_section_is_reported(self) -> None:
+        plan = self.write(self.full_plan(검증=None))
+
+        checked = prompts.check_plan(plan)
+
+        self.assertFalse(checked.ok)
+        self.assertIn("검증", checked.missing)
+        self.assertIn("`## 검증`", checked.describe())
+
+    def test_an_empty_required_section_counts_as_missing(self) -> None:
+        plan = self.write(self.full_plan(목적="   "))
+
+        self.assertIn("목적", prompts.check_plan(plan).missing)
+
+    def test_an_empty_code_block_is_reported(self) -> None:
+        plan = self.write(self.full_plan(**{"건드릴 파일": "```\n```"}))
+
+        checked = prompts.check_plan(plan)
+
+        self.assertFalse(checked.ok)
+        self.assertIn("건드릴 파일", checked.empty_blocks)
+
+    def test_a_section_without_a_code_block_is_reported(self) -> None:
+        plan = self.write(self.full_plan(**{"건드릴 파일": "a.txt 를 고친다"}))
+
+        self.assertIn("건드릴 파일", prompts.check_plan(plan).empty_blocks)
+
+    def test_advisory_sections_do_not_block(self) -> None:
+        plan = self.write(self.full_plan(**{"이 작업으로 확인할 수 없는 것": None}))
+
+        checked = prompts.check_plan(plan)
+
+        self.assertTrue(checked.ok)
+        self.assertIn("이 작업으로 확인할 수 없는 것", checked.advisory)
+        self.assertIn("막지는 않음", checked.describe())
+
+    def test_the_sections_the_runtime_actually_parses_are_required(self) -> None:
+        self.assertEqual(
+            set(prompts.REQUIRED_SECTIONS),
+            {prompts.PURPOSE_SECTION, prompts.ALLOWED_SECTION, prompts.VERIFY_SECTION},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

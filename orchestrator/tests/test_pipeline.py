@@ -712,6 +712,65 @@ class FailureRecordTest(PipelineTestCase):
         self.assertEqual(result.state, RunState.FAILED_VERIFY)
         self.assertIn("environment", result.detail)
 
+class PlanCheckTest(PipelineTestCase):
+    def write_plan(self, body: str) -> Settings:
+        settings = self.settings()
+        pipeline.init(settings)
+        settings.paths.plan.write_text(body, encoding="utf-8")
+        return settings
+
+    def test_a_plan_without_a_verify_section_blocks(self) -> None:
+        settings = self.write_plan(
+            "# 시험\n\n## 목적\n\n고친다.\n\n## 건드릴 파일\n\n```\na.txt\n```\n"
+        )
+
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.BLOCKED_PLAN)
+        self.assertIn("검증", result.detail)
+
+    def test_a_plan_with_an_empty_file_list_blocks(self) -> None:
+        settings = self.write_plan(
+            "# 시험\n\n## 목적\n\n고친다.\n\n## 건드릴 파일\n\n```\n```\n"
+            "\n## 검증\n\n```\ntrue\n```\n"
+        )
+
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.BLOCKED_PLAN)
+        self.assertIn("건드릴 파일", result.detail)
+
+    def test_a_fixed_plan_passes_on_resume(self) -> None:
+        settings = self.write_plan("# 시험\n\n## 목적\n\n고친다.\n")
+        self.assertEqual(pipeline.step(settings).state, RunState.BLOCKED_PLAN)
+
+        settings.paths.plan.write_text(plan_text(["a.txt"]), encoding="utf-8")
+        pipeline.resume(settings)
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.PLAN_APPROVAL)
+
+    def test_a_planner_that_writes_a_malformed_plan_blocks(self) -> None:
+        settings = self.settings(
+            {PLANNER: f"printf '# 계획\\n' > .orchestrate/{TASK_ID}/01-plan.md"},
+            task="무언가 한다",
+        )
+        pipeline.init(settings)
+
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.BLOCKED_PLAN)
+        self.assertIn("형식이 맞지 않다", result.detail)
+
+    def test_the_approval_hint_names_missing_advisory_sections(self) -> None:
+        settings = self.start(self.settings())
+
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.PLAN_APPROVAL)
+        self.assertIn("권고 절이 빠졌다", result.detail)
+        self.assertIn("확인할 수 없는 것", result.detail)
+
 
 if __name__ == "__main__":
     unittest.main()
