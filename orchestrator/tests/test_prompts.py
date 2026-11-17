@@ -242,6 +242,49 @@ class CheckPlanTest(SectionTest):
             {prompts.PURPOSE_SECTION, prompts.ALLOWED_SECTION, prompts.VERIFY_SECTION},
         )
 
+class RiskTest(SectionTest):
+    def plan_with(self, risk_body: str | None) -> Path:
+        risk = "" if risk_body is None else f"## 위험도\n\n{risk_body}\n\n"
+        return self.write(f"# 시험\n\n## 목적\n\n고친다.\n\n{risk}## 검증\n\n```\ntrue\n```\n")
+
+    def test_each_level_is_read(self) -> None:
+        for body, expected in (("low", prompts.LOW), ("medium", prompts.MEDIUM), ("high", prompts.HIGH)):
+            self.assertEqual(prompts.read_risk(self.plan_with(body)), expected)
+
+    def test_a_sentence_around_the_word_still_reads(self) -> None:
+        plan = self.plan_with("high — 결제 흐름에 닿는다")
+
+        self.assertEqual(prompts.read_risk(plan), prompts.HIGH)
+
+    def test_uppercase_is_read(self) -> None:
+        self.assertEqual(prompts.read_risk(self.plan_with("HIGH")), prompts.HIGH)
+
+    def test_the_highest_word_present_wins(self) -> None:
+        plan = self.plan_with("low 가 아니라 high 다")
+
+        self.assertEqual(prompts.read_risk(plan), prompts.HIGH)
+
+    def test_a_missing_section_means_medium(self) -> None:
+        plan = self.plan_with(None)
+
+        self.assertEqual(prompts.read_risk(plan), prompts.MEDIUM)
+        self.assertFalse(prompts.risk_is_stated(plan))
+
+    def test_an_unreadable_section_means_medium(self) -> None:
+        plan = self.plan_with("보통쯤 된다")
+
+        self.assertEqual(prompts.read_risk(plan), prompts.MEDIUM)
+        self.assertTrue(prompts.risk_is_stated(plan))
+
+    def test_higher_risk_means_fewer_fix_rounds(self) -> None:
+        limits = [prompts.risk_retry_limit(r) for r in (prompts.LOW, prompts.MEDIUM, prompts.HIGH)]
+
+        self.assertEqual(limits, [3, 2, 1])
+        self.assertEqual(sorted(limits, reverse=True), limits)
+
+    def test_an_unknown_level_falls_back_to_medium(self) -> None:
+        self.assertEqual(prompts.risk_retry_limit("치명적"), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
