@@ -3,7 +3,8 @@ name: implement
 description: >-
   고정된 디자인 계약(layout-contract·design-tokens·component-map)을 기준으로 UI를 구현하거나,
   구현 결과가 그 계약과 맞는지 검증할 때 사용합니다. "계약대로 구현해줘",
-  "이 화면 수치 맞는지 확인해줘", "디자인이랑 다른 데 찾아줘", "UI 리뷰해줘" 같은 요청이 해당됩니다.
+  "이 화면 수치 맞는지 확인해줘", "디자인이랑 다른 데 찾아줘",
+  "디자인대로 구현됐는지 봐줘" 같은 요청이 해당됩니다.
   Implementing a screen from a fixed layout contract and verifying the result against it —
   Compose, SwiftUI and Flutter mappings for Auto Layout, hug/fill/fixed and dp/sp/pt,
   plus screenshot tolerance. Not a general-purpose code review.
@@ -20,7 +21,22 @@ iOS와 Android는 폰트 렌더링·line-height 처리·anti-aliasing이 달라�
 없다. 같아지게 만들려고 수치를 비틀면 오히려 계약에서 멀어진다.
 지킬 것은 **계약된 수치·토큰·컴포넌트 매핑**이고, 스크린샷은 허용 오차 안에서 통과하면 된다.
 
-## 들어가기 전에
+## 먼저 무엇을 요청받았는지 가른다
+
+| 요청 | 할 일 |
+| --- | --- |
+| 구현해 달라 | 아래 전부 |
+| 맞는지 봐 달라·리뷰해 달라 | **검증만 한다.** 코드를 고치지 않고 계약 파일도 만들지 않는다 |
+| 계약 없이 리뷰해 달라 | 대조할 기준이 없다고 먼저 알린다. 계약을 지어내 리뷰하지 않는다 |
+
+검토 요청을 받아 코드를 고치면 구현자와 리뷰어가 한 사람이 된다.
+**이 플러그인이 막으려는 것이 그것이다.** 고칠지는 지적을 읽은 사람이 정한다.
+
+세 번째 경우에는 `extract`를 돌릴지 묻는다. 계약 없이도 할 수 있는 것은
+[references/platforms.md](references/platforms.md)의 플랫폼 함정을 보는 것까지다.
+그 결과를 "디자인과 맞다/다르다"로 적지 않는다. 대조한 기준이 없기 때문이다.
+
+## 구현하기 전에
 
 `layout-contract.json`·`design-tokens.json`·`component-map.md`를 읽는다.
 **없으면 구현하지 않는다.** [extract 스킬](../extract/SKILL.md)로 먼저 만든다.
@@ -32,7 +48,17 @@ iOS와 Android는 폰트 렌더링·line-height 처리·anti-aliasing이 달라�
 
 1. 계약 파일 넷을 읽는다. 그 다음 코드베이스의 **기존 토큰과 컴포넌트를 확인한다.**
 2. `component-map.md`에 적힌 컴포넌트를 쓴다. 매핑된 컴포넌트가 없으면 만들지 말고 멈춘다.
-3. 수치는 `layout-contract.json`에서만 가져온다. 계약에 없는 숫자를 쓰면 그 자체가 위반이다.
+3. 수치의 출처를 가른다. 둘 다 계약이고, **어느 쪽에도 없는 숫자를 쓰면 위반이다.**
+
+   | 종류 | 정본 |
+   | --- | --- |
+   | 크기·padding·gap·radius·테두리 두께 | `layout-contract.json`의 숫자를 그대로 |
+   | 폰트·색·shadow | `design-tokens.json`이 `codeRef`로 가리키는 **코드 토큰** |
+
+   폰트와 색은 숫자를 코드에 박지 않는다. `design-tokens.json`의 `fontSize`·`lineHeight`는
+   **토큰이 맞는지 대조하는 값**이지 직접 쓸 값이 아니다.
+   플랫폼이 환산을 요구하면(Flutter의 `height`) 그 값으로 계산한다.
+
    레이아웃 값은 한자리에 모아 둔다 — 나중에 계약과 대조할 수 있어야 한다.
 4. 새 색상·새 폰트·새 토큰·새 컴포넌트를 만들지 않는다.
 5. Auto Layout을 플랫폼 레이아웃으로 옮긴다. 플랫폼별 매핑과 자주 틀리는 지점은

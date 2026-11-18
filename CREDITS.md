@@ -34,6 +34,9 @@ SwiftUI·Compose에서 자주 틀리는 지점 목록을 반영했습니다.
 원문의 별도 라이선스를 확인하지 못해 문단·예제 코드·JSON 예시는 복제하지 않았습니다.
 한국어 절차와 템플릿은 직접 작성했습니다.
 
+Flutter의 `width: 0.0`이 물리 1픽셀 테두리를 그린다는 것과 그때 생기는 겹침 현상은
+[BorderSide.width 문서](https://api.flutter.dev/flutter/painting/BorderSide/width.html)가 출처입니다.
+
 원문이 다루지 않는 부분은 이 플러그인의 확장입니다. 레이아웃 계약을 컴포넌트마다 다른 키 대신
 **중첩 `children` 구조와 `unresolved` 배열**로 고정한 것, 디자인 토큰에 코드 토큰을 잇는 `codeRef`를
 둔 것, 입력 종류(디자인 MCP / Dev Mode 복사값 / 스크린샷)에 따라 동작을 가르고
