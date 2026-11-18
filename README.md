@@ -14,7 +14,7 @@
 | `maestro-e2e` | Android · iOS · Maestro CLI | Android는 Compose, iOS는 SwiftUI(시뮬레이터) 기준입니다. CI 템플릿은 GitHub Actions의 Android용입니다 |
 | `explain-diff` | **없음** | 어느 언어·플랫폼이든 동작합니다. PR을 대상으로 하려면 `gh`가 있으면 편합니다 |
 | `agent-orchestrator` | **없음** | 넘길 상대(`codex` 같은 다른 에이전트)와, 결과를 판정할 테스트·빌드·린트가 있으면 동작합니다 |
-| `context-pack` | **없음** | 작업 전에 AI가 필요한 맥락·수정 경계·검증 기준을 정리하게 할 프로젝트. 파일 생성기는 Python 3.9 이상 |
+| `context-pack` | **없음** | 에이전트 지침과 문서 구조를 설계하거나 정리할 프로젝트. 파일 생성기는 Python 3.9 이상 |
 
 iOS 프로젝트에서 `android-guard`를 켜 두면 조용히 있을 뿐 `.p12`나 provisioning profile을
 지켜주지는 않습니다.
@@ -71,19 +71,22 @@ claude plugin install context-pack@ahn-cc-kit
 | `maestro-e2e` | Maestro E2E 도입 절차와 Flow 작성·실행 규칙, 화면 작업 뒤 실행 알림 훅 | draft |
 | `explain-diff` | 코드 변경을 배경·직관·코드·퀴즈로 푸는 HTML 설명 페이지 | draft |
 | `agent-orchestrator` | 계획·구현·리뷰를 다른 에이전트와 세션에 나누는 왕복 절차와 범위 검증 | review |
-| `context-pack` | 작업별 다섯 문서 자동 작성·구현·검증 절차, 프로젝트 도입과 기존 kit 연결 | draft |
+| `context-pack` | 루트 지침·스킬·결정 기록으로 자리를 나누는 설계, 그 위의 작업별 다섯 문서 | draft |
 
 ### context-pack
 
-"이 프로젝트에 컨텍스트팩 도입해줘" 또는 `/context-pack:setup`으로 한 번 도입합니다.
-기존 지침·작업 메모·검증 경로를 조사해 프로젝트에 시작 규칙과 절차를 남깁니다.
-이후 변경 요청에서는 AI가 작업별 `task.md`·`files.md`·`rules.md`·`tests.md`·`done.md`를 내용까지 작성하고
-그 기준으로 구현·검증합니다. 사소한 변경은 채팅으로 축약하고 질문에는 팩을 만들지 않습니다.
+**"이 프로젝트 문서 구조 잡아줘"**, **"AGENTS.md 만들어줘"** 또는 `/context-pack:setup`으로 설계합니다.
+기존 지침·스킬·결정 기록과 **이 저장소를 읽는 도구**를 조사해 배치를 정하고 루트 지침의 절을 채웁니다.
+어떤 작업이든 걸리는 규칙만 루트에 두고, 특정 작업의 절차는 스킬로, 코드에 남지 않는 판단은
+결정 기록으로, 작업 스타일은 개인 파일로 내립니다. 이미 자리가 나뉘어 있으면 갈아엎지 않고
+빠진 절만 알립니다.
+
+그 위에 작업별 맥락을 얹습니다. 변경 요청에서 AI가 `task.md`·`files.md`·`rules.md`·`tests.md`·`done.md`를
+내용까지 작성하고 그 기준으로 구현·검증합니다. 사소한 변경은 채팅으로 축약하고 질문에는 팩을 만들지 않습니다.
 
 기존 계획을 정본으로 재사용하며 오케스트레이터·Maestro·리뷰·guard의 역할을 복제하지 않습니다.
 지침 기반 자동화이므로 차단 훅이나 CI 관문을 대신하지 않습니다. 자세한 내용은
 [plugins/context-pack/README.md](plugins/context-pack/README.md)에 있습니다.
-
 ### android-review
 
 diff·MR·완료된 구현을 리뷰할 때 자동으로 불립니다. 정확성 → 회귀 위험 → 범위 이탈 → 보안 →

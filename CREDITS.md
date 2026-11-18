@@ -14,6 +14,12 @@ K2 Lee의 [AI 코딩 에이전트 성능을 확 올리는 실전 스킬: Context
 작성자가 관리하는 세 프로젝트에서 사용한 근거/가설 구분, 환경별 검증·확인 한계, 짧은 루트 지침과
 상세 문서 연결 방식을 일반화했으며, 프로젝트 고유 규칙·경로·실데이터는 넣지 않았습니다.
 
+원문 16장은 전역 규칙(AGENTS.md)과 작업별 맥락(Context Pack)을 섞지 말라는 경계를 제시합니다.
+그 경계는 반영했고, 전역 규칙 쪽은 원문이 다루지 않는 영역이라 따로 설계했습니다.
+루트 지침의 절 차례와 절별 작성 기준, 루트·스킬·결정 기록·개인 파일의 배치 기준, 읽는 도구에 따른
+진입점 선택(`AGENTS.md` 본체 + `CLAUDE.md` 브리지 또는 그 반대)은 작성자가 관리하는 세 프로젝트의
+구조에서 일반화한 것입니다. 각 프로젝트의 모듈명·API·경로·운영 설정은 넣지 않았습니다.
+
 스킬 발견·참조 파일 구조는 [Claude Code Skills](https://code.claude.com/docs/en/skills),
 프로젝트 지침 연결은 [Claude Code Memory](https://code.claude.com/docs/en/memory),
 패키징은 [Plugin Reference](https://code.claude.com/docs/en/plugins-reference)를 확인했습니다.

@@ -1,7 +1,7 @@
 {
   "name": "context-pack",
-  "description": "작업 전에 문제·파일 경계·규칙·테스트·완료 조건을 다섯 문서로 작성하고 그 기준으로 구현·검증하는 절차. 프로젝트에 한 번 도입하면 이후 변경 요청에서 자동으로 준비합니다.",
-  "version": "0.1.0",
+  "description": "프로젝트의 에이전트 지침과 문서 구조를 설계합니다. 루트 지침·스킬·결정 기록·개인 설정으로 자리를 나누고, 그 위에 작업별 맥락 정리(다섯 문서)를 얹습니다.",
+  "version": "0.2.0",
   "author": {
     "name": "DeokWooAhn",
     "url": "https://github.com/DeokWooAhn"
@@ -9,5 +9,5 @@
   "homepage": "https://github.com/DeokWooAhn/ahn-cc-kit",
   "repository": "https://github.com/DeokWooAhn/ahn-cc-kit",
   "license": "MIT",
-  "keywords": ["context-pack", "context-engineering", "scope", "workflow", "handoff"]
+  "keywords": ["context-pack", "context-engineering", "agents-md", "instructions", "scope", "workflow", "handoff"]
 }
