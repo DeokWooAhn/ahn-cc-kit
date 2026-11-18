@@ -21,6 +21,7 @@ from orchestrator.adapters import (
     REVIEWER,
     STALLED,
     TIMEOUT,
+    Adapter,
     AgentRequest,
     ClaudeAdapter,
     CodexAdapter,
@@ -183,6 +184,48 @@ class BuildCommandTest(unittest.TestCase):
         command = CodexAdapter().build_command(self.request(), prompt)
 
         self.assertEqual(command.count(prompt), 1)
+
+    def test_a_first_attempt_leaves_the_tool_default_alone(self) -> None:
+        codex = CodexAdapter().build_command(self.request(), "넘길 말")
+        claude = ClaudeAdapter().build_command(self.request(), "넘길 말")
+
+        self.assertNotIn("-c", codex)
+        self.assertNotIn("--model", claude)
+
+    def test_a_retry_raises_the_claude_model(self) -> None:
+        command = ClaudeAdapter().build_command(self.request(attempt=1), "고쳐라")
+
+        self.assertEqual(command[3:5], ["--model", "opus"])
+
+    def test_a_retry_raises_the_codex_effort(self) -> None:
+        command = CodexAdapter().build_command(self.request(attempt=1), "고쳐라")
+
+        self.assertEqual(command[4:6], ["-c", "model_reasoning_effort=high"])
+        self.assertEqual(command[-1], "고쳐라")
+
+    def test_an_explicit_model_beats_the_ladder(self) -> None:
+        command = ClaudeAdapter().build_command(
+            self.request(attempt=2, model="sonnet"), "고쳐라"
+        )
+
+        self.assertEqual(command[3:5], ["--model", "sonnet"])
+        self.assertEqual(command.count("--model"), 1)
+
+    def test_an_explicit_codex_model_still_gets_the_effort(self) -> None:
+        command = CodexAdapter().build_command(
+            self.request(attempt=1, model="gpt-5"), "고쳐라"
+        )
+
+        self.assertEqual(command[4:8], ["-m", "gpt-5", "-c", "model_reasoning_effort=high"])
+
+    def test_the_ladder_stops_at_the_top(self) -> None:
+        once = ClaudeAdapter().build_command(self.request(attempt=1), "고쳐라")
+        many = ClaudeAdapter().build_command(self.request(attempt=9), "고쳐라")
+
+        self.assertEqual(once, many)
+
+    def test_an_adapter_without_a_ladder_adds_nothing(self) -> None:
+        self.assertIsNone(Adapter().rung(3))
 
     def test_adapter_for_known_names(self) -> None:
         self.assertIsInstance(adapter_for("codex"), CodexAdapter)

@@ -105,8 +105,10 @@ class ScriptedAdapter(Adapter):
         self.script = script
         self.prompts: list[str] = []
         self.read_only: list[bool] = []
+        self.attempts: list[int] = []
 
     def build_command(self, request, prompt: str) -> list[str]:
         self.prompts.append(prompt)
         self.read_only.append(request.read_only)
+        self.attempts.append(request.attempt)
         return ["sh", "-c", self.script]

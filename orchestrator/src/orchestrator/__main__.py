@@ -72,6 +72,10 @@ def _common(parser: argparse.ArgumentParser) -> None:
         help="역할이 쓸 어댑터를 바꾼다. 예: --route reviewer=codex",
     )
     parser.add_argument(
+        "--model", action="append", default=[], metavar="역할=별칭",
+        help="그 역할이 쓸 모델. 주지 않으면 도구의 기본 설정을 쓴다. 예: --model reviewer=opus",
+    )
+    parser.add_argument(
         "--retry-limit", type=int, default=None,
         help="자동 수정 횟수. 주지 않으면 계획의 위험도가 정한다",
     )
@@ -89,6 +93,7 @@ def _settings(args, task_id: str) -> Settings:
         orchestrate_dir=args.orchestrate_dir,
         plugin_dir=args.plugin_dir,
         routing=_routing(args.route),
+        models=_models(args.model),
         retry_limit=args.retry_limit,
         stall_seconds=_stall_seconds(args.stall_seconds),
     )
@@ -110,6 +115,19 @@ def _stall_seconds(pairs: list[str]) -> dict[str, int]:
         if seconds < 0:
             raise OrchestratorError(f"초는 0 이상이어야 한다: {pair}")
         found[role] = seconds
+    return found
+
+
+def _models(pairs: list[str]) -> dict[str, str]:
+    known = set(pipeline.DEFAULT_ROUTING)
+    found: dict[str, str] = {}
+    for pair in pairs:
+        role, separator, model = pair.partition("=")
+        if not separator or not model:
+            raise OrchestratorError(f"--model 형식은 역할=별칭이다: {pair}")
+        if role not in known:
+            raise OrchestratorError(f"모르는 역할: {role} (있는 것: {', '.join(sorted(known))})")
+        found[role] = model
     return found
 
 

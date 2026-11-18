@@ -340,6 +340,20 @@ class AfterReviewTest(PipelineTestCase):
         self.assertEqual(result.state, RunState.SCOPE_CHECK)
         self.assertIn(str(settings.paths.fix_plan), settings.adapters[FIXER].prompts[0])
 
+    def test_a_fix_runs_on_the_raised_rung(self) -> None:
+        settings = self.reach_waiting(**{FIXER: "echo 또 고침 >> a.txt"})
+        settings.paths.fix_plan.write_text("# 수정 계획\n\n하나만 고친다\n", encoding="utf-8")
+
+        pipeline.request_fix(settings)
+        pipeline.step(settings)
+
+        self.assertEqual(settings.adapters[FIXER].attempts, [1])
+
+    def test_the_first_implementation_stays_on_the_bottom_rung(self) -> None:
+        settings = self.reach_waiting()
+
+        self.assertEqual(settings.adapters[IMPLEMENTER].attempts, [0])
+
     def test_the_retry_limit_stops_the_loop(self) -> None:
         settings = self.reach_waiting(**{FIXER: "echo 또 고침 >> a.txt"})
         settings.paths.fix_plan.write_text("# 수정 계획\n", encoding="utf-8")
