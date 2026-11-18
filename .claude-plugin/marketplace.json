@@ -171,6 +171,27 @@
         "design-to-code",
         "screenshot-test"
       ]
+    },
+    {
+      "name": "ui-polish",
+      "source": "ui-polish",
+      "description": "unslop 의 진단과 아홉 단계를 Compose·SwiftUI·Flutter 와 한국어 화면에 맞게 보정합니다. 디자인 소스와 테마 토큰에서 값을 고치고, 새 화면이 생기면 다듬을지 묻습니다.",
+      "version": "0.1.0",
+      "author": {
+        "name": "DeokWooAhn"
+      },
+      "license": "MIT",
+      "category": "design",
+      "keywords": [
+        "unslop",
+        "ui",
+        "design",
+        "compose",
+        "swiftui",
+        "flutter",
+        "korean",
+        "design-tokens"
+      ]
     }
   ]
 }

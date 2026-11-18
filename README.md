@@ -2,8 +2,8 @@
 
 **모바일 앱 프로젝트를 위한** Claude Code 플러그인 마켓플레이스. 플러그인 하나는 문제 하나만 다룹니다.
 
-아홉 중 셋은 Android·Gradle을 전제하고, `maestro-e2e`는 Android와 iOS를, `ui-contract`는 Compose·SwiftUI·Flutter를
-함께 다룹니다. `git-guard`와 `explain-diff`, `agent-orchestrator`, `context-pack`은 플랫폼과 무관합니다 — Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
+열 중 셋은 Android·Gradle을 전제하고, `maestro-e2e`는 Android와 iOS를, `ui-contract`와 `ui-polish`는
+Compose·SwiftUI·Flutter를 함께 다룹니다. `git-guard`와 `explain-diff`, `agent-orchestrator`, `context-pack`은 플랫폼과 무관합니다 — Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
 
 | 플러그인 | 전제 | 이런 저장소에서 |
 | --- | --- | --- |
@@ -16,6 +16,7 @@
 | `agent-orchestrator` | **없음** | 넘길 상대(`codex` 같은 다른 에이전트)와, 결과를 판정할 테스트·빌드·린트가 있으면 동작합니다 |
 | `context-pack` | **없음** | 에이전트 지침과 문서 구조를 설계하거나 정리할 프로젝트. 파일 생성기는 Python 3.9 이상 |
 | `ui-contract` | **모바일 UI** | Compose·SwiftUI·Flutter 기준입니다. 디자인 MCP가 없으면 사람이 준 값으로 동작합니다 |
+| `ui-polish` | **모바일 UI** | 화면을 띄워 보려면 기기나 시뮬레이터가 필요합니다. 없으면 건너뜁니다 |
 
 iOS 프로젝트에서 `android-guard`를 켜 두면 조용히 있을 뿐 `.p12`나 provisioning profile을
 지켜주지는 않습니다.
@@ -65,6 +66,10 @@ claude plugin install context-pack@ahn-cc-kit
 claude plugin install ui-contract@ahn-cc-kit
 ```
 
+```bash
+claude plugin install ui-polish@ahn-cc-kit
+```
+
 ## 플러그인
 
 | 플러그인 | 내용 | 상태 |
@@ -78,6 +83,7 @@ claude plugin install ui-contract@ahn-cc-kit
 | `agent-orchestrator` | 계획·구현·리뷰를 다른 에이전트와 세션에 나누는 왕복 절차와 범위 검증 | review |
 | `context-pack` | 루트 지침·스킬·결정 기록으로 자리를 나누는 설계, 그 위의 작업별 다섯 문서 | draft |
 | `ui-contract` | 디자인 수치를 계약 파일로 고정하고 그 계약대로 구현·검증 | draft |
+| `ui-polish` | AI가 만든 티가 나는 화면 다듬기. unslop을 모바일·한국어에 맞게 보정 | draft |
 
 ### context-pack
 
@@ -181,6 +187,23 @@ HTML 한 장을 저장소 밖(`~/explain-diff/`, `EXPLAIN_DIFF_DIR`)에 날짜�
 
 작업 범위와 완료 보고는 `context-pack`이, 구현·리뷰 세션을 갈라 돌리는 것은 `agent-orchestrator`가
 정본입니다. 자세한 내용은 [plugins/ui-contract/README.md](plugins/ui-contract/README.md)에 있습니다.
+
+### ui-polish
+
+**"디자인 다듬어줘"**, **"AI가 만든 티 나"** 또는 `/ui-polish:polish`로 시작합니다.
+진단 → 방향 다섯 줄 → 아홉 단계 → 검수 순으로 가고, **방향을 쓴 뒤 멈춰 답을 기다립니다.**
+
+[unslop](https://github.com/heydamir/unslop)(CC BY 4.0)을 모바일과 한국어 화면에 맞게 고쳐 쓴 것입니다.
+원본은 웹 대상이라 스냅샷 스크립트·정적 HTML 재구성·스토리 영상이 모바일에서 돌아가지 않고
+토큰 값도 CSS 기준입니다. 판단 기준은 그대로 쓰고 **확인 방법과 값만** 바꿉니다.
+
+한국어 보정이 따로 있습니다. 제목 굵기를 700에서 500으로 낮추면 영문에서는 단정해지지만
+**한글에서는 위계가 사라질 수 있습니다.** 금액 열의 고정폭 숫자, 어절 단위 줄바꿈,
+조사가 붙는 동적 문구도 여기서 다룹니다.
+
+새 화면 파일이 생기면 훅이 한 줄로 **묻습니다.** 막지 않고 고치지도 않습니다 —
+괜찮은 화면을 달라 보이게 바꾸는 것은 개선이 아니기 때문입니다. 자세한 내용은
+[plugins/ui-polish/README.md](plugins/ui-polish/README.md)에 있습니다.
 
 ## 원하는 프로젝트에서만 켜기
 

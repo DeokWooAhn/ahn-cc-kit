@@ -1,0 +1,27 @@
+{
+  "description": "새 화면 파일이 생기면 다듬을지 한 줄로 알린다. 막지 않고 고치지도 않는다. 좋은 화면을 달라 보이게 바꾸는 것이 이 작업의 목적이 아니기 때문이다.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/screen-notice.sh\" mark",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/screen-notice.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
