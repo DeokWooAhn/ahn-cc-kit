@@ -16,24 +16,30 @@ cat >/dev/null 2>&1 || true
 PLUGIN="android-guard"
 OPTOUT="ANDROID_GUARD_DISABLE_DEPS_CHECK"
 NEEDED="jq"
+USES="jq로 도구 입력을 읽습니다"
 
 [[ -n "${!OPTOUT:-}" ]] && exit 0
 
 MISSING=""
+INSTALL=""
 for bin in $NEEDED; do
-  command -v "$bin" >/dev/null 2>&1 || MISSING="${MISSING:+$MISSING, }$bin"
+  command -v "$bin" >/dev/null 2>&1 || {
+    MISSING="${MISSING:+$MISSING, }$bin"
+    INSTALL="${INSTALL:+$INSTALL }$bin"
+  }
 done
 [[ -n "$MISSING" ]] || exit 0
 
 cat <<MSG
 ⚠️ $PLUGIN 플러그인이 동작하지 않습니다. 없는 명령: $MISSING
 
-이 플러그인의 훅은 전부 jq로 입력을 읽습니다. jq가 없으면 모든 판정이 빈 값이 되어
-아무것도 막지 못한 채 조용히 통과합니다. 설치 전까지는 보호받고 있지 않습니다.
+이 플러그인의 훅은 $USES.
+없으면 판정이 빈 값이 되어 아무것도 막지 못한 채 조용히 통과합니다.
+설치 전까지는 보호받고 있지 않습니다.
 
-  macOS   brew install jq
-  Debian  sudo apt install jq
-  Fedora  sudo dnf install jq
+  macOS   brew install $INSTALL
+  Debian  sudo apt install $INSTALL
+  Fedora  sudo dnf install $INSTALL
 
 설치한 뒤 세션을 다시 시작하면 됩니다.
 
