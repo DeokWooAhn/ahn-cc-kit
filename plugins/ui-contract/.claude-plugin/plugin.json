@@ -1,0 +1,22 @@
+{
+  "name": "ui-contract",
+  "description": "디자인 수치를 계약 파일로 고정하고 그 계약대로 UI를 구현·검증하는 절차. 이미지 추측 대신 Figma·Zeplin의 layout 데이터를 쓰고, 애매한 값은 구현하지 않고 보고합니다.",
+  "version": "0.1.0",
+  "author": {
+    "name": "DeokWooAhn",
+    "url": "https://github.com/DeokWooAhn"
+  },
+  "homepage": "https://github.com/DeokWooAhn/ahn-cc-kit",
+  "repository": "https://github.com/DeokWooAhn/ahn-cc-kit",
+  "license": "MIT",
+  "keywords": [
+    "figma",
+    "design-tokens",
+    "ui",
+    "compose",
+    "swiftui",
+    "flutter",
+    "design-to-code",
+    "screenshot-test"
+  ]
+}

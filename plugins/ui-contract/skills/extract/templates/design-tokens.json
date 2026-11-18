@@ -1,0 +1,36 @@
+{
+  "_template": "채우고 이 키는 지운다. 코드에 이미 있는 토큰은 codeRef로 연결한다. 없는 토큰을 새로 만들지 않는다.",
+  "colors": {
+    "<color.역할.이름>": {
+      "light": "#RRGGBB",
+      "dark": "#RRGGBB",
+      "opacity": null,
+      "codeRef": "<코드의 토큰 이름. 없으면 null로 두고 ambiguity-report에 적는다>"
+    }
+  },
+  "typography": {
+    "<typography.역할.크기>": {
+      "fontFamily": null,
+      "fontSize": null,
+      "lineHeight": null,
+      "fontWeight": null,
+      "letterSpacing": null,
+      "codeRef": null
+    }
+  },
+  "radius": {
+    "<radius.이름>": { "value": null, "codeRef": null }
+  },
+  "shadows": {
+    "<shadow.이름>": {
+      "x": null,
+      "y": null,
+      "blur": null,
+      "spread": null,
+      "color": null,
+      "opacity": null,
+      "codeRef": null
+    }
+  },
+  "unresolved": []
+}

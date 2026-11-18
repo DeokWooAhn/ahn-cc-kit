@@ -2,8 +2,8 @@
 
 **모바일 앱 프로젝트를 위한** Claude Code 플러그인 마켓플레이스. 플러그인 하나는 문제 하나만 다룹니다.
 
-여덟 중 셋은 Android·Gradle을 전제하고, `maestro-e2e`는 Android와 iOS를 함께 다룹니다. `git-guard`와
-`explain-diff`, `agent-orchestrator`, `context-pack`은 플랫폼과 무관합니다 — Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
+아홉 중 셋은 Android·Gradle을 전제하고, `maestro-e2e`는 Android와 iOS를, `ui-contract`는 Compose·SwiftUI·Flutter를
+함께 다룹니다. `git-guard`와 `explain-diff`, `agent-orchestrator`, `context-pack`은 플랫폼과 무관합니다 — Android와 상관없는 규칙을 Android 플러그인에 넣지 않으려고 일부러 떼어 놓았습니다.
 
 | 플러그인 | 전제 | 이런 저장소에서 |
 | --- | --- | --- |
@@ -15,6 +15,7 @@
 | `explain-diff` | **없음** | 어느 언어·플랫폼이든 동작합니다. PR을 대상으로 하려면 `gh`가 있으면 편합니다 |
 | `agent-orchestrator` | **없음** | 넘길 상대(`codex` 같은 다른 에이전트)와, 결과를 판정할 테스트·빌드·린트가 있으면 동작합니다 |
 | `context-pack` | **없음** | 에이전트 지침과 문서 구조를 설계하거나 정리할 프로젝트. 파일 생성기는 Python 3.9 이상 |
+| `ui-contract` | **모바일 UI** | Compose·SwiftUI·Flutter 기준입니다. 디자인 MCP가 없으면 사람이 준 값으로 동작합니다 |
 
 iOS 프로젝트에서 `android-guard`를 켜 두면 조용히 있을 뿐 `.p12`나 provisioning profile을
 지켜주지는 않습니다.
@@ -60,6 +61,10 @@ claude plugin install agent-orchestrator@ahn-cc-kit
 claude plugin install context-pack@ahn-cc-kit
 ```
 
+```bash
+claude plugin install ui-contract@ahn-cc-kit
+```
+
 ## 플러그인
 
 | 플러그인 | 내용 | 상태 |
@@ -72,6 +77,7 @@ claude plugin install context-pack@ahn-cc-kit
 | `explain-diff` | 코드 변경을 배경·직관·코드·퀴즈로 푸는 HTML 설명 페이지 | draft |
 | `agent-orchestrator` | 계획·구현·리뷰를 다른 에이전트와 세션에 나누는 왕복 절차와 범위 검증 | review |
 | `context-pack` | 루트 지침·스킬·결정 기록으로 자리를 나누는 설계, 그 위의 작업별 다섯 문서 | draft |
+| `ui-contract` | 디자인 수치를 계약 파일로 고정하고 그 계약대로 구현·검증 | draft |
 
 ### context-pack
 
@@ -159,6 +165,22 @@ HTML 한 장을 저장소 밖(`~/explain-diff/`, `EXPLAIN_DIFF_DIR`)에 날짜�
 산출물은 `.orchestrate/`에 두고 `.git/info/exclude`로 뺍니다. **팀 저장소 파일을 하나도 고치지 않습니다.**
 
 [plugins/agent-orchestrator/README.md](plugins/agent-orchestrator/README.md)에 있습니다.
+
+### ui-contract
+
+**"이 피그마 화면 구현해줘"** 또는 `/ui-contract:extract`로 시작합니다. 디자인 소스에서 수치를 뽑아
+`layout-contract.json`·`design-tokens.json`·`component-map.md`·`ambiguity-report.md`를 만듭니다.
+**이 단계에서는 코드를 쓰지 않습니다** — 수치가 틀리면 그 위에 올린 구현은 계속 흔들립니다.
+
+사람이 애매한 항목에 답한 뒤 **"계약대로 구현해줘"**로 넘어갑니다. 구현은 계약에 없는 숫자를 쓰지 않고,
+매핑되지 않은 컴포넌트를 만나면 멈춥니다. 검증은 pixel perfect가 아니라 **계약 일치**로 봅니다 —
+폰트 렌더링 차이는 허용하고, 크기·굵기·줄 수는 허용하지 않습니다.
+
+**스크린샷뿐이면 계약 파일을 만들지 않습니다.** 추측에 계약의 형식을 입히면 나중에 읽는 사람이
+측정값과 추측을 구별할 수 없기 때문입니다. 그때는 추측이라고 알리고 디자인 데이터를 요청합니다.
+
+작업 범위와 완료 보고는 `context-pack`이, 구현·리뷰 세션을 갈라 돌리는 것은 `agent-orchestrator`가
+정본입니다. 자세한 내용은 [plugins/ui-contract/README.md](plugins/ui-contract/README.md)에 있습니다.
 
 ## 원하는 프로젝트에서만 켜기
 
