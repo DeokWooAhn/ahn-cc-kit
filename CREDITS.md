@@ -45,6 +45,32 @@ Flutter의 `width: 0.0`이 물리 1픽셀 테두리를 그린다는 것과 그�
 규칙이 여기에 해당합니다. 작업 범위·완료 보고는 `context-pack`에, 세션 분리는 `agent-orchestrator`에
 맡기고 같은 정책을 두 벌 만들지 않았습니다.
 
+## ui-polish
+
+Damir Sokolovsky(**[@heydamir](https://github.com/heydamir)**)의
+**[unslop](https://github.com/heydamir/unslop)** 을 참고했습니다.
+원본은 **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)** 으로 배포됩니다.
+**이 플러그인은 원본을 모바일과 한국어 화면에 맞게 고쳐 쓴 것입니다.**
+
+원본에서 온 것은 절차의 뼈대입니다. 진단 → 방향 다섯 줄(Product·Character·World·Moments·Signature)
+→ 아홉 단계(간격·색·아이콘·문구·글자·배치·디테일·비주얼·모션) → 검수의 순서,
+방향을 쓰고 멈춰 사용자 답을 기다리는 규칙, 슬롭 정도에 따라 범위를 가르는 세 모드,
+이미 좋은 화면은 바꾸지 않는다는 원칙이 여기에 해당합니다.
+문단·예제 코드·토큰 값·진단 목록 본문은 복제하지 않았습니다. 한국어 절차는 직접 작성했습니다.
+원본의 스냅샷 스크립트와 스토리 영상 기능은 웹 전용이라 가져오지 않았습니다.
+
+**바꾼 것**은 이 플러그인의 내용 대부분입니다. 플랫폼 보정(`:hover` 가 없는 환경,
+`box-shadow` 대신 elevation, 터치 타깃 하한, 글자 크기 설정, 모션 줄이기, safe area),
+한국어 보정(굵기를 영문 기준으로 낮추지 않기, 어절 단위 줄바꿈, 받침을 고려한 줄 높이,
+조사가 붙는 동적 문구, 금액 열의 고정폭 숫자), 디자인 소스 → 테마 토큰 → 화면 경로,
+새 화면이 생겼을 때 묻기만 하는 알림 훅이 여기에 해당합니다.
+`ui-contract` 와 역할을 나눈 것도 이 저장소의 선택입니다.
+
+플랫폼별 API 는 각 공식 문서에서 확인했습니다 — Compose 의 `LineBreak`,
+SwiftUI 의 `monospacedDigit()`, Flutter 의 `FontFeature.tabularFigures()`.
+한국어 보정의 판단 기준은 작성자가 관리하는 프로젝트에서 겪은 것을 일반화했으며,
+각 프로젝트의 클래스명·모듈명·실데이터는 넣지 않았습니다.
+
 ## android-review
 
 `android` CLI 사용법은 설치된 CLI의 `android skills --help`, `android skills add --help`,

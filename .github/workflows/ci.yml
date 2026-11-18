@@ -44,6 +44,9 @@ jobs:
       - name: maestro-e2e
         run: python3 plugins/maestro-e2e/hooks/test_hooks.py
 
+      - name: ui-polish
+        run: python3 plugins/ui-polish/hooks/test_hooks.py
+
       - name: context-pack
         run: python3 -m unittest discover -s plugins/context-pack/tests -v
 
