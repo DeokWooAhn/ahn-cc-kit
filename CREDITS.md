@@ -24,6 +24,24 @@ K2 Lee의 [AI 코딩 에이전트 성능을 확 올리는 실전 스킬: Context
 프로젝트 지침 연결은 [Claude Code Memory](https://code.claude.com/docs/en/memory),
 패키징은 [Plugin Reference](https://code.claude.com/docs/en/plugins-reference)를 확인했습니다.
 
+## ui-contract
+
+K2 Lee의 [Figma UI를 Codex와 Claude로 수치까지 정확하게 구현하는 법](https://www.keyflow.me/ko/@ekyu/post/2026-07-16-figma-ui를-codex와-claude로-수치까지-정확하게-구현하는-법)을 참고했습니다.
+구현 전에 수치를 계약 파일로 고정한다는 발상, 레이아웃 계약·디자인 토큰·컴포넌트 매핑·애매함 보고로
+나누는 구성, 추출과 구현을 갈라 "아직 코드를 쓰지 말라"고 못 박는 순서, "pixel perfect가 아니라
+contract matching"이라는 목표 재정의, 허용 오차를 두고 스크린샷으로 검증하는 방식,
+SwiftUI·Compose에서 자주 틀리는 지점 목록을 반영했습니다.
+원문의 별도 라이선스를 확인하지 못해 문단·예제 코드·JSON 예시는 복제하지 않았습니다.
+한국어 절차와 템플릿은 직접 작성했습니다.
+
+원문이 다루지 않는 부분은 이 플러그인의 확장입니다. 레이아웃 계약을 컴포넌트마다 다른 키 대신
+**중첩 `children` 구조와 `unresolved` 배열**로 고정한 것, 디자인 토큰에 코드 토큰을 잇는 `codeRef`를
+둔 것, 입력 종류(디자인 MCP / Dev Mode 복사값 / 스크린샷)에 따라 동작을 가르고
+**스크린샷뿐이면 계약 파일을 만들지 않게** 한 것, Flutter 매핑과 함정, 디자인 MCP 도구별 역할 구분과
+가져온 코드를 수치만 꺼내 쓰라는 경계, 리뷰 심각도 세 단계와 `blocked`일 때 애매함 보고로 돌아가는
+규칙이 여기에 해당합니다. 작업 범위·완료 보고는 `context-pack`에, 세션 분리는 `agent-orchestrator`에
+맡기고 같은 정책을 두 벌 만들지 않았습니다.
+
 ## android-review
 
 `android` CLI 사용법은 설치된 CLI의 `android skills --help`, `android skills add --help`,

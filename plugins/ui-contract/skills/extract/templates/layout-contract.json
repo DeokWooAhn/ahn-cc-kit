@@ -1,0 +1,47 @@
+{
+  "_template": "채우고 이 키는 지운다. 모르는 값은 null로 두고 unresolved에 키 경로를 적는다. 추측값을 넣지 않는다.",
+  "component": "<컴포넌트 또는 화면 이름>",
+  "source": {
+    "tool": "figma-mcp | figma-devmode | zeplin | spec-doc",
+    "file": "<파일 URL 또는 이름>",
+    "node": "<node id>",
+    "frame": "<프레임 경로>",
+    "extractedAt": "<YYYY-MM-DD>"
+  },
+  "reference": {
+    "width": null,
+    "unit": "dp | pt",
+    "note": "기준 디바이스 폭. 반응형 규칙이 있으면 breakpoints에 적는다.",
+    "breakpoints": []
+  },
+  "root": {
+    "size": { "width": null, "height": "hug" },
+    "padding": { "top": null, "leading": null, "bottom": null, "trailing": null },
+    "layout": { "direction": "vertical | horizontal", "gap": null, "alignment": null },
+    "cornerRadius": null,
+    "background": "<design-tokens.json의 색 토큰 이름>",
+    "shadow": null,
+    "border": null
+  },
+  "children": [
+    {
+      "id": "<이 계약 안에서만 쓰는 이름>",
+      "role": "container | text | icon | image | divider | spacer | component",
+      "size": { "width": "fill", "height": "hug" },
+      "layout": { "direction": "horizontal", "gap": null, "alignment": null },
+      "padding": null,
+      "textStyle": "<design-tokens.json의 타이포그래피 토큰 이름>",
+      "color": "<design-tokens.json의 색 토큰 이름>",
+      "componentRef": "<component-map.md의 항목. 코드 컴포넌트를 쓰는 자리일 때만>",
+      "asset": null,
+      "children": []
+    }
+  ],
+  "states": {
+    "_note": "디자인에 정의된 상태만 적는다. 없으면 빈 객체로 둔다.",
+    "default": {}
+  },
+  "unresolved": [
+    "값을 못 정한 키 경로. 예: root.shadow"
+  ]
+}
