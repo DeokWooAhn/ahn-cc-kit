@@ -1,10 +1,13 @@
 ---
 name: review
 description: >-
-  Android/Kotlin(Compose) 코드를 리뷰할 때 사용합니다. "코드리뷰 해줘", "브랜치 변경분 리뷰해줘",
-  "MR/PR 검토해줘", diff나 완료된 구현을 검토해 달라는 요청이 해당됩니다.
-  Reviewing Kotlin, Jetpack Compose, coroutine, Hilt, Gradle, or AndroidManifest changes —
-  correctness, regression risk, and resource lifetime over style.
+  Kotlin·Jetpack Compose 변경분에 Android 기준을 적용할 때 사용합니다.
+  "Compose 화면 리뷰해줘", "이 ViewModel 괜찮아?", "코틀린 변경분 봐줘",
+  "Gradle/Manifest 바뀐 것 검토해줘" 같은 요청, 또는 진행 중인 리뷰의 변경분에
+  `.kt`·`.kts`·Gradle·AndroidManifest가 들어 있을 때가 해당됩니다.
+  Android-specific review criteria for Kotlin, Jetpack Compose, coroutine, Hilt, Gradle or
+  AndroidManifest changes — state-management tracks, one-off event collection, effect keys,
+  resource lifetime. Not a general-purpose code review: it adds Android judgment on top of one.
 metadata:
   category: code-quality
   status: stable
@@ -16,6 +19,20 @@ metadata:
 
 이 스킬은 **Compose 기준**입니다. View 시스템(XML 레이아웃, ViewBinding, Fragment 렌더링)을
 전제한 항목은 담지 않습니다.
+
+## 범용 리뷰를 대체하지 않습니다
+
+이 스킬은 **Android 판단을 보태는 기준**이지 리뷰 절차가 아닙니다.
+Claude Code의 `/code-review`는 리뷰어를 여러 개 띄워 교차 검증하고 지적마다 판정을 붙입니다.
+여기에는 그 구조가 없습니다.
+
+- 변경분에 Kotlin·Compose·Gradle·Manifest가 **없으면 쓰지 않습니다.**
+- 범용 리뷰를 이미 돌렸으면 그 결과 위에 아래 기준을 보탭니다. 같은 지적을 두 번 하지 않습니다.
+- **프로젝트에 전용 리뷰 기준이 있으면 그것이 먼저입니다.** 이 문서는 프로젝트 기준이 없을 때의 바탕입니다.
+
+항상 이 기준으로 보게 하려면 프로젝트 루트 지침에 적습니다.
+
+> diff·MR을 검토할 때는 이 저장소의 리뷰 기준을 쓴다. 범용 리뷰가 아니다.
 
 ## 우선순위
 

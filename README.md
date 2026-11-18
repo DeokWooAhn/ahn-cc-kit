@@ -64,7 +64,7 @@ claude plugin install context-pack@ahn-cc-kit
 
 | 플러그인 | 내용 | 상태 |
 | --- | --- | --- |
-| `android-review` | Compose 기반 Android/Kotlin 코드 리뷰 기준 | stable |
+| `android-review` | Compose 기반 Android/Kotlin 리뷰 기준. 범용 리뷰에 Android 판단을 보탬 | stable |
 | `android-guard` | Gradle·서명·Manifest 사고 방지 훅 (차단 4 + 경고 2) | stable |
 | `git-guard` | 보호 브랜치·force push·파괴적 git 차단 (차단 3) | stable |
 | `android-audit` | 이미 들어와 있는 시크릿·설정 문제 감사 | stable |
@@ -89,8 +89,12 @@ claude plugin install context-pack@ahn-cc-kit
 [plugins/context-pack/README.md](plugins/context-pack/README.md)에 있습니다.
 ### android-review
 
-diff·MR·완료된 구현을 리뷰할 때 자동으로 불립니다. 정확성 → 회귀 위험 → 범위 이탈 → 보안 →
-테스트 누락 순으로 보고, 스타일 지적에는 노력을 쓰지 않습니다.
+변경분에 Kotlin·Compose·Gradle·Manifest가 들어 있을 때 불립니다. 정확성 → 회귀 위험 → 범위 이탈 →
+보안 → 테스트 누락 순으로 보고, 스타일 지적에는 노력을 쓰지 않습니다.
+
+**범용 코드 리뷰를 대체하지 않습니다.** Claude Code의 `/code-review`는 리뷰어를 여러 개 띄워
+교차 검증하지만 Android 맥락을 모르고, 이 스킬은 그 반대입니다. 변경분에 Kotlin이 없으면 불리지 않습니다.
+프로젝트 전용 리뷰 기준이 있으면 그것이 먼저입니다.
 
 `skills/review/references/review-rubric.md`에 영역별 체크리스트가 있습니다.
 Kotlin, Coroutine, ViewModel, Compose, Compose 성능, 자원 수명, Hilt, Network/Data,

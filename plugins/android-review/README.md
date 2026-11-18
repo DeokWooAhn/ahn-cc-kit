@@ -1,6 +1,6 @@
 # android-review
 
-Compose 기반 Android/Kotlin 코드 리뷰 기준.
+Compose 기반 Android/Kotlin 리뷰 기준. 범용 코드 리뷰에 Android 판단을 보탭니다.
 
 ```bash
 claude plugin install android-review@ahn-cc-kit
@@ -8,8 +8,14 @@ claude plugin install android-review@ahn-cc-kit
 
 ## 언제 불리나
 
-"코드리뷰 해줘", "브랜치 변경분 리뷰해줘", "MR/PR 검토해줘" 같은 요청, 또는 diff·완료된 구현을
-검토해 달라는 요청에서 모델이 자동으로 불러옵니다. 직접 부르려면 `/android-review:review`.
+"Compose 화면 리뷰해줘", "이 ViewModel 괜찮아?", "코틀린 변경분 봐줘" 같은 요청, 또는 검토 중인
+변경분에 `.kt`·`.kts`·Gradle·AndroidManifest가 들어 있을 때 불립니다.
+직접 부르려면 `/android-review:review`.
+
+**범용 코드 리뷰를 대체하지 않습니다.** Claude Code의 `/code-review`는 리뷰어를 여러 개 띄워
+교차 검증하고 지적마다 판정을 붙이지만 Android 맥락을 모릅니다. 이 스킬은 그 위에 상태 관리 트랙,
+일회성 이벤트 수집, 이펙트 key, 자원 수명 같은 판단을 보탭니다. Kotlin이 없는 변경분에는 불리지 않습니다.
+프로젝트 전용 리뷰 기준이 있으면 그것이 먼저입니다.
 
 ## 무엇을 하나
 
