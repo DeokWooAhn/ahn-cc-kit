@@ -43,11 +43,84 @@ URL에서 꺼낼 것: `figma.com/design/<fileKey>/...?node-id=<nodeId>`.
 `get_screen`으로 화면 레이어와 수치를, `get_design_tokens`로 토큰을,
 `get_component`로 컴포넌트 정의를 읽는다. asset은 `download_layer_asset`으로 받는다.
 
-## MCP 없이 Dev Mode·스펙 문서만 있을 때
+## MCP 없이 Dev Mode만 있을 때
+
+사람이 브라우저에서 보고 복사해 준다. **복사해 온 값은 측정값이므로 계약 파일을 만들어도 된다.**
+스크린샷과 다른 점이 이것이다.
+
+### 무엇을 복사해 달라고 하나
+
+**CSS로 복사하는 것이 정보량이 가장 많다.** 크기·여백·간격·radius·폰트·색이 한 번에 온다.
+플랫폼 코드(SwiftUI·Compose)로 복사하면 오히려 값이 줄고 해석이 섞인다.
+
+| Dev Mode CSS | 계약의 자리 |
+| --- | --- |
+| `width` / `height` | `size` — 다만 아래 "가장 큰 함정"을 먼저 읽는다 |
+| `padding` | `padding` |
+| `gap` | `layout.gap` |
+| `display: flex` + `flex-direction` | `layout.direction` |
+| `align-items` / `justify-content` | `layout.alignment` |
+| `border-radius` | `cornerRadius` |
+| `border` | `border` |
+| `box-shadow` | `design-tokens.json`의 `shadows` |
+| `font-family` · `font-size` · `font-weight` · `line-height` · `letter-spacing` | `design-tokens.json`의 `typography` |
+| `color` · `background` | `design-tokens.json`의 `colors` |
+
+### 가장 큰 함정
+
+**CSS의 `width`·`height`는 Figma가 계산해 낸 그 순간의 실제 크기다.**
+hug든 fill이든 구체적인 px로 찍힌다. 그래서 CSS만 보면 모든 레이어가 fixed처럼 보인다.
+
+이대로 옮기면 긴 텍스트에서 잘리고, 화면 폭이 다른 기기에서 깨진다.
+**fixed/hug/fill은 CSS가 아니라 오른쪽 속성 패널에서 확인한다.** 레이어를 고르면
+크기 입력칸 옆에 Fixed·Hug·Fill이 표시된다. 그 값을 따로 받는다.
+
+CSS에서 읽을 수 있는 단서도 있다.
+
+- 주축 fill → 자식에 `flex: 1 0 0`
+- 교차축 fill → 자식에 `align-self: stretch`
+- hug → 부모에 크기 지정이 없고 자식 크기로 결정됨
+
+단서가 없으면 추측하지 말고 묻는다. 이 한 가지만 틀려도 나머지 수치가 다 맞아도 화면이 깨진다.
+
+### 복사 순서
+
+레이어마다 따로 복사해야 하므로 순서를 정해 두면 왕복이 줄어든다.
+
+1. **루트 프레임** — 전체 크기, padding, 방향, gap, radius, 배경
+2. **바로 아래 자식들** — 각각의 크기 동작(fixed/hug/fill)과 간격
+3. **텍스트 레이어** — 타이포그래피. 같은 스타일이 반복되면 한 번만
+4. **색과 토큰 이름** — 변수가 설정돼 있으면 속성 패널에 변수 이름이 보인다.
+   **이름을 받아 적는다.** hex보다 이름이 중요하다 — 코드 토큰과 이어야 하기 때문이다
+
+중첩이 깊으면 전부 받지 말고 **이번에 구현할 범위까지만** 받는다.
+
+### CSS를 그대로 믿으면 안 되는 값
+
+- `line-height: normal` — Figma에서 auto로 둔 것이다. 실제 높이는 폰트가 정하므로
+  **계약에 숫자로 적을 수 없다.** `null`로 두고 보고한다
+- `rgba(...)` — 색에 opacity가 섞여 있다. 별도 토큰인지 토큰 + 투명도인지 확인해야 한다
+- `letter-spacing`이 `em` 같은 상대값 — 폰트 크기에 따라 달라진다. 환산값과 원본을 함께 적는다
+- 반올림된 소수 — `11.999px` 같은 값은 12로 보되, 여러 개가 어긋나면 기준 배율을 묻는다
+
+### 코드 패널의 코드
+
+Dev Mode는 SwiftUI·Compose 코드도 만들어 준다. **그 코드를 받아 붙이지 않는다.**
+MCP의 `get_design_context`와 같은 이유다 — 프로젝트의 토큰도 컴포넌트도 모르는 코드이고,
+절대 위치나 매직 넘버가 섞여 있다. 수치만 꺼내 계약으로 옮긴다.
+
+### 빠진 값
 
 사람이 복사해 준 값은 **보통 일부만 온다.** 온 값만 계약에 넣고 나머지는 `null`로 둔다.
 빈칸을 "보통 이 정도" 값으로 채우면 계약 파일 전체의 신뢰가 깨진다.
-`unresolved`에 빠진 키를 전부 적고, 받아야 할 값을 한 번에 묻는다.
+`unresolved`에 빠진 키를 전부 적고, **받아야 할 값을 한 번에 묻는다.**
+한 번에 묻는 것이 중요하다 — 레이어를 다시 찾아 들어가는 것이 사람에게는 가장 번거롭다.
+
+## 스펙 문서나 디자이너가 적어 준 값만 있을 때
+
+같은 규칙을 따른다. 다만 사람이 옮겨 적는 과정에서 값이 바뀌었을 수 있으므로
+**어디서 온 값인지** `source.tool`에 적는다. 나중에 화면이 어긋났을 때
+구현이 틀린 것인지 받은 값이 틀린 것인지 가르는 근거가 된다.
 
 ## 스크린샷뿐일 때
 
