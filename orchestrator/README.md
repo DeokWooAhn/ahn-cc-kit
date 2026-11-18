@@ -19,6 +19,7 @@
 마지막 줄이 중요하다. `git-guard`·`android-guard`는 Claude Code의 PreToolUse 훅이라
 **Claude가 돌리는 명령만** 막는다. `codex exec`로 넘긴 뒤 codex가 하는 일은 그 훅을 거치지 않는다.
 codex 샌드박스는 파일 쓰기 범위만 제한할 뿐 커밋·브랜치·푸시를 막지 않는다.
+어느 역할이 어느 도구인지에 따라 덮이는 범위가 달라지므로, 호출 후 git 검사는 배선과 무관하게 돈다.
 
 ## 지금 있는 것
 
@@ -73,11 +74,11 @@ orch verify    → 검증하고 COMPLETED
 orch step --retry-limit 4 --stall-seconds verify=0
 ```
 
-역할이 쓸 어댑터는 `--route`로 바꾼다. 기본은 Planner·Reviewer가 claude,
-Implementer·Fixer가 codex다.
+역할이 쓸 어댑터는 `--route`로 바꾼다. 기본은 Planner·Reviewer가 codex,
+Implementer·Fixer가 claude다. 구현하는 쪽과 리뷰하는 쪽이 서로 다른 도구면 된다.
 
 ```bash
-orch step --route reviewer=codex
+orch step --route implementer=codex
 ```
 
 **Implementer와 Reviewer를 같은 어댑터로 두어도 세션은 갈린다.** 둘 다 호출마다

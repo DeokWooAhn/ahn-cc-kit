@@ -179,11 +179,33 @@ class CliTest(unittest.TestCase):
     def test_route_changes_the_adapter_for_a_role(self) -> None:
         from orchestrator.__main__ import _routing
 
-        routing = _routing(["reviewer=codex"])
+        routing = _routing(["reviewer=claude"])
 
-        self.assertEqual(routing["reviewer"], "codex")
-        self.assertEqual(routing["implementer"], "codex")
-        self.assertEqual(routing["planner"], "claude")
+        self.assertEqual(routing["reviewer"], "claude")
+        self.assertEqual(routing["implementer"], "claude")
+        self.assertEqual(routing["planner"], "codex")
+
+    def test_model_sets_the_alias_for_a_role(self) -> None:
+        from orchestrator.__main__ import _models
+
+        self.assertEqual(_models(["reviewer=opus"]), {"reviewer": "opus"})
+
+    def test_no_model_leaves_the_tool_default(self) -> None:
+        from orchestrator.__main__ import _models
+
+        self.assertEqual(_models([]), {})
+
+    def test_model_needs_a_pair(self) -> None:
+        code, _, err = self.run_cli("status", TASK_ID, "--model", "reviewer")
+
+        self.assertEqual(code, EXIT_ERROR)
+        self.assertIn("역할=별칭", err)
+
+    def test_model_rejects_an_unknown_role(self) -> None:
+        code, _, err = self.run_cli("status", TASK_ID, "--model", "tester=opus")
+
+        self.assertEqual(code, EXIT_ERROR)
+        self.assertIn("모르는 역할", err)
 
     def test_route_needs_a_pair(self) -> None:
         code, _, err = self.run_cli("status", TASK_ID, "--route", "reviewer")

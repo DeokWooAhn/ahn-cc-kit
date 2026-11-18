@@ -57,6 +57,7 @@ class AgentRequest:
     stall_seconds: int | None = None
     read_only: bool = False
     model: str | None = None
+    attempt: int = 0
 
     @property
     def timeout(self) -> int:
@@ -168,6 +169,15 @@ class Adapter:
     # 신호가 없는 것을 멈춤으로 읽는다. 그런 도구는 전체 제한 시간에 맡긴다.
     streams_output = True
 
+    # 재시도 때 올려 잡을 등급. 첫 시도는 비워 두어 도구의 기본 설정을 그대로 쓴다.
+    # 판본 이름이 아니라 등급만 적어서, 모델이 새로 나와도 이 줄은 그대로 둔다.
+    ladder: tuple[str, ...] = ()
+
+    def rung(self, attempt: int) -> str | None:
+        if attempt <= 0 or not self.ladder:
+            return None
+        return self.ladder[min(attempt - 1, len(self.ladder) - 1)]
+
     def build_command(self, request: AgentRequest, prompt: str) -> list[str]:
         raise NotImplementedError
 
@@ -183,12 +193,17 @@ class CodexAdapter(Adapter):
     executable: str = "codex"
 
     name = "codex"
+    # codex 의 -m 은 판본 이름만 받아 별칭이 없다. 모델 대신 추론 강도를 올린다.
+    ladder = ("high",)
 
     def build_command(self, request: AgentRequest, prompt: str) -> list[str]:
         sandbox = "read-only" if request.read_only else "workspace-write"
         command = [self.executable, "exec", "-s", sandbox]
         if request.model:
             command.extend(["-m", request.model])
+        effort = self.rung(request.attempt)
+        if effort:
+            command.extend(["-c", f"model_reasoning_effort={effort}"])
         command.append(prompt)
         return command
 
@@ -201,11 +216,15 @@ class ClaudeAdapter(Adapter):
     # claude -p 는 끝날 때 한 번에 출력한다. 2026-11-17 CalcMoney 작업에서
     # 180초를 넘긴 리뷰가 stalled 로 끊겼다.
     streams_output = False
+    # --model 은 별칭을 받는다. 'opus' 는 판본이 아니라 "오푸스 계열의 최신"을
+    # 가리켜서, 모델이 새로 나와도 이 줄은 그대로 둔다.
+    ladder = ("opus",)
 
     def build_command(self, request: AgentRequest, prompt: str) -> list[str]:
         command = [self.executable, "-p", prompt]
-        if request.model:
-            command.extend(["--model", request.model])
+        model = request.model or self.rung(request.attempt)
+        if model:
+            command.extend(["--model", model])
         command.append("--allowed-tools")
         command.extend(READ_ONLY_CLAUDE_TOOLS if request.read_only else WRITE_CLAUDE_TOOLS)
         return command

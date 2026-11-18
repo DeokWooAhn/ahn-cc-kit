@@ -42,10 +42,10 @@ FAILURE = "failure.json"
 VERIFY_LOG = "verify-{index}.log"
 
 DEFAULT_ROUTING = {
-    PLANNER: "claude",
-    IMPLEMENTER: "codex",
-    REVIEWER: "claude",
-    FIXER: "codex",
+    PLANNER: "codex",
+    IMPLEMENTER: "claude",
+    REVIEWER: "codex",
+    FIXER: "claude",
 }
 
 MAX_STEPS = 12
@@ -95,6 +95,7 @@ class Settings:
     retry_limit: int | None = None
     timeouts: dict[str, int] = field(default_factory=dict)
     stall_seconds: dict[str, int] = field(default_factory=dict)
+    models: dict[str, str] = field(default_factory=dict)
     adapters: dict[str, Adapter] = field(default_factory=dict)
     allow_commands: tuple[str, ...] = ()
 
@@ -277,7 +278,10 @@ def _plan(settings: Settings, task: TaskState) -> StepResult:
         )
     plugin_dir = prompts.find_plugin_dir(settings.plugin_dir)
     prompt = prompts.plan_prompt(description, paths.plan, plugin_dir)
-    result = _call(settings, PLANNER, prompt, paths / PLAN_PROMPT, paths / PLAN_LOG)
+    result = _call(
+        settings, PLANNER, prompt, paths / PLAN_PROMPT, paths / PLAN_LOG,
+        attempt=task.retry_count,
+    )
     if not result.ok:
         return _agent_failed(settings, PLANNER, result)
     if not paths.plan.is_file():
@@ -332,7 +336,10 @@ def _implement(settings: Settings, task: TaskState) -> StepResult:
 
     plugin_dir = prompts.find_plugin_dir(settings.plugin_dir)
     prompt = prompts.implement_prompt(paths.plan, plugin_dir)
-    result = _call(settings, IMPLEMENTER, prompt, paths / IMPLEMENT_PROMPT, paths / IMPLEMENT_LOG)
+    result = _call(
+        settings, IMPLEMENTER, prompt, paths / IMPLEMENT_PROMPT, paths / IMPLEMENT_LOG,
+        attempt=task.retry_count,
+    )
     if not result.ok:
         return _agent_failed(settings, IMPLEMENTER, result)
 
@@ -353,7 +360,10 @@ def _fix(settings: Settings, task: TaskState) -> StepResult:
 
     plugin_dir = prompts.find_plugin_dir(settings.plugin_dir)
     prompt = prompts.fix_prompt(paths.fix_plan, plugin_dir)
-    result = _call(settings, FIXER, prompt, paths / FIX_PROMPT, paths / FIX_LOG)
+    result = _call(
+        settings, FIXER, prompt, paths / FIX_PROMPT, paths / FIX_LOG,
+        attempt=bumped.retry_count,
+    )
     if not result.ok:
         return _agent_failed(settings, FIXER, result)
 
@@ -393,7 +403,8 @@ def _review(settings: Settings, task: TaskState) -> StepResult:
     plugin_dir = prompts.find_plugin_dir(settings.plugin_dir)
     prompt = prompts.review_prompt(paths.plan, changed, plugin_dir)
     result = _call(
-        settings, REVIEWER, prompt, paths / REVIEW_PROMPT, paths / REVIEW_LOG, read_only=True
+        settings, REVIEWER, prompt, paths / REVIEW_PROMPT, paths / REVIEW_LOG,
+        read_only=True, attempt=task.retry_count,
     )
     if not result.ok:
         return _agent_failed(settings, REVIEWER, result)
@@ -482,6 +493,7 @@ def _call(
     log_file: Path,
     *,
     read_only: bool = False,
+    attempt: int = 0,
 ) -> AgentResult:
     prompt_file.parent.mkdir(parents=True, exist_ok=True)
     prompt_file.write_text(prompt, encoding="utf-8")
@@ -493,6 +505,8 @@ def _call(
         timeout_seconds=settings.timeouts.get(role),
         stall_seconds=settings.stall_seconds.get(role),
         read_only=read_only,
+        model=settings.models.get(role),
+        attempt=attempt,
     )
     return settings.adapter(role).run(request)
 
