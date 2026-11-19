@@ -34,6 +34,12 @@ SwiftUI·Compose에서 자주 틀리는 지점 목록을 반영했습니다.
 원문의 별도 라이선스를 확인하지 못해 문단·예제 코드·JSON 예시는 복제하지 않았습니다.
 한국어 절차와 템플릿은 직접 작성했습니다.
 
+렌더링 실패와 UI 불일치를 가르는 것(환경 문제·준비 문제·화면 문제)은 같은 저자의
+[Xcode MCP와 RenderPreview](https://www.keyflow.me/ko/@ekyu/post/2026-07-21-xcode-mcp와-renderpreview-ai가-swiftui-화면을-직접-렌더링하고-검증하는-방법)에서
+가져왔습니다. 원문은 렌더링 결과를 `passed`·`failed`·`environment_error` 세 상태로 나눕니다.
+그 구분만 반영했고, 원문의 `render-request.json`·`render-result.json`과 래퍼 스크립트는
+도입하지 않았습니다. 작업 하나에 계약 파일이 더 늘어나는 비용이 얻는 것보다 크다고 봤습니다.
+
 Flutter의 `width: 0.0`이 물리 1픽셀 테두리를 그린다는 것과 그때 생기는 겹침 현상은
 [BorderSide.width 문서](https://api.flutter.dev/flutter/painting/BorderSide/width.html)가 출처입니다.
 
