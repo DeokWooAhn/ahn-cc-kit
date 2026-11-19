@@ -119,8 +119,26 @@ def first_block(body: str) -> list[str]:
     return [line.strip() for line in lines if line.strip()]
 
 
+def all_blocks(body: str) -> list[str]:
+    """그 절의 **모든** 코드 블록을 한 줄씩 모은다.
+
+    검증 절에는 블록을 여러 개 쓰는 것이 자연스럽다 — 포맷·린트·빌드·테스트가
+    따로 떨어지고, 한 블록에 하나씩 적어야 복사해 돌리기도 좋다.
+    첫 블록만 읽으면 나머지를 돌리지 않고 "검증을 통과했다"가 된다.
+    """
+    lines: list[str] = []
+    inside = False
+    for line in body.splitlines():
+        if FENCE.match(line):
+            inside = not inside
+            continue
+        if inside:
+            lines.append(line)
+    return [line.strip() for line in lines if line.strip()]
+
+
 def verify_commands(plan: Path) -> list[str]:
-    return first_block(section(plan, VERIFY_SECTION))
+    return all_blocks(section(plan, VERIFY_SECTION))
 
 
 @dataclass(frozen=True)
@@ -165,6 +183,11 @@ def risk_is_stated(plan: Path) -> bool:
     return bool(section(plan, RISK_SECTION, required=False).strip())
 
 
+def _blocks_of(name: str):
+    # 건드릴 파일은 첫 블록만 센다. scope-guard.sh 와 parse_allowed 가 그렇게 읽는다.
+    return all_blocks if name == VERIFY_SECTION else first_block
+
+
 def check_plan(plan: Path) -> PlanCheck:
     found = read_sections(plan)
 
@@ -172,7 +195,7 @@ def check_plan(plan: Path) -> PlanCheck:
     empty = tuple(
         name
         for name in BLOCK_SECTIONS
-        if name not in missing and not first_block(found.get(name, ""))
+        if name not in missing and not _blocks_of(name)(found.get(name, ""))
     )
     advisory = tuple(name for name in ADVISORY_SECTIONS if not found.get(name, "").strip())
     return PlanCheck(missing=missing, empty_blocks=empty, advisory=advisory)

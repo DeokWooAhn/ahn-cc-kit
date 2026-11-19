@@ -151,9 +151,19 @@ def init(settings: Settings, *, plan: Path | None = None) -> TaskState:
             paths.plan.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
 
     store = settings.store
-    if store.exists():
-        return store.load()
-    return store.create(settings.task_id)
+    state = store.load() if store.exists() else store.create(settings.task_id)
+    # 계획을 이미 받았으면 승인 자리에 둔다. 한 번 돌려야 승인 자리가 되던 것을 없앤다.
+    # 형식이 틀렸으면 여기서 막지 않고 둔다. 다음 걸음이 무엇이 틀렸는지 적어 준다.
+    if state.state == RunState.CREATED and paths.plan.is_file():
+        if prompts.check_plan(paths.plan).ok:
+            _accept_plan(settings)
+            return store.load()
+    return state
+
+
+def _accept_plan(settings: Settings, *, note: str = "계획 파일을 받았다") -> None:
+    settings.store.record_artifact("plan", settings.paths.plan)
+    settings.store.transition(RunState.PLAN_APPROVAL, note=note)
 
 
 def exclude_orchestrate(repo: Path, orchestrate_dir: Path) -> None:
@@ -318,8 +328,7 @@ def _created(settings: Settings, task: TaskState) -> StepResult:
                 f"계획의 형식이 맞지 않다: {paths.plan}\n{checked.describe()}\n\n"
                 "고친 뒤 `orch resume`으로 다시 본다.",
             )
-        settings.store.record_artifact("plan", paths.plan)
-        settings.store.transition(RunState.PLAN_APPROVAL, note="계획 파일을 받았다")
+        _accept_plan(settings)
         return StepResult(
             RunState.PLAN_APPROVAL, "계획 파일이 이미 있다",
             waiting_hint(settings, RunState.PLAN_APPROVAL), stopped=True,
@@ -376,6 +385,17 @@ def _scope_check(settings: Settings, task: TaskState) -> StepResult:
     paths = settings.paths
     repo = ensure_repository(settings.repo)
 
+    # 스냅샷 없이 여기 오면 대조할 기준이 없다. 통과도 위반도 아니므로 막고 알린다.
+    # `orch resume` 이 구현을 건너뛰고 이 자리로 돌아올 때 실제로 생긴다.
+    for needed in ((paths / GIT_BEFORE), (paths / SNAPSHOT)):
+        if not needed.is_file():
+            return _block(
+                settings,
+                RunState.BLOCKED_SCOPE,
+                f"구현 직전 스냅샷이 없다: {needed}\n"
+                "구현을 거치지 않고 범위 검사로 왔다. 대조할 기준이 없어 아무 판정도 할 수 없다.",
+            )
+
     before = guards.GitSnapshot.from_json_object(
         json.loads((paths / GIT_BEFORE).read_text(encoding="utf-8"))
     )
@@ -384,12 +404,11 @@ def _scope_check(settings: Settings, task: TaskState) -> StepResult:
         detail = "\n".join(f"- {item.kind}: {item.detail}" for item in violations)
         return _block(settings, RunState.BLOCKED_GIT, detail)
 
-    result = scope.check(repo, paths.plan, paths / SNAPSHOT)
+    result = scope.check(repo, paths.plan, paths / SNAPSHOT, also=[paths.fix_plan])
     if result.nothing_changed:
         return _block(settings, RunState.BLOCKED_SCOPE, "아무 파일도 바뀌지 않았다")
     if result.violations:
-        listed = "\n".join(f"- {path}" for path in sorted(result.violations))
-        return _block(settings, RunState.BLOCKED_SCOPE, f"계획에 없는 파일이 바뀌었다\n{listed}")
+        return _block(settings, RunState.BLOCKED_SCOPE, _scope_detail(result))
 
     settings.store.transition(RunState.REVIEWING, note=f"범위 검사 통과 ({len(result.changed)}개)")
     return StepResult(RunState.REVIEWING, "범위 검사를 통과했다", f"바뀐 파일 {len(result.changed)}개")
@@ -466,6 +485,19 @@ def _verify(settings: Settings, task: TaskState) -> StepResult:
 
 def _verify_line(index: int, command: str, result: AgentResult) -> str:
     return f"{index}. {command}\n   {result.duration_seconds:.1f}초, 로그 {result.log_bytes}바이트"
+
+
+def _scope_detail(result: scope.ScopeResult) -> str:
+    listed = "\n".join(f"- {path}" for path in sorted(result.violations))
+    parts = [f"계획에 없는 파일이 바뀌었다\n{listed}"]
+    parts.append("대조한 계획: " + ", ".join(result.sources))
+    hint = scope.missing_slash(result.allowed, result.violations)
+    if hint:
+        parts.append(
+            "디렉터리를 통째로 열려면 끝에 `/`를 붙인다: "
+            + ", ".join(f"`{entry}/`" for entry in hint)
+        )
+    return "\n\n".join(parts)
 
 
 def _take_snapshots(settings: Settings, repo: Path) -> None:

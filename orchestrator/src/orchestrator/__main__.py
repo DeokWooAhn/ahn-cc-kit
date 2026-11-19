@@ -166,7 +166,10 @@ def _init(args) -> int:
     settings = _settings(args, args.task_id)
     state = pipeline.init(settings, plan=args.plan)
     print(f"작업 {state.task_id} 준비 ({settings.paths.root})")
-    if settings.paths.plan.is_file():
+    if state.state == RunState.PLAN_APPROVAL:
+        print()
+        print(pipeline.waiting_hint(settings, state.state))
+    elif settings.paths.plan.is_file():
         print(f"계획: {settings.paths.plan}")
     elif settings.task:
         print("계획부터 세운다. `orch step`")
@@ -180,10 +183,14 @@ def _step(args) -> int:
 
 
 def _run(args) -> int:
-    settings = _resolve(args)
+    return _drive(_resolve(args), getattr(args, "max_steps", pipeline.MAX_STEPS))
+
+
+def _drive(settings: Settings, max_steps: int = pipeline.MAX_STEPS) -> int:
+    """멈출 자리까지 간다. 상태만 바꿔 놓고 끝내지 않으려는 것이다."""
     results = pipeline.run(
         settings,
-        max_steps=args.max_steps,
+        max_steps=max_steps,
         before=_announce,
         after=_report,
     )
@@ -199,19 +206,30 @@ def _approve(args) -> int:
 
 
 def _fix(args) -> int:
-    return _report(pipeline.request_fix(_resolve(args)))
+    settings = _resolve(args)
+    result = pipeline.request_fix(settings)
+    _report(result)
+    if is_blocked(result.state):
+        return EXIT_BLOCKED
+    return _drive(settings)
 
 
 def _verify(args) -> int:
     settings = _resolve(args)
     result = pipeline.request_verify(settings)
+    _report(result)
     if is_blocked(result.state):
-        return _report(result)
-    return _report(pipeline.step(settings))
+        return EXIT_BLOCKED
+    return _drive(settings)
 
 
 def _resume(args) -> int:
-    return _report(pipeline.resume(_resolve(args)))
+    settings = _resolve(args)
+    result = pipeline.resume(settings)
+    _report(result)
+    if is_blocked(result.state):
+        return EXIT_BLOCKED
+    return _drive(settings)
 
 
 def _status(args) -> int:

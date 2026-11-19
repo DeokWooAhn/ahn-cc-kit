@@ -8,9 +8,12 @@ from orchestrator.errors import NotAGitRepository, PlanFormatError, SnapshotFile
 from orchestrator.scope import (
     MISSING,
     check,
+    covers,
     is_ignored,
+    missing_slash,
     normalize_ignore,
     parse_allowed,
+    read_allowed,
     read_snapshot,
     snapshot,
     write_snapshot,
@@ -55,6 +58,46 @@ class ParseAllowedTest(unittest.TestCase):
     def test_missing_file_is_an_error(self) -> None:
         with self.assertRaises(PlanFormatError):
             parse_allowed(self._repo.path / "없는계획.md")
+
+
+class CoversTest(unittest.TestCase):
+    def test_exact_path_matches(self) -> None:
+        self.assertTrue(covers(["src/a.py"], "src/a.py"))
+        self.assertFalse(covers(["src/a.py"], "src/b.py"))
+
+    def test_trailing_slash_opens_the_directory(self) -> None:
+        allowed = ["Assets.xcassets/Common/"]
+
+        self.assertTrue(covers(allowed, "Assets.xcassets/Common/icon.imageset/Contents.json"))
+        self.assertTrue(covers(allowed, "Assets.xcassets/Common/btn.imageset/btn@2x.png"))
+
+    def test_a_directory_without_a_slash_stays_one_file(self) -> None:
+        # presentation 이 모듈 전체를 조용히 여는 것을 막는다. 열려면 슬래시를 붙인다.
+        self.assertFalse(covers(["presentation"], "presentation/src/Main.kt"))
+
+    def test_the_slash_does_not_leak_to_a_sibling(self) -> None:
+        self.assertFalse(covers(["src/ui/"], "src/ui-test/a.kt"))
+
+    def test_missing_slash_names_what_to_fix(self) -> None:
+        found = missing_slash(
+            ["Assets.xcassets/Common", "src/a.py"], ["Assets.xcassets/Common/icon.png"]
+        )
+
+        self.assertEqual(found, ("Assets.xcassets/Common",))
+
+    def test_missing_slash_is_quiet_when_nothing_would_help(self) -> None:
+        self.assertEqual(missing_slash(["src/a.py"], ["other/b.py"]), ())
+
+
+class ReadAllowedTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._repo = TempRepo().__enter__()
+        self.addCleanup(self._repo.__exit__, None, None, None)
+
+    def test_a_plan_without_the_section_is_empty_not_an_error(self) -> None:
+        plan = self._repo.write("04-fix-plan.md", "# 수정 계획" + chr(10) * 2 + "## 할 일" + chr(10))
+
+        self.assertEqual(read_allowed(plan), frozenset())
 
 
 class IgnoreTest(unittest.TestCase):
@@ -248,6 +291,73 @@ class CheckTest(unittest.TestCase):
         result = check(self._repo.path, plan, self.snap)
 
         self.assertEqual(result.violations, frozenset({"README.md", "GUIDE.md"}))
+
+
+class CheckWithDirectoriesTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._repo = TempRepo().__enter__()
+        self.addCleanup(self._repo.__exit__, None, None, None)
+        self.snap = self._repo.path / WORK_DIR / "snap.json"
+
+    def _plan(self, paths: list[str], name: str = "01-plan.md") -> Path:
+        return self._repo.write(f"{WORK_DIR}/{name}", plan_text(paths))
+
+    def test_a_directory_entry_covers_the_files_under_it(self) -> None:
+        plan = self._plan(["Assets.xcassets/Common/"])
+        write_snapshot(self._repo.path, self.snap)
+        self._repo.write("Assets.xcassets/Common/icon.imageset/Contents.json", "{}\n")
+        self._repo.write("Assets.xcassets/Common/btn.imageset/Contents.json", "{}\n")
+
+        result = check(self._repo.path, plan, self.snap)
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.violations, frozenset())
+
+    def test_a_directory_entry_does_not_cover_a_sibling(self) -> None:
+        plan = self._plan(["Assets.xcassets/Common/"])
+        write_snapshot(self._repo.path, self.snap)
+        self._repo.write("Assets.xcassets/Common/icon.png", "x\n")
+        self._repo.write("Assets.xcassets/Other/icon.png", "x\n")
+
+        result = check(self._repo.path, plan, self.snap)
+
+        self.assertEqual(result.violations, frozenset({"Assets.xcassets/Other/icon.png"}))
+
+    def test_the_fix_plan_widens_the_scope(self) -> None:
+        # 리뷰를 거치며 범위가 넓어지는 것은 정상 흐름이다. 두 계획의 합집합으로 본다.
+        plan = self._plan(["src/a.py"])
+        fix = self._plan(["src/b.py"], name="04-fix-plan.md")
+        write_snapshot(self._repo.path, self.snap)
+        self._repo.write("src/a.py", "x = 1\n")
+        self._repo.write("src/b.py", "x = 2\n")
+
+        result = check(self._repo.path, plan, self.snap, also=[fix])
+
+        self.assertTrue(result.ok)
+        self.assertEqual(len(result.sources), 2)
+
+    def test_without_the_fix_plan_the_scope_stays_narrow(self) -> None:
+        plan = self._plan(["src/a.py"])
+        self._plan(["src/b.py"], name="04-fix-plan.md")
+        write_snapshot(self._repo.path, self.snap)
+        self._repo.write("src/b.py", "x = 2\n")
+
+        result = check(self._repo.path, plan, self.snap)
+
+        self.assertEqual(result.violations, frozenset({"src/b.py"}))
+        self.assertEqual(result.sources, (str(plan),))
+
+    def test_a_fix_plan_that_is_not_there_changes_nothing(self) -> None:
+        plan = self._plan(["src/a.py"])
+        write_snapshot(self._repo.path, self.snap)
+        self._repo.write("src/a.py", "x = 1\n")
+
+        result = check(
+            self._repo.path, plan, self.snap, also=[self._repo.path / "없는수정계획.md"]
+        )
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.sources, (str(plan),))
 
 
 if __name__ == "__main__":
