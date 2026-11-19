@@ -52,6 +52,12 @@ DEFAULT_ROUTING = {
 MAX_STEPS = 12
 
 VERIFY_ROLE = "verify"
+
+# 에이전트는 `claude -p`·`codex exec` 로 돌아 **사람에게 물을 수 없다.** 그런데 이 저장소의
+# Stop 훅 중에는 "사용자에게 물어보라"고 지시하는 것이 있다. 물을 수 없는 쪽에 그 지시가 가면
+# 막히기만 하고 보고가 그 설명으로 찬다. 훅은 부모가 오케스트레이터인지 알 길이 없으므로
+# 호출하는 쪽에서 알려 준다. 플러그인 이름이 여기 박히지만, 알 수 있는 쪽이 여기뿐이다.
+AGENT_ENV = {"MAESTRO_E2E_NONINTERACTIVE": "1"}
 VERIFY_TIMEOUT_SECONDS = 1800
 
 # 리뷰 브리프에 넣는 검증 출력의 꼬리. 전부 넣으면 브리프가 로그에 묻힌다.
@@ -632,6 +638,7 @@ def _call(
         read_only=read_only,
         model=settings.models.get(role),
         attempt=attempt,
+        env=dict(AGENT_ENV),
     )
     return settings.adapter(role).run(request)
 

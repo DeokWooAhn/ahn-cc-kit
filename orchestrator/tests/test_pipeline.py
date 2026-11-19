@@ -51,6 +51,44 @@ class PipelineTestCase(unittest.TestCase):
         return settings
 
 
+class NonInteractiveTest(PipelineTestCase):
+    MARK = 'printf %s "${MAESTRO_E2E_NONINTERACTIVE:-없음}"'
+
+    def test_agents_are_told_they_cannot_ask(self) -> None:
+        # 훅은 부모가 오케스트레이터인지 알 길이 없다. 호출하는 쪽에서 알려 준다.
+        settings = self.settings({IMPLEMENTER: self.MARK})
+        self.reach_implementing(settings)
+
+        pipeline.step(settings)
+
+        log = (settings.paths.root / "02-implement.log").read_text(encoding="utf-8")
+        self.assertEqual(log, "1")
+
+    def test_the_reviewer_is_told_too(self) -> None:
+        settings = self.settings({IMPLEMENTER: "echo 고침 >> a.txt", REVIEWER: self.MARK})
+        self.reach_implementing(settings)
+        pipeline.step(settings)
+        pipeline.step(settings)
+
+        pipeline.step(settings)
+
+        log = (settings.paths.root / "03-review.log").read_text(encoding="utf-8")
+        self.assertEqual(log, "1")
+
+    def test_verify_commands_are_not_agents(self) -> None:
+        # 검증 명령은 사람이 계획에 적은 셸 명령이다. 에이전트 환경을 씌우지 않는다.
+        settings = self.settings({IMPLEMENTER: "echo 고침 >> a.txt", REVIEWER: "echo 리뷰"})
+        self.reach_implementing(settings, verify=self.MARK)
+        for _ in range(3):
+            pipeline.step(settings)
+
+        pipeline.request_verify(settings)
+        pipeline.step(settings)
+
+        log = (settings.paths.root / "verify-1.log").read_text(encoding="utf-8")
+        self.assertEqual(log, "없음")
+
+
 class RetryLeftoversTest(PipelineTestCase):
     def fail_once(self, settings: Settings) -> None:
         """구현자가 파일을 바꿔 놓고 실패로 끝나게 한다."""

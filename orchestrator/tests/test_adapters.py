@@ -457,5 +457,44 @@ class StreamingTest(WorkspaceTestCase):
         self.assertGreater(result.duration_seconds, 1)
 
 
+class RequestEnvTest(unittest.TestCase):
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory(prefix="orchestrator-env-")
+        self.addCleanup(tmp.cleanup)
+        self.dir = Path(tmp.name)
+
+    def request(self, **overrides) -> AgentRequest:
+        values = {
+            "role": "verify",
+            "prompt_file": self.dir / "prompt.txt",
+            "log_file": self.dir / "out.log",
+            "cwd": self.dir,
+        }
+        values.update(overrides)
+        return AgentRequest(**values)
+
+    def test_extra_env_reaches_the_command(self) -> None:
+        request = self.request(env={"ORCH_TEST_MARK": "1"})
+
+        run_command(["sh", "-c", "printf %s \"${ORCH_TEST_MARK:-없음}\""], request)
+
+        self.assertEqual(request.log_file.read_text(encoding="utf-8"), "1")
+
+    def test_the_surrounding_environment_is_kept(self) -> None:
+        with mock.patch.dict(os.environ, {"ORCH_TEST_OUTER": "바깥"}):
+            request = self.request(env={"ORCH_TEST_MARK": "1"})
+
+            run_command(["sh", "-c", "printf %s \"${ORCH_TEST_OUTER:-없음}\""], request)
+
+        self.assertEqual(request.log_file.read_text(encoding="utf-8"), "바깥")
+
+    def test_without_env_nothing_is_added(self) -> None:
+        request = self.request()
+
+        run_command(["sh", "-c", "printf %s \"${ORCH_TEST_MARK:-없음}\""], request)
+
+        self.assertEqual(request.log_file.read_text(encoding="utf-8"), "없음")
+
+
 if __name__ == "__main__":
     unittest.main()
