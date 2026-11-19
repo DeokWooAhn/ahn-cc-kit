@@ -10,6 +10,9 @@ from orchestrator import prompts
 from orchestrator.errors import PlanFormatError, PluginDocsMissing
 from support import plan_text
 
+NL = chr(10)
+FENCE = chr(96) * 3
+
 
 class SectionTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -61,6 +64,62 @@ class SectionTest(unittest.TestCase):
         plan = self.write(plan_text(["a.txt"], verify="echo 통과"))
 
         self.assertEqual(prompts.verify_commands(plan), ["echo 통과"])
+
+    def test_all_blocks_collects_every_block(self) -> None:
+        body = NL.join(["앞말", "", FENCE, "하나", FENCE, "", FENCE, "둘", FENCE])
+
+        self.assertEqual(prompts.all_blocks(body), ["하나", "둘"])
+
+    def test_verify_commands_read_every_block(self) -> None:
+        # 포맷·린트·빌드·테스트를 블록마다 따로 적는 것이 자연스럽다.
+        # 첫 블록만 읽으면 나머지를 안 돌리고 "통과했다"가 된다.
+        body = NL.join(
+            [
+                "# 계획",
+                "",
+                "## 목적",
+                "",
+                "시험한다.",
+                "",
+                "## 건드릴 파일",
+                "",
+                FENCE,
+                "a.txt",
+                FENCE,
+                "",
+                "## 검증",
+                "",
+                FENCE,
+                "swiftformat --lint .",
+                FENCE,
+                "",
+                "사이에 설명이 끼어도 된다.",
+                "",
+                FENCE,
+                "xcodebuild test",
+                FENCE,
+                "",
+                FENCE,
+                "./gradlew detekt",
+                FENCE,
+                "",
+            ]
+        )
+        plan = self.write(body)
+
+        self.assertEqual(
+            prompts.verify_commands(plan),
+            ["swiftformat --lint .", "xcodebuild test", "./gradlew detekt"],
+        )
+
+    def test_a_verify_section_with_several_blocks_is_not_empty(self) -> None:
+        body = NL.join(
+            ["## 목적", "", "시험한다.", "", "## 건드릴 파일", "", FENCE, "a.txt", FENCE,
+             "", "## 검증", "", "설명", "", FENCE, "true", FENCE, ""]
+        )
+        plan = self.write(body)
+
+        self.assertEqual(prompts.check_plan(plan).empty_blocks, ())
 
 
 class PluginDirTest(unittest.TestCase):

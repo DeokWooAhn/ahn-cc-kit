@@ -10,6 +10,7 @@
 #
 # git status 표시만 보면 untracked 파일을 고친 것을 놓치므로 내용 해시로 비교한다.
 # 계획 파일은 "## 건드릴 파일" 아래 첫 코드 블록에 경로를 한 줄에 하나씩 적는다.
+# 끝이 "/" 인 줄은 디렉터리로 보고 그 아래를 전부 허용한다. 슬래시가 없으면 파일 하나다.
 set -u
 
 if command -v md5 > /dev/null 2>&1; then
@@ -27,8 +28,12 @@ hash_of() { [ -f "$1" ] && digest "$1" 2>/dev/null || echo "MISSING"; }
 
 git rev-parse --git-dir > /dev/null 2>&1 || { echo "git 저장소가 아니다" >&2; exit 2; }
 
+# 산출물 디렉터리는 범위 밖이다. 스냅샷·로그가 쌓이는 자리라 세면 늘 위반이 된다.
+WORK_DIR=".orchestrate"
+
 snapshot() {
-  git status --porcelain | sed 's/^...//' | while IFS= read -r f; do
+  git status --porcelain --untracked-files=all | sed 's/^...//' | while IFS= read -r f; do
+    case "$f" in "$WORK_DIR"/*) continue ;; esac
     printf '%s  %s\n' "$(hash_of "$f")" "$f"
   done
 }
@@ -36,6 +41,7 @@ snapshot() {
 case "${1:-check}" in
   snapshot)
     out="${2:-.orchestrate/snapshot.txt}"
+    WORK_DIR=$(dirname "$out")
     mkdir -p "$(dirname "$out")"
     snapshot > "$out"
     echo "스냅샷 저장: $out ($(wc -l < "$out" | tr -d ' ')개 파일)"
@@ -50,6 +56,7 @@ esac
 
 plan="${2:-.orchestrate/plan.md}"
 snap="${3:-.orchestrate/snapshot.txt}"
+WORK_DIR=$(dirname "$snap")
 
 [ -f "$plan" ] || { echo "계획 파일 없음: $plan" >&2; exit 2; }
 [ -f "$snap" ] || { echo "스냅샷 없음: $snap — 구현을 넘기기 전에 snapshot 을 찍어라" >&2; exit 2; }
@@ -86,7 +93,29 @@ echo
   exit 1
 }
 
-violations=$(comm -23 <(echo "$changed") <(echo "$allowed"))
+# 끝이 "/" 면 접두사로, 아니면 정확히 맞는지 본다.
+# comm 은 정확히 같은 줄만 지워서 디렉터리 표기를 전부 위반으로 만든다.
+allowed_list=$(mktemp "${TMPDIR:-/tmp}/scope-guard.XXXXXX") || {
+  echo "임시 파일을 만들지 못했다" >&2; exit 2
+}
+trap 'rm -f "$allowed_list"' EXIT
+printf '%s\n' "$allowed" > "$allowed_list"
+
+violations=$(printf '%s\n' "$changed" | awk '
+  NR == FNR { if ($0 != "") entry[++n] = $0; next }
+  $0 == "" { next }
+  {
+    for (i = 1; i <= n; i++) {
+      e = entry[i]
+      if (substr(e, length(e)) == "/") {
+        if (index($0, e) == 1) next
+      } else if ($0 == e) next
+    }
+    print
+  }
+' "$allowed_list" -) || {
+  echo "허용 목록과 대조하지 못했다" >&2; exit 2
+}
 
 if [ -n "$violations" ]; then
   echo "❌ 범위 위반 — 계획에 없는 파일이 바뀌었다"

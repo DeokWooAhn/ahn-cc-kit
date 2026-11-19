@@ -340,6 +340,29 @@ class AfterReviewTest(PipelineTestCase):
         self.assertEqual(result.state, RunState.SCOPE_CHECK)
         self.assertIn(str(settings.paths.fix_plan), settings.adapters[FIXER].prompts[0])
 
+    def test_the_fix_plan_widens_the_scope(self) -> None:
+        # 리뷰 뒤에 넓어진 범위를 원 계획으로만 재면 정상 흐름이 막힌다.
+        settings = self.reach_waiting(**{FIXER: "echo 또 고침 >> b.txt"})
+        settings.paths.fix_plan.write_text(plan_text(["b.txt"]), encoding="utf-8")
+
+        pipeline.request_fix(settings)
+        pipeline.step(settings)
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.REVIEWING)
+
+    def test_a_file_in_neither_plan_is_still_a_violation(self) -> None:
+        settings = self.reach_waiting(**{FIXER: "echo 몰래 >> c.txt"})
+        settings.paths.fix_plan.write_text(plan_text(["b.txt"]), encoding="utf-8")
+
+        pipeline.request_fix(settings)
+        pipeline.step(settings)
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.BLOCKED_SCOPE)
+        self.assertIn("c.txt", result.detail)
+        self.assertIn("04-fix-plan.md", result.detail)
+
     def test_a_fix_runs_on_the_raised_rung(self) -> None:
         settings = self.reach_waiting(**{FIXER: "echo 또 고침 >> a.txt"})
         settings.paths.fix_plan.write_text("# 수정 계획\n\n하나만 고친다\n", encoding="utf-8")

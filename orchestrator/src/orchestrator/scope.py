@@ -141,11 +141,48 @@ def parse_allowed(plan: Path) -> frozenset[str]:
     return frozenset(allowed)
 
 
+def covers(allowed: Iterable[str], path: str) -> bool:
+    """허용 목록이 이 경로를 덮는가.
+
+    `/`로 끝나는 항목은 디렉터리로 보고 그 아래를 전부 덮는다. 끝이 `/`가 아니면
+    파일 하나다. 디렉터리를 슬래시 없이 적으면 덮지 않는다 — `presentation`이
+    모듈 전체를 조용히 여는 것을 막으려는 것이다.
+    """
+    for entry in allowed:
+        if entry.endswith("/"):
+            if path.startswith(entry):
+                return True
+        elif path == entry:
+            return True
+    return False
+
+
+def missing_slash(allowed: Iterable[str], violations: Iterable[str]) -> tuple[str, ...]:
+    """슬래시만 붙였으면 덮였을 항목. 막을 때 무엇을 고치면 되는지 알려 주려는 것이다."""
+    listed = [entry for entry in allowed if not entry.endswith("/")]
+    found = {
+        entry
+        for entry in listed
+        for path in violations
+        if path.startswith(entry + "/")
+    }
+    return tuple(sorted(found))
+
+
+def read_allowed(plan: Path) -> frozenset[str]:
+    """허용 목록을 읽되 절이 없으면 빈 집합이다. 수정 계획처럼 없어도 되는 쪽에 쓴다."""
+    try:
+        return parse_allowed(plan)
+    except PlanFormatError:
+        return frozenset()
+
+
 @dataclass(frozen=True)
 class ScopeResult:
     allowed: frozenset[str]
     changed: frozenset[str]
     violations: frozenset[str]
+    sources: tuple[str, ...] = ()
 
     @property
     def nothing_changed(self) -> bool:
@@ -167,14 +204,31 @@ def compare(repo: Path, before: Snapshot) -> frozenset[str]:
     return frozenset(changed)
 
 
-def check(repo: Path, plan: Path, snapshot_path: Path) -> ScopeResult:
-    allowed = parse_allowed(plan)
+def check(
+    repo: Path, plan: Path, snapshot_path: Path, *, also: Iterable[Path] = ()
+) -> ScopeResult:
+    """계획의 허용 목록과 실제 변경을 대조한다.
+
+    `also`는 뒤에 생긴 계획이다. 리뷰를 거치며 범위가 넓어지는 것은 정상 흐름이라
+    **합집합**으로 본다. 거기 `## 건드릴 파일` 절이 없으면 아무것도 더하지 않는다.
+    """
+    allowed = set(parse_allowed(plan))
+    sources = [str(plan)]
+    for extra in also:
+        extra = Path(extra)
+        if not extra.is_file():
+            continue
+        entries = read_allowed(extra)
+        if entries:
+            allowed |= entries
+            sources.append(str(extra))
     before = read_snapshot(snapshot_path)
     changed = compare(repo, before)
     return ScopeResult(
-        allowed=allowed,
+        allowed=frozenset(allowed),
         changed=changed,
-        violations=frozenset(changed - allowed),
+        violations=frozenset(path for path in changed if not covers(allowed, path)),
+        sources=tuple(sources),
     )
 
 

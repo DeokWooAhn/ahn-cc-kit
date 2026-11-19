@@ -56,6 +56,49 @@ class CliTest(unittest.TestCase):
 
         self.assertIn("01-plan.md", out)
 
+    def test_init_with_a_plan_lands_on_the_approval_spot(self) -> None:
+        # 계획을 이미 줬는데 한 번 돌려야 승인 자리가 되던 것을 없앤다.
+        source = self._repo.write("미리쓴계획.md", plan_text(["a.txt"]))
+
+        code, out, _ = self.run_cli("init", TASK_ID, "--plan", str(source))
+
+        self.assertEqual(code, EXIT_OK)
+        self.assertEqual(self.settings().store.load().state, RunState.PLAN_APPROVAL)
+        self.assertIn("orch approve", out)
+
+    def test_approve_works_right_after_init_with_a_plan(self) -> None:
+        source = self._repo.write("미리쓴계획.md", plan_text(["a.txt"]))
+        self.run_cli("init", TASK_ID, "--plan", str(source))
+
+        code, out, _ = self.run_cli("approve", TASK_ID)
+
+        self.assertEqual(code, EXIT_OK)
+        self.assertIn("승인", out)
+        self.assertEqual(self.settings().store.load().state, RunState.IMPLEMENTING)
+
+    def test_init_with_a_broken_plan_stays_put_and_does_not_crash(self) -> None:
+        source = self._repo.write("깨진계획.md", "# 계획" + chr(10) * 2 + "## 할 일" + chr(10))
+
+        code, _, _ = self.run_cli("init", TASK_ID, "--plan", str(source))
+
+        self.assertEqual(code, EXIT_OK)
+        self.assertEqual(self.settings().store.load().state, RunState.CREATED)
+
+    def test_init_shows_every_verify_command(self) -> None:
+        settings = self.settings()
+        settings.paths.root.mkdir(parents=True, exist_ok=True)
+        body = chr(10).join(
+            ["# 계획", "", "## 목적", "", "시험한다.", "",
+             "## 건드릴 파일", "", "```", "a.txt", "```", "",
+             "## 검증", "", "```", "echo 하나", "```", "", "```", "echo 둘", "```", ""]
+        )
+        settings.paths.plan.write_text(body, encoding="utf-8")
+
+        _, out, _ = self.run_cli("init", TASK_ID)
+
+        self.assertIn("echo 하나", out)
+        self.assertIn("echo 둘", out)
+
     def test_status_shows_the_state(self) -> None:
         self.run_cli("init", TASK_ID)
 
@@ -155,7 +198,21 @@ class CliTest(unittest.TestCase):
         self.assertEqual(code, EXIT_BLOCKED)
         self.assertIn("orch resume", out)
 
-    def test_resume_goes_back(self) -> None:
+    def test_resume_goes_back_and_keeps_going(self) -> None:
+        # 상태만 바꿔 놓고 끝내면 사람이 `orch run` 을 한 번 더 쳐야 한다.
+        settings = self.write_plan()
+        self.run_cli("init", TASK_ID)
+        settings.store.transition(RunState.BLOCKED_GIT, note="막혔다")
+
+        code, out, _ = self.run_cli("resume", TASK_ID)
+
+        self.assertEqual(code, EXIT_OK)
+        # 직전 자리(plan_approval)로 돌아가고, 거기서 멈출 자리까지 이어 간다.
+        self.assertIn("plan_approval", out)
+        self.assertIn("사람을 기다린다", out)
+        self.assertEqual(settings.store.load().state, RunState.PLAN_APPROVAL)
+
+    def test_scope_check_without_a_snapshot_blocks_instead_of_crashing(self) -> None:
         settings = self.write_plan()
         self.run_cli("init", TASK_ID)
         settings.store.transition(RunState.SCOPE_CHECK)
@@ -163,8 +220,8 @@ class CliTest(unittest.TestCase):
 
         code, out, _ = self.run_cli("resume", TASK_ID)
 
-        self.assertEqual(code, EXIT_OK)
-        self.assertIn("scope_check", out)
+        self.assertEqual(code, EXIT_BLOCKED)
+        self.assertIn("스냅샷이 없다", out)
 
     def test_status_lists_artifacts(self) -> None:
         settings = self.write_plan()
