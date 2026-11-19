@@ -4,7 +4,7 @@ import os
 import signal
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from .errors import PromptFileError, UnknownAdapter
@@ -58,6 +58,8 @@ class AgentRequest:
     read_only: bool = False
     model: str | None = None
     attempt: int = 0
+    # 이 호출에만 더할 환경 변수. 지금 환경 위에 얹는다.
+    env: dict[str, str] = field(default_factory=dict)
 
     @property
     def timeout(self) -> int:
@@ -122,6 +124,7 @@ def run_command(
             process = subprocess.Popen(
                 command,
                 cwd=str(request.cwd),
+                env={**os.environ, **request.env} if request.env else None,
                 stdin=subprocess.DEVNULL,
                 stdout=log,
                 stderr=subprocess.STDOUT,

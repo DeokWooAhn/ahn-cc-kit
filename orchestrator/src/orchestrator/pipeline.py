@@ -17,7 +17,7 @@ from .adapters import (
     adapter_for,
     run_command,
 )
-from .errors import PipelineError
+from .errors import OrchestratorError, PipelineError
 from .gitio import ensure_repository
 from .state import RunState, StateStore, TaskState, is_blocked, is_terminal, needs_human
 
@@ -40,6 +40,7 @@ FIX_PROMPT = "05-fix-prompt.txt"
 FIX_LOG = "05-fix.log"
 FAILURE = "failure.json"
 VERIFY_LOG = "verify-{index}.log"
+REVIEW_VERIFY_LOG = "03-review-verify-{index}.log"
 
 DEFAULT_ROUTING = {
     PLANNER: "codex",
@@ -51,7 +52,16 @@ DEFAULT_ROUTING = {
 MAX_STEPS = 12
 
 VERIFY_ROLE = "verify"
+
+# 에이전트는 `claude -p`·`codex exec` 로 돌아 **사람에게 물을 수 없다.** 그런데 이 저장소의
+# Stop 훅 중에는 "사용자에게 물어보라"고 지시하는 것이 있다. 물을 수 없는 쪽에 그 지시가 가면
+# 막히기만 하고 보고가 그 설명으로 찬다. 훅은 부모가 오케스트레이터인지 알 길이 없으므로
+# 호출하는 쪽에서 알려 준다. 플러그인 이름이 여기 박히지만, 알 수 있는 쪽이 여기뿐이다.
+AGENT_ENV = {"MAESTRO_E2E_NONINTERACTIVE": "1"}
 VERIFY_TIMEOUT_SECONDS = 1800
+
+# 리뷰 브리프에 넣는 검증 출력의 꼬리. 전부 넣으면 브리프가 로그에 묻힌다.
+REVIEW_VERIFY_TAIL = 40
 
 CACHE_NOTE = (
     "구현자가 같은 명령을 이미 돌렸으면 빌드 도구가 캐시를 그대로 쓴다. "
@@ -98,6 +108,9 @@ class Settings:
     models: dict[str, str] = field(default_factory=dict)
     adapters: dict[str, Adapter] = field(default_factory=dict)
     allow_commands: tuple[str, ...] = ()
+    # 리뷰어는 읽기 전용이라 빌드·테스트를 돌리지 못한다. 런타임이 대신 돌려
+    # **출력을** 브리프에 넣는다. 구현자의 보고가 아니라 사실이라 브리프 규칙과 부딪히지 않는다.
+    verify_before_review: bool = True
 
     def retry_limit_for(self, plan: Path) -> int:
         if self.retry_limit is not None:
@@ -341,10 +354,12 @@ def _implement(settings: Settings, task: TaskState) -> StepResult:
     paths = settings.paths
     repo = ensure_repository(settings.repo)
 
-    _take_snapshots(settings, repo)
+    already = _retry_leftovers(settings, repo)
+    _take_snapshots(settings, repo, keep_snapshot=bool(already))
+    _clear_failure(settings)
 
     plugin_dir = prompts.find_plugin_dir(settings.plugin_dir)
-    prompt = prompts.implement_prompt(paths.plan, plugin_dir)
+    prompt = prompts.implement_prompt(paths.plan, plugin_dir, already_changed=already)
     result = _call(
         settings, IMPLEMENTER, prompt, paths / IMPLEMENT_PROMPT, paths / IMPLEMENT_LOG,
         attempt=task.retry_count,
@@ -365,10 +380,12 @@ def _fix(settings: Settings, task: TaskState) -> StepResult:
     if bumped.state == RunState.MAX_RETRY_EXCEEDED:
         return StepResult(RunState.MAX_RETRY_EXCEEDED, "재시도 한도를 넘겼다", bumped.note, stopped=True)
 
-    _take_snapshots(settings, repo)
+    already = _retry_leftovers(settings, repo)
+    _take_snapshots(settings, repo, keep_snapshot=bool(already))
+    _clear_failure(settings)
 
     plugin_dir = prompts.find_plugin_dir(settings.plugin_dir)
-    prompt = prompts.fix_prompt(paths.fix_plan, plugin_dir)
+    prompt = prompts.fix_prompt(paths.fix_plan, plugin_dir, already_changed=already)
     result = _call(
         settings, FIXER, prompt, paths / FIX_PROMPT, paths / FIX_LOG,
         attempt=bumped.retry_count,
@@ -419,8 +436,9 @@ def _review(settings: Settings, task: TaskState) -> StepResult:
     repo = ensure_repository(settings.repo)
 
     changed = sorted(scope.compare(repo, scope.read_snapshot(_baseline_or_snapshot(paths))))
+    verified, summary = _verify_for_review(settings, repo)
     plugin_dir = prompts.find_plugin_dir(settings.plugin_dir)
-    prompt = prompts.review_prompt(paths.plan, changed, plugin_dir)
+    prompt = prompts.review_prompt(paths.plan, changed, plugin_dir, verify_output=verified)
     result = _call(
         settings, REVIEWER, prompt, paths / REVIEW_PROMPT, paths / REVIEW_LOG,
         read_only=True, attempt=task.retry_count,
@@ -430,10 +448,85 @@ def _review(settings: Settings, task: TaskState) -> StepResult:
 
     settings.store.record_artifact("review", result.log_file)
     settings.store.transition(RunState.WAITING_HUMAN, note="리뷰가 나왔다")
+    detail = waiting_hint(settings, RunState.WAITING_HUMAN)
+    if summary:
+        detail = f"{summary}\n\n{detail}"
     return StepResult(
-        RunState.WAITING_HUMAN, "리뷰를 받았다",
-        waiting_hint(settings, RunState.WAITING_HUMAN), stopped=True, agent=result,
+        RunState.WAITING_HUMAN, "리뷰를 받았다", detail, stopped=True, agent=result,
     )
+
+
+def _verify_for_review(settings: Settings, repo: Path) -> tuple[str, str]:
+    """리뷰 전에 검증을 돌리고 (브리프에 넣을 출력, 사람에게 보일 한 줄)을 준다.
+
+    리뷰어는 읽기 전용이라 빌드·테스트를 못 돌린다. 그래서 "코드상으로는 맞다"까지만
+    말하고, 실제로 깨진 상태가 리뷰를 통과한 적이 있다. 출력은 **사실**이라
+    리뷰 브리프가 막는 "판단의 결과"에 해당하지 않는다.
+
+    실패해도 막지 않는다. 지적과 실패 원인을 한 왕복에 모으려는 것이다.
+    """
+    if not settings.verify_before_review:
+        return "", ""
+    paths = settings.paths
+    try:
+        commands = prompts.verify_commands(paths.plan)
+    except OrchestratorError:
+        return "", ""
+    if not commands:
+        return "", ""
+    if policy.blocked(policy.check_all(commands, allow=settings.allow_commands)):
+        # 검증 단계와 같은 규칙이다. 하나라도 걸리면 아무것도 돌리지 않는다.
+        return "", "검증 명령이 정책에 막혀 리뷰 전에 돌리지 않았다."
+
+    reports: list[str] = []
+    failed: list[str] = []
+    for index, command in enumerate(commands, start=1):
+        log = paths / REVIEW_VERIFY_LOG.format(index=index)
+        request = AgentRequest(
+            role=VERIFY_ROLE,
+            prompt_file=paths.plan,
+            log_file=log,
+            cwd=repo,
+            timeout_seconds=settings.timeouts.get(VERIFY_ROLE, VERIFY_TIMEOUT_SECONDS),
+            stall_seconds=settings.stall_seconds.get(VERIFY_ROLE, 0),
+        )
+        result = run_command(["sh", "-c", command], request)
+        settings.store.record_artifact(f"review_verify_{index}", log)
+        reports.append(_verify_report(command, result, log))
+        if not result.ok:
+            failed.append(command)
+
+    if failed:
+        summary = f"리뷰 전 검증 {len(failed)}/{len(commands)}개 실패 — 리뷰어에게 그 출력을 함께 줬다."
+    else:
+        summary = f"리뷰 전 검증 {len(commands)}개 통과 — 리뷰어에게 그 출력을 함께 줬다."
+    return "\n\n".join(reports), summary
+
+
+def _verify_report(command: str, result: AgentResult, log: Path) -> str:
+    if result.ok:
+        verdict = "통과"
+    elif result.returncode is not None:
+        verdict = f"실패 (종료 코드 {result.returncode})"
+    else:
+        verdict = f"실패 ({result.outcome})"
+    tail = _log_tail(log, REVIEW_VERIFY_TAIL)
+    fence = "`" * 3
+    body = f"{fence}\n{tail}\n{fence}" if tail else "(출력 없음)"
+    return (
+        f"### `{command}`\n\n"
+        f"{verdict} — {result.duration_seconds:.1f}초. 전체 로그: `{log}`\n\n"
+        f"마지막 {REVIEW_VERIFY_TAIL}줄:\n\n{body}"
+    )
+
+
+def _log_tail(log: Path, lines: int) -> str:
+    try:
+        text = log.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    found = text.splitlines()
+    return "\n".join(found[-lines:]).strip()
 
 
 def _verify(settings: Settings, task: TaskState) -> StepResult:
@@ -500,11 +593,17 @@ def _scope_detail(result: scope.ScopeResult) -> str:
     return "\n\n".join(parts)
 
 
-def _take_snapshots(settings: Settings, repo: Path) -> None:
+def _take_snapshots(settings: Settings, repo: Path, *, keep_snapshot: bool = False) -> None:
+    """구현 직전 상태를 찍는다.
+
+    `keep_snapshot` 은 **직전 호출이 실패로 끝났을 때**다. 다시 찍으면 그때 쓰다 만
+    변경이 기준선 안으로 들어가 범위 검사가 못 본다. 두 번의 시도를 한 번으로 묶어 잰다.
+    """
     paths = settings.paths
     if not (paths / BASELINE).is_file():
         scope.write_snapshot(repo, paths / BASELINE, ignore=settings.ignore())
-    scope.write_snapshot(repo, paths / SNAPSHOT, ignore=settings.ignore())
+    if not (keep_snapshot and (paths / SNAPSHOT).is_file()):
+        scope.write_snapshot(repo, paths / SNAPSHOT, ignore=settings.ignore())
     before = guards.capture(repo)
     (paths / GIT_BEFORE).write_text(
         json.dumps(before.to_json_object(), ensure_ascii=False, indent=2) + "\n",
@@ -539,6 +638,7 @@ def _call(
         read_only=read_only,
         model=settings.models.get(role),
         attempt=attempt,
+        env=dict(AGENT_ENV),
     )
     return settings.adapter(role).run(request)
 
@@ -546,12 +646,52 @@ def _call(
 def _agent_failed(settings: Settings, role: str, result: AgentResult) -> StepResult:
     failure = failures.classify(result)
     _record_failure(settings, failure)
-    detail = (
-        f"{role} 호출이 {result.outcome}로 끝났다.\n"
-        f"{failure.describe()}\n"
-        f"   로그: {result.log_file}"
-    )
-    return _block(settings, RunState.FAILED_AGENT, detail, agent=result)
+    lines = [
+        f"{role} 호출이 {result.outcome}로 끝났다.",
+        failure.describe(),
+        f"   로그: {result.log_file}",
+    ]
+    left = _changed_since_snapshot(settings)
+    if left:
+        lines.append("")
+        lines.append(f"이 호출이 남긴 변경 {len(left)}개:")
+        lines += [f"   {path}" for path in left[:20]]
+        if len(left) > 20:
+            lines.append(f"   외 {len(left) - 20}개")
+        lines.append("")
+        lines.append(
+            "일을 해 놓고 보고만 못 끝냈을 수 있다. 지우기 전에 확인한다.\n"
+            "`orch resume` 은 이 목록을 다음 호출에 알려 주고, 범위 검사도 이 변경까지 함께 잰다."
+        )
+    else:
+        lines.append("")
+        lines.append("바뀐 파일은 없다.")
+    return _block(settings, RunState.FAILED_AGENT, "\n".join(lines), agent=result)
+
+
+def _changed_since_snapshot(settings: Settings) -> list[str]:
+    """직전 스냅샷 이후 바뀐 파일. 죽은 호출이 무엇을 했는지 가려 주려는 것이다."""
+    snap = settings.paths / SNAPSHOT
+    if not snap.is_file():
+        return []
+    try:
+        repo = ensure_repository(settings.repo)
+        return sorted(scope.compare(repo, scope.read_snapshot(snap)))
+    except OrchestratorError:
+        return []
+
+
+def _retry_leftovers(settings: Settings, repo: Path) -> list[str]:
+    """직전 호출이 실패로 끝났으면 그때 바뀐 파일. 아니면 빈 목록이다."""
+    if read_failure(settings) is None:
+        return []
+    return _changed_since_snapshot(settings)
+
+
+def _clear_failure(settings: Settings) -> None:
+    # 다음 호출을 시작하는 순간 "직전 실패"는 지금 것이 아니다. 남겨 두면
+    # 한참 뒤의 resume 이 옛 실패를 근거로 말하게 된다.
+    (settings.paths / FAILURE).unlink(missing_ok=True)
 
 
 def _record_failure(settings: Settings, failure: failures.Failure) -> None:
