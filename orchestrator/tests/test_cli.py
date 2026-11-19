@@ -304,6 +304,51 @@ class CliTest(unittest.TestCase):
 
         self.assertEqual(code, EXIT_OK)
 
+    def test_timeout_is_parsed(self) -> None:
+        from orchestrator.__main__ import _timeouts
+
+        self.assertEqual(_timeouts(["implementer=3600", "verify=0"]), {"implementer": 3600, "verify": 0})
+
+    def test_timeout_reaches_the_settings(self) -> None:
+        # 전까지는 Settings.timeouts 를 CLI 에서 채울 길이 아예 없었다.
+        from orchestrator.__main__ import _parser, _settings
+
+        args = _parser().parse_args(["status", TASK_ID, "--timeout", "implementer=3600"])
+
+        self.assertEqual(_settings(args, TASK_ID).timeouts, {"implementer": 3600})
+
+    def test_timeout_rejects_an_unknown_role(self) -> None:
+        code, _, err = self.run_cli("status", TASK_ID, "--timeout", "tester=10")
+
+        self.assertEqual(code, EXIT_ERROR)
+        self.assertIn("모르는 역할", err)
+
+    def test_timeout_rejects_a_non_number(self) -> None:
+        code, _, err = self.run_cli("status", TASK_ID, "--timeout", "implementer=한참")
+
+        self.assertEqual(code, EXIT_ERROR)
+        self.assertIn("숫자", err)
+
+    def test_timeout_rejects_a_negative(self) -> None:
+        code, _, err = self.run_cli("status", TASK_ID, "--timeout", "implementer=-1")
+
+        self.assertEqual(code, EXIT_ERROR)
+        self.assertIn("0 이상", err)
+
+    def test_verify_before_review_is_on_by_default(self) -> None:
+        from orchestrator.__main__ import _parser, _settings
+
+        args = _parser().parse_args(["status", TASK_ID])
+
+        self.assertTrue(_settings(args, TASK_ID).verify_before_review)
+
+    def test_verify_before_review_can_be_turned_off(self) -> None:
+        from orchestrator.__main__ import _parser, _settings
+
+        args = _parser().parse_args(["status", TASK_ID, "--no-verify-before-review"])
+
+        self.assertFalse(_settings(args, TASK_ID).verify_before_review)
+
     def test_stall_seconds_is_parsed(self) -> None:
         from orchestrator.__main__ import _stall_seconds
 

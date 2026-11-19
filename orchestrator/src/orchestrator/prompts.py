@@ -223,14 +223,38 @@ def plan_prompt(task: str, plan_path: Path, plugin_dir: Path) -> str:
 {template}"""
 
 
-def implement_prompt(plan_path: Path, plugin_dir: Path) -> str:
+def leftovers_section(changed: list[str] | None) -> str:
+    """직전 호출이 끊기고 남긴 변경을 알린다.
+
+    사실만 준다 — 어디까지 됐는지는 판단이라 런타임이 말하지 않는다.
+    이것이 없으면 다시 부른 에이전트가 처음부터 하거나 이미 된 것을 되돌린다.
+    """
+    if not changed:
+        return ""
+    listed = "\n".join(f"- `{path}`" for path in changed[:40])
+    more = f"\n- 외 {len(changed) - 40}개" if len(changed) > 40 else ""
+    return f"""## 직전 호출이 남긴 변경
+
+앞선 호출이 끝까지 가지 못하고 끊겼다. 그때 이 파일들이 이미 바뀌어 있다.
+
+{listed}{more}
+
+**처음부터 다시 하지 않는다.** 먼저 읽어 어디까지 됐는지 확인하고 남은 것만 한다.
+어디까지 됐는지는 아무도 판정해 주지 않았으니 직접 본다. 이미 된 것을 되돌리지도 않는다."""
+
+
+def implement_prompt(
+    plan_path: Path, plugin_dir: Path, *, already_changed: list[str] | None = None
+) -> str:
     gotchas = read_reference(plugin_dir, GOTCHAS)
+    leftovers = leftovers_section(already_changed)
+    leftovers = f"\n{leftovers}\n" if leftovers else ""
     return f"""당신은 구현자다. 계획 파일을 읽고 그대로 따른다.
 
 계획: `{plan_path}`
 
 대화 맥락 없이 그 파일만 보고 일한다. 모르는 것이 있으면 추측하지 말고 적어 둔다.
-
+{leftovers}
 {HANDOFF_RULES}
 
 ## 끝낼 때
@@ -243,7 +267,9 @@ def implement_prompt(plan_path: Path, plugin_dir: Path) -> str:
 {gotchas}"""
 
 
-def review_prompt(plan_path: Path, changed: list[str], plugin_dir: Path) -> str:
+def review_prompt(
+    plan_path: Path, changed: list[str], plugin_dir: Path, *, verify_output: str = ""
+) -> str:
     purpose = section(plan_path, PURPOSE_SECTION)
     limits = section(plan_path, LIMITS_SECTION, required=False)
     rules = section(plan_path, RULES_SECTION, required=False)
@@ -265,6 +291,17 @@ def review_prompt(plan_path: Path, changed: list[str], plugin_dir: Path) -> str:
         "",
         REVIEW_QUESTIONS,
     ]
+    if verify_output:
+        parts += [
+            "",
+            "## 검증 명령 결과",
+            "",
+            "런타임이 리뷰 직전에 계획의 검증 명령을 돌린 **실제 출력**이다.",
+            "구현자의 보고가 아니다. 통과했다는 말도, 실패했다는 말도 여기 없다 — 출력만 있다.",
+            "실패한 것이 있으면 왜 실패했는지도 따진다. 통과했어도 그것이 무엇을 증명하는지 따진다.",
+            "",
+            verify_output,
+        ]
     if limits:
         parts += ["", "## 계획이 확인할 수 없다고 적은 것", "", limits]
     if rules:
@@ -273,15 +310,19 @@ def review_prompt(plan_path: Path, changed: list[str], plugin_dir: Path) -> str:
     return "\n".join(parts)
 
 
-def fix_prompt(fix_plan_path: Path, plugin_dir: Path) -> str:
+def fix_prompt(
+    fix_plan_path: Path, plugin_dir: Path, *, already_changed: list[str] | None = None
+) -> str:
     gotchas = read_reference(plugin_dir, GOTCHAS)
+    leftovers = leftovers_section(already_changed)
+    leftovers = f"\n{leftovers}\n" if leftovers else ""
     return f"""당신은 구현자다. 수정 계획을 읽고 그대로 따른다.
 
 수정 계획: `{fix_plan_path}`
 
 **거기 적힌 것만 고친다.** 리뷰가 낸 지적 중 반영하지 않기로 한 것은 그 계획에 빠져 있다.
 빠진 지적을 겸사겸사 고치지 않는다.
-
+{leftovers}
 {HANDOFF_RULES}
 
 ## 끝낼 때

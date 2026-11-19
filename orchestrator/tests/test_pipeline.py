@@ -51,6 +51,133 @@ class PipelineTestCase(unittest.TestCase):
         return settings
 
 
+class RetryLeftoversTest(PipelineTestCase):
+    def fail_once(self, settings: Settings) -> None:
+        """구현자가 파일을 바꿔 놓고 실패로 끝나게 한다."""
+        self.reach_implementing(settings)
+        pipeline.step(settings)
+
+    def test_a_failed_call_reports_what_it_left_behind(self) -> None:
+        # 0바이트 로그만 주면 사람이 매번 git status 로 가려내야 한다.
+        settings = self.settings({IMPLEMENTER: "echo 고침 >> a.txt; exit 1"})
+        self.reach_implementing(settings)
+
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.FAILED_AGENT)
+        self.assertIn("a.txt", result.detail)
+        self.assertIn("남긴 변경", result.detail)
+
+    def test_a_failed_call_that_changed_nothing_says_so(self) -> None:
+        settings = self.settings({IMPLEMENTER: "exit 1"})
+        self.reach_implementing(settings)
+
+        result = pipeline.step(settings)
+
+        self.assertIn("바뀐 파일은 없다", result.detail)
+
+    def test_the_next_call_is_told_what_is_already_changed(self) -> None:
+        settings = self.settings({IMPLEMENTER: "echo 고침 >> a.txt; exit 1"})
+        self.reach_implementing(settings)
+        pipeline.step(settings)
+
+        pipeline.resume(settings)
+        pipeline.step(settings)
+
+        second = settings.adapters[IMPLEMENTER].prompts[1]
+        self.assertIn("직전 호출이 남긴 변경", second)
+        self.assertIn("a.txt", second)
+
+    def test_the_first_call_is_not_told_anything(self) -> None:
+        settings = self.settings({IMPLEMENTER: "echo 고침 >> a.txt"})
+        self.reach_implementing(settings)
+
+        pipeline.step(settings)
+
+        self.assertNotIn("직전 호출이 남긴 변경", settings.adapters[IMPLEMENTER].prompts[0])
+
+    def test_the_scope_check_still_sees_the_first_attempt(self) -> None:
+        # 다시 찍으면 쓰다 만 변경이 기준선 안으로 들어가 범위 검사가 못 본다.
+        settings = self.settings({IMPLEMENTER: "echo 몰래 >> 계획에없다.txt; exit 1"})
+        self.reach_implementing(settings)
+        pipeline.step(settings)
+        settings.adapters[IMPLEMENTER].script = "echo 고침 >> a.txt"
+
+        pipeline.resume(settings)
+        pipeline.step(settings)
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.BLOCKED_SCOPE)
+        self.assertIn("계획에없다.txt", result.detail)
+
+    def test_a_successful_call_clears_the_old_failure(self) -> None:
+        settings = self.settings({IMPLEMENTER: "echo 고침 >> a.txt; exit 1"})
+        self.reach_implementing(settings)
+        pipeline.step(settings)
+        settings.adapters[IMPLEMENTER].script = "echo 또 >> a.txt"
+
+        pipeline.resume(settings)
+        pipeline.step(settings)
+
+        self.assertIsNone(pipeline.read_failure(settings))
+
+
+class VerifyBeforeReviewTest(PipelineTestCase):
+    def reach_reviewing(self, verify: str, **overrides) -> Settings:
+        settings = self.settings(
+            {IMPLEMENTER: "echo 고침 >> a.txt", REVIEWER: "echo 리뷰"}, **overrides
+        )
+        self.reach_implementing(settings, verify=verify)
+        pipeline.step(settings)
+        pipeline.step(settings)
+        return settings
+
+    def test_the_reviewer_gets_the_verify_output(self) -> None:
+        settings = self.reach_reviewing("echo 테스트가-돌았다")
+
+        pipeline.step(settings)
+
+        brief = settings.adapters[REVIEWER].prompts[0]
+        self.assertIn("검증 명령 결과", brief)
+        self.assertIn("테스트가-돌았다", brief)
+        self.assertIn("통과", brief)
+
+    def test_a_failing_verify_reaches_the_reviewer_instead_of_blocking(self) -> None:
+        # 읽기 전용 리뷰어는 빌드를 못 돌린다. 깨진 상태가 "코드상으로는 맞다"로 통과한 적이 있다.
+        settings = self.reach_reviewing("echo 깨졌다 && exit 65")
+
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.WAITING_HUMAN)
+        brief = settings.adapters[REVIEWER].prompts[0]
+        self.assertIn("종료 코드 65", brief)
+        self.assertIn("깨졌다", brief)
+
+    def test_the_human_is_told_the_verify_failed(self) -> None:
+        settings = self.reach_reviewing("exit 65")
+
+        result = pipeline.step(settings)
+
+        self.assertIn("리뷰 전 검증", result.detail)
+        self.assertIn("실패", result.detail)
+
+    def test_it_can_be_turned_off(self) -> None:
+        settings = self.reach_reviewing("echo 테스트가-돌았다", verify_before_review=False)
+
+        pipeline.step(settings)
+
+        self.assertNotIn("검증 명령 결과", settings.adapters[REVIEWER].prompts[0])
+
+    def test_a_policy_blocked_command_is_not_run_before_review(self) -> None:
+        settings = self.reach_reviewing("git push origin main")
+
+        result = pipeline.step(settings)
+
+        self.assertEqual(result.state, RunState.WAITING_HUMAN)
+        self.assertNotIn("검증 명령 결과", settings.adapters[REVIEWER].prompts[0])
+        self.assertIn("정책에 막혀", result.detail)
+
+
 class InitTest(PipelineTestCase):
     def test_creates_the_task_directory_and_state(self) -> None:
         settings = self.settings()

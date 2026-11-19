@@ -83,6 +83,18 @@ def _common(parser: argparse.ArgumentParser) -> None:
         "--stall-seconds", action="append", default=[], metavar="역할=초",
         help="그 역할의 무활동 감지 시간. 0 이면 끈다. 예: --stall-seconds verify=0",
     )
+    parser.add_argument(
+        "--timeout", action="append", default=[], metavar="역할=초",
+        help=(
+            "그 역할의 전체 제한 시간. 0 이면 끈다. "
+            "주지 않으면 역할 기본값(implementer·fixer 1200, planner 900, reviewer 600, verify 1800). "
+            "예: --timeout implementer=3600"
+        ),
+    )
+    parser.add_argument(
+        "--no-verify-before-review", action="store_true",
+        help="리뷰어에게 검증 결과를 주지 않는다. 검증이 오래 걸리는 프로젝트에서 쓴다",
+    )
 
 
 def _settings(args, task_id: str) -> Settings:
@@ -96,16 +108,26 @@ def _settings(args, task_id: str) -> Settings:
         models=_models(args.model),
         retry_limit=args.retry_limit,
         stall_seconds=_stall_seconds(args.stall_seconds),
+        timeouts=_timeouts(args.timeout),
+        verify_before_review=not getattr(args, "no_verify_before_review", False),
     )
 
 
 def _stall_seconds(pairs: list[str]) -> dict[str, int]:
+    return _role_seconds(pairs, "--stall-seconds")
+
+
+def _timeouts(pairs: list[str]) -> dict[str, int]:
+    return _role_seconds(pairs, "--timeout")
+
+
+def _role_seconds(pairs: list[str], option: str) -> dict[str, int]:
     known = set(pipeline.DEFAULT_ROUTING) | {pipeline.VERIFY_ROLE}
     found: dict[str, int] = {}
     for pair in pairs:
         role, separator, value = pair.partition("=")
         if not separator or not value:
-            raise OrchestratorError(f"--stall-seconds 형식은 역할=초다: {pair}")
+            raise OrchestratorError(f"{option} 형식은 역할=초다: {pair}")
         if role not in known:
             raise OrchestratorError(f"모르는 역할: {role} (있는 것: {', '.join(sorted(known))})")
         try:

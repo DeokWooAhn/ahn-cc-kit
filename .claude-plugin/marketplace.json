@@ -136,7 +136,7 @@
       "name": "agent-orchestrator",
       "source": "agent-orchestrator",
       "description": "계획을 세운 에이전트와 구현한 에이전트와 리뷰한 세션을 갈라 놓고 그 왕복을 지휘하는 절차. 파일로 넘기는 계획 산출물, 계획이 허용한 파일만 바뀌었는지 보는 범위 검증, 구현자의 결론을 숨긴 교차 리뷰 브리프를 담습니다.",
-      "version": "0.5.1",
+      "version": "0.6.0",
       "author": {
         "name": "DeokWooAhn"
       },
