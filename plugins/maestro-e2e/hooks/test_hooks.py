@@ -95,6 +95,19 @@ def skip(d, key, text, seconds_ago=RUN):
     age(f, seconds_ago)
 
 
+def always_skip_path(d, key):
+    """저장소에 커밋하는 영구 표식. 훅이 보는 경로와 같아야 해서 git 이 말하는 루트로 만든다."""
+    return pathlib.Path(git(d, "rev-parse", "--show-toplevel")) / ".maestro" / f"maestro-e2e-{key}.skip"
+
+
+def always_skip(d, key, text, seconds_ago=OLD + 100):
+    """시각을 보지 않는 것이 요점이라 일부러 화면 파일보다 오래되게 둔다."""
+    f = always_skip_path(d, key)
+    f.write_text(text)
+    age(f, seconds_ago)
+    return f
+
+
 def clear(d):
     for key in ("android", "ios"):
         for ext in ("xml", "skip"):
@@ -143,6 +156,7 @@ def main():
         check("--format=JUNIT" in err and "maestro-e2e-android.xml" in err and "maestro-e2e-android.skip" in err,
               "리포트·건너뜀 파일 경로를 알려 줌")
         check("확인 1/3" in err, "몇 번째 확인인지 알려 줌")
+        check("MAESTRO_E2E_PLATFORMS=android" in err, "한 플랫폼만 보는 길을 알려 줌")
         check("새로 생긴 화면" not in err and "iOS" not in err, "수정만이면 Flow 판단을 묻지 않고, iOS는 요구하지 않음")
 
         report(d, "android", [("smoke_tabs", False), ("smoke_calculator", False)])
@@ -250,6 +264,88 @@ def main():
         msg = message(out) or ""
         check(rc == 0 and "Android Flow 1개 통과" in msg and "iOS 건너뜀: 시뮬레이터 런타임 없음" in msg,
               "iOS는 건너뜀 · 두 결과를 한 줄로", f"exit={rc} {msg}")
+
+        print("\n-- 확인할 플랫폼 고르기 (MAESTRO_E2E_PLATFORMS)")
+        d = repo(tmp, "platforms", {"app/a/HomeScreen.kt": SCREEN_KT, "ios/App/HomeView.swift": SCREEN_SWIFT})
+        write(d, "app/a/HomeScreen.kt", SCREEN_KT + "// 바꿈\n")
+        write(d, "ios/App/HomeView.swift", SCREEN_SWIFT + "// 바꿈\n")
+        only_android = {"MAESTRO_E2E_PLATFORMS": "android"}
+        rc, _, err = run(d, env_extra=only_android)
+        check(rc == 2 and "Android: 화면을 바꾼" in err and "iOS" not in err,
+              "android만 · iOS 결과를 요구하지 않음", f"exit={rc}")
+        check("HomeView.swift" not in err, "확인하지 않는 플랫폼의 파일은 바뀐 목록에도 넣지 않음")
+        report(d, "android", [("smoke_tabs", False)])
+        rc, out, _ = run(d, env_extra=only_android)
+        msg = message(out) or ""
+        check(rc == 0 and "Android Flow 1개 통과" in msg and "iOS" not in msg,
+              "android만 · Android 결과만으로 통과", f"exit={rc} {msg}")
+
+        clear(d)
+        rc, _, err = run(d, env_extra={"MAESTRO_E2E_PLATFORMS": "ios"})
+        check(rc == 2 and "iOS: 화면을 바꾼" in err and "Android" not in err,
+              "ios만 · Android 결과를 요구하지 않음", f"exit={rc}")
+        rc, _, err = run(d, env_extra={"MAESTRO_E2E_PLATFORMS": "Android, iOS"})
+        check(rc == 2 and "Android: 화면을 바꾼" in err and "iOS: 화면을 바꾼" in err,
+              "대문자·쉼표·공백이 섞인 목록 · 둘 다 확인", f"exit={rc}")
+        rc, out, err = run(d, env_extra={"MAESTRO_E2E_PLATFORMS": "none"})
+        check(rc == 0 and not out and not err, "none · 조용", f"exit={rc}")
+        rc, out, err = run(d, env_extra={"MAESTRO_E2E_PLATFORMS": ""})
+        check(rc == 0 and not out and not err, "빈 값 · 조용", f"exit={rc}")
+        rc, out, err = run(d, PROMPT, mode="mark", env_extra={"MAESTRO_E2E_PLATFORMS": "none"})
+        check(rc == 0 and not out and not err, "none · mark도 조용", f"exit={rc}")
+
+        print("\n-- 저장소에 남기는 건너뜀 (.maestro/maestro-e2e-<플랫폼>.skip)")
+        d = repo(tmp, "always", {"app/a/HomeScreen.kt": SCREEN_KT, "ios/App/HomeView.swift": SCREEN_SWIFT})
+        write(d, "ios/App/HomeView.swift", SCREEN_SWIFT + "// 바꿈\n")
+        rc, _, err = run(d)
+        check(rc == 2 and str(always_skip_path(d, "ios")) in err and "늘 못 돌릴 때" in err,
+              "막을 때 저장소 표식 경로를 알려 줌", f"exit={rc}")
+        check("커밋합니다" in err and "사용자에게 먼저 확인합니다" in err, "커밋할 것과 먼저 물을 것을 알려 줌")
+
+        always_skip(d, "ios", "이 저장소는 iOS Flow를 운영하지 않습니다\n")
+        rc, out, _ = run(d)
+        msg = message(out) or ""
+        check(rc == 0 and "iOS 건너뜀(저장소 설정): 이 저장소는 iOS Flow를 운영하지 않습니다" in msg,
+              "저장소 표식 · 화면 파일보다 오래돼도 통과", f"exit={rc} {msg}")
+        run(d, PROMPT, mode="mark")
+        write(d, "ios/App/HomeView.swift", SCREEN_SWIFT + "// 다음 턴\n", seconds_ago=0)
+        rc, out, _ = run(d)
+        check(rc == 0 and "iOS 건너뜀(저장소 설정)" in (message(out) or ""),
+              "다음 턴에 또 고쳐도 그대로 쓰임 · 매 턴 다시 쓰지 않아도 됨", f"exit={rc}")
+
+        write(d, "ios/App/HomeView.swift", SCREEN_SWIFT + "// 또 바꿈\n")
+        report(d, "ios", [("smoke_tabs", True)])
+        rc, _, err = run(d)
+        check(rc == 2 and "  - smoke_tabs" in err, "표식이 있어도 이번 실행의 실패 리포트가 먼저", f"exit={rc}")
+        evidence(d, "maestro-e2e-ios.xml").unlink(missing_ok=True)
+
+        always_skip(d, "ios", "  \n")
+        rc, _, err = run(d)
+        check(rc == 2 and "iOS: 화면을 바꾼 뒤 돌린 결과가 없습니다" in err, "이유가 빈 표식 · 표식으로 치지 않음", f"exit={rc}")
+
+        always_skip(d, "ios", "iOS Flow 없음\n")
+        write(d, "app/a/HomeScreen.kt", SCREEN_KT + "// 바꿈\n")
+        rc, _, err = run(d)
+        check(rc == 2 and "Android: 화면을 바꾼" in err and "확인됨: iOS 건너뜀(저장소 설정): iOS Flow 없음" in err,
+              "표식은 그 플랫폼만 · Android는 그대로 요구", f"exit={rc}")
+
+        print("\n-- 사람에게 물을 수 없는 실행 (MAESTRO_E2E_NONINTERACTIVE)")
+        d = repo(tmp, "headless", {"app/a/HomeScreen.kt": SCREEN_KT})
+        run(d, PROMPT, mode="mark")
+        write(d, "app/a/NewScreen.kt", SCREEN_KT.replace("Home", "New"))
+        headless = {"MAESTRO_E2E_NONINTERACTIVE": "1"}
+        rc, _, err = run(d, env_extra=headless)
+        check(rc == 2 and "묻지 말고 그 판단을 보고 끝에 적습니다" in err and "사용자에게 묻습니다" not in err,
+              "새 화면 · 묻는 대신 보고에 적게 함", f"exit={rc}")
+        check("Flow는 만들지 않습니다" in err, "물을 수 없어도 Flow를 만들지는 않게 함")
+        check("확인 1/1" in err, "막는 횟수를 1번으로 줄임")
+        rc, out, err = run(d, env_extra=headless, keep_count=True)
+        msg = message(out)
+        check(rc == 0 and not err and msg and "결과 없이 끝났습니다" in msg and "1번 요청했습니다" in msg,
+              "한 번 막은 뒤 · 통과시키고 결과 없이 끝났다고 알림", f"exit={rc} {msg}")
+        rc, _, err = run(d)
+        check(rc == 2 and "그 판단을 사용자에게 묻습니다" in err and "claude -p" in err and "확인 1/3" in err,
+              "대화형 · 묻되 물을 수 없는 자리의 길도 함께 알려 줌", f"exit={rc}")
 
         print("\n-- 화면 파일 판정")
         d = repo(tmp, "plain", {"app/src/main/java/a/Repo.kt": PLAIN_KT})
