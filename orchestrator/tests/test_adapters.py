@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from orchestrator import adapters
+from orchestrator import adapters, ledger
 from orchestrator.adapters import (
     FAILED,
     FALLBACK_TIMEOUT_SECONDS,
@@ -513,6 +513,80 @@ class RequestEnvTest(unittest.TestCase):
         run_command(["sh", "-c", "printf %s \"${ORCH_TEST_MARK:-없음}\""], request)
 
         self.assertEqual(request.log_file.read_text(encoding="utf-8"), "없음")
+
+
+class LedgerWiringTest(unittest.TestCase):
+    """장부는 run_command 를 지나는 모든 호출을 본다."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.dir = Path(tmp.name)
+        (self.dir / "02-implement-prompt.txt").write_text("넘길 말\n", encoding="utf-8")
+
+    def request(self, **overrides) -> AgentRequest:
+        values = {
+            "role": IMPLEMENTER,
+            "prompt_file": self.dir / "02-implement-prompt.txt",
+            "log_file": self.dir / "02-implement.log",
+            "cwd": self.dir,
+            "timeout_seconds": 10,
+            "stall_seconds": 0,
+        }
+        values.update(overrides)
+        return AgentRequest(**values)
+
+    def test_an_agent_call_leaves_a_line(self) -> None:
+        run_command(["sh", "-c", "printf ok"], self.request(attempt=1),
+                    prompt="넘길 말", effort="xhigh")
+
+        [one] = ledger.read_task(self.dir)
+
+        self.assertEqual(one.role, IMPLEMENTER)
+        self.assertEqual(one.kind, ledger.AGENT)
+        self.assertEqual(one.effort, "xhigh")
+        self.assertEqual(one.attempt, 1)
+        self.assertEqual(one.tool, "sh")
+        self.assertEqual(one.outcome, OK)
+        self.assertEqual(one.task_id, self.dir.name)
+
+    def test_a_verification_is_marked_as_one(self) -> None:
+        run_command(["sh", "-c", "printf ok"], self.request(role="verify"))
+
+        [one] = ledger.read_task(self.dir)
+
+        self.assertEqual(one.kind, ledger.VERIFY)
+        self.assertIsNone(one.effort)
+
+    def test_a_missing_command_still_leaves_a_line(self) -> None:
+        # 환경 문제도 왕복 비용이다. 빠지면 합계가 거짓말을 한다.
+        run_command(["이런명령은없다"], self.request(), prompt="넘길 말")
+
+        [one] = ledger.read_task(self.dir)
+
+        self.assertEqual(one.outcome, MISSING_COMMAND)
+
+    def test_the_adapter_records_the_rung_it_used(self) -> None:
+        class Scripted(ClaudeAdapter):
+            def build_command(self, request, prompt):
+                return ["sh", "-c", "printf ok"]
+
+        Scripted().run(self.request(attempt=2))
+
+        [one] = ledger.read_task(self.dir)
+
+        self.assertEqual(one.effort, "max")
+
+    def test_a_first_attempt_records_no_rung(self) -> None:
+        class Scripted(ClaudeAdapter):
+            def build_command(self, request, prompt):
+                return ["sh", "-c", "printf ok"]
+
+        Scripted().run(self.request())
+
+        [one] = ledger.read_task(self.dir)
+
+        self.assertIsNone(one.effort)
 
 
 class LogHeaderTest(unittest.TestCase):

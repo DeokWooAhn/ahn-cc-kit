@@ -8,6 +8,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import ledger
 from .errors import PromptFileError, UnknownAdapter
 
 PLANNER = "planner"
@@ -148,6 +149,7 @@ def run_command(
     *,
     watch_stall: bool = True,
     prompt: str | None = None,
+    effort: str | None = None,
 ) -> AgentResult:
     log_file = Path(request.log_file)
     log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -178,14 +180,20 @@ def run_command(
                 _terminate(process)
                 raise
     except FileNotFoundError:
-        return _result(
+        return _recorded(
+            _result(
+                request,
+                command,
+                MISSING_COMMAND,
+                None,
+                time.monotonic() - started,
+                log_file,
+                f"명령을 찾지 못했다: {command[0]}",
+            ),
             request,
             command,
-            MISSING_COMMAND,
-            None,
-            time.monotonic() - started,
-            log_file,
-            f"명령을 찾지 못했다: {command[0]}",
+            prompt=prompt,
+            effort=effort,
         )
 
     returncode = process.returncode
@@ -193,15 +201,49 @@ def run_command(
         outcome = FAILED
         detail = f"종료 코드 {returncode}"
 
-    return _result(
+    return _recorded(
+        _result(
+            request,
+            command,
+            outcome,
+            returncode,
+            time.monotonic() - started,
+            log_file,
+            detail,
+        ),
         request,
         command,
-        outcome,
-        returncode,
-        time.monotonic() - started,
-        log_file,
-        detail,
+        prompt=prompt,
+        effort=effort,
     )
+
+
+def _recorded(
+    result: AgentResult,
+    request: AgentRequest,
+    command: list[str],
+    *,
+    prompt: str | None,
+    effort: str | None,
+) -> AgentResult:
+    """장부에 한 줄 남기고 결과를 그대로 돌려준다."""
+    task_dir = Path(request.log_file).parent
+    ledger.record(
+        task_dir,
+        ledger.Call(
+            at=ledger.now(),
+            task_id=task_dir.name,
+            role=request.role,
+            kind=ledger.AGENT if prompt is not None else ledger.VERIFY,
+            tool=Path(command[0]).name if command else "",
+            effort=effort,
+            attempt=request.attempt,
+            outcome=result.outcome,
+            seconds=round(result.duration_seconds, 1),
+            log_bytes=result.log_bytes,
+        ),
+    )
+    return result
 
 
 class Adapter:
@@ -232,6 +274,7 @@ class Adapter:
             request,
             watch_stall=self.streams_output,
             prompt=prompt,
+            effort=self.rung(request.attempt),
         )
 
 
