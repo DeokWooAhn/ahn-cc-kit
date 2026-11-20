@@ -191,24 +191,43 @@ class BuildCommandTest(unittest.TestCase):
 
         self.assertNotIn("-c", codex)
         self.assertNotIn("--model", claude)
+        self.assertNotIn("--effort", claude)
 
-    def test_a_retry_raises_the_claude_model(self) -> None:
+    def test_a_retry_raises_the_claude_effort(self) -> None:
         command = ClaudeAdapter().build_command(self.request(attempt=1), "고쳐라")
 
-        self.assertEqual(command[3:5], ["--model", "opus"])
+        self.assertEqual(command[3:5], ["--effort", "xhigh"])
+
+    def test_the_claude_rung_sits_above_the_common_default(self) -> None:
+        # 기본값이 high 인 설정에서 --effort high 를 주면 제자리걸음이다.
+        command = ClaudeAdapter().build_command(self.request(attempt=1), "고쳐라")
+
+        self.assertNotIn("high", command[4:5])
+
+    def test_the_ladder_climbs_a_second_rung(self) -> None:
+        once = ClaudeAdapter().build_command(self.request(attempt=1), "고쳐라")
+        twice = ClaudeAdapter().build_command(self.request(attempt=2), "고쳐라")
+
+        self.assertEqual(once[3:5], ["--effort", "xhigh"])
+        self.assertEqual(twice[3:5], ["--effort", "max"])
 
     def test_a_retry_raises_the_codex_effort(self) -> None:
         command = CodexAdapter().build_command(self.request(attempt=1), "고쳐라")
 
-        self.assertEqual(command[4:6], ["-c", "model_reasoning_effort=high"])
+        self.assertEqual(command[4:6], ["-c", "model_reasoning_effort=xhigh"])
         self.assertEqual(command[-1], "고쳐라")
 
-    def test_an_explicit_model_beats_the_ladder(self) -> None:
+    def test_both_adapters_climb_the_same_rungs(self) -> None:
+        # 한쪽만 올라가면 역할을 바꿔 돌렸을 때 재시도 세기가 달라진다.
+        self.assertEqual(CodexAdapter().ladder, ClaudeAdapter().ladder)
+
+    def test_an_explicit_claude_model_still_gets_the_effort(self) -> None:
+        # 모델은 사람이 고르고 강도는 사다리가 올린다. 둘은 겹치지 않는다.
         command = ClaudeAdapter().build_command(
             self.request(attempt=2, model="sonnet"), "고쳐라"
         )
 
-        self.assertEqual(command[3:5], ["--model", "sonnet"])
+        self.assertEqual(command[3:7], ["--model", "sonnet", "--effort", "max"])
         self.assertEqual(command.count("--model"), 1)
 
     def test_an_explicit_codex_model_still_gets_the_effort(self) -> None:
@@ -216,13 +235,13 @@ class BuildCommandTest(unittest.TestCase):
             self.request(attempt=1, model="gpt-5"), "고쳐라"
         )
 
-        self.assertEqual(command[4:8], ["-m", "gpt-5", "-c", "model_reasoning_effort=high"])
+        self.assertEqual(command[4:8], ["-m", "gpt-5", "-c", "model_reasoning_effort=xhigh"])
 
     def test_the_ladder_stops_at_the_top(self) -> None:
-        once = ClaudeAdapter().build_command(self.request(attempt=1), "고쳐라")
+        top = ClaudeAdapter().build_command(self.request(attempt=2), "고쳐라")
         many = ClaudeAdapter().build_command(self.request(attempt=9), "고쳐라")
 
-        self.assertEqual(once, many)
+        self.assertEqual(top, many)
 
     def test_an_adapter_without_a_ladder_adds_nothing(self) -> None:
         self.assertIsNone(Adapter().rung(3))
@@ -494,6 +513,62 @@ class RequestEnvTest(unittest.TestCase):
         run_command(["sh", "-c", "printf %s \"${ORCH_TEST_MARK:-없음}\""], request)
 
         self.assertEqual(request.log_file.read_text(encoding="utf-8"), "없음")
+
+
+class LogHeaderTest(unittest.TestCase):
+    """로그만 보고 무엇이 어떤 강도로 돌았는지 가릴 수 있어야 한다."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+        (self.dir / "02-implement-prompt.txt").write_text("넘길 말\n", encoding="utf-8")
+
+    def request(self, **overrides) -> AgentRequest:
+        values = {
+            "role": IMPLEMENTER,
+            "prompt_file": self.dir / "02-implement-prompt.txt",
+            "log_file": self.dir / "02-implement.log",
+            "cwd": self.dir,
+            "timeout_seconds": 10,
+            "stall_seconds": 0,
+        }
+        values.update(overrides)
+        return AgentRequest(**values)
+
+    def test_an_agent_log_opens_with_what_ran(self) -> None:
+        request = self.request()
+
+        run_command(["sh", "-c", "printf 출력"], request, prompt="넘길 말")
+        log = request.log_file.read_text(encoding="utf-8")
+
+        self.assertTrue(log.startswith("# orch implementer · 첫 시도\n"))
+        self.assertIn("sh -c", log)
+        self.assertTrue(log.endswith("출력"))
+
+    def test_the_header_names_the_rung_on_a_retry(self) -> None:
+        command = ClaudeAdapter().build_command(self.request(attempt=1), "넘길 말")
+
+        header = adapters.log_header(command, self.request(attempt=1), "넘길 말")
+
+        self.assertIn("재시도 1", header)
+        self.assertIn("--effort xhigh", header)
+
+    def test_the_prompt_is_not_copied_into_the_header(self) -> None:
+        command = ClaudeAdapter().build_command(self.request(), "비밀스러운 긴 프롬프트")
+
+        header = adapters.log_header(command, self.request(), "비밀스러운 긴 프롬프트")
+
+        self.assertNotIn("비밀스러운", header)
+        self.assertIn("@02-implement-prompt.txt", header)
+
+    def test_a_verify_log_keeps_the_output_alone(self) -> None:
+        # 검증 출력은 그대로 리뷰 브리프에 실린다. 우리 줄을 섞으면 안 된다.
+        request = self.request(role="verify", log_file=self.dir / "verify-1.log")
+
+        run_command(["sh", "-c", "printf 통과"], request)
+
+        self.assertEqual(request.log_file.read_text(encoding="utf-8"), "통과")
 
 
 if __name__ == "__main__":

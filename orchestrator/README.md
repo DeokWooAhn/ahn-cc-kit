@@ -284,6 +284,37 @@ headless claude는 호출마다 새 세션이라 **Implementer와 Reviewer의 �
 기본 제한 시간은 역할마다 다르다. implementer·fixer 20분, planner 15분, reviewer 10분.
 `--timeout 역할=초` 로 바꾼다. 긴 빌드가 끼는 작업에서는 20분이 모자란다.
 
+#### 재시도는 추론 강도를 올린다
+
+첫 호출은 `-c`·`--effort` 를 비워 두어 **각 도구의 기본 설정을 그대로** 쓴다.
+막혀서 다시 부를 때만 사다리를 밟는다 — 1회차 `xhigh`, 2회차부터 `max`.
+codex 는 `-c model_reasoning_effort=`, claude 는 `--effort` 로 받는다. 두 CLI 가 같은
+등급 이름을 쓴다(`low` · `medium` · `high` · `xhigh` · `max`).
+
+**사다리의 칸은 기본값 "위"에 있어야 한다.** 한때 `high`·`opus` 였는데 둘 다 제자리걸음이었다 —
+`~/.codex/config.toml` 이 이미 `model_reasoning_effort = "high"` 였고, claude 의 기본 모델이
+이미 오푸스라 `--model opus` 가 같은 자리였다. 2026-11-20 에 기록 16건을 세어 보고 알았다.
+`high` 는 흔한 기본값이라 칸이 될 수 없다.
+
+**모델은 사다리가 건드리지 않는다.** `--model 역할=별칭` 으로 사람이 고른다.
+모델과 강도는 겹치지 않아서 둘 다 줄 수 있다. claude 는 모르는 등급을 받으면 막지 않고
+경고만 찍고 무시하므로, 등급은 상수로만 둔다.
+
+#### 에이전트 로그는 머리말로 시작한다
+
+```text
+# orch implementer · 재시도 1
+# claude -p @02-implement-prompt.txt --effort xhigh --allowed-tools Read Glob Grep Write Edit Bash
+# ---
+```
+
+무엇이 어떤 강도로 돌았는지 **끝난 뒤에도 알아야 한다.** codex 는 자기 배너에 모델과 강도를
+찍지만 claude 는 아무것도 안 남겨서, 로그만으로는 어느 도구가 돌았는지 가릴 수 없었다.
+프롬프트는 통째로 인자에 들어 있어 길므로 파일 이름으로 바꿔 적는다.
+
+**검증 로그에는 안 붙인다.** 그 출력은 그대로 리뷰 브리프에 실린다 — 사람이 쓴 명령의
+출력에 런타임의 줄을 섞으면 안 된다.
+
 제한 시간에 끊기면 **그때까지 바뀐 파일을 함께 적는다.** 일을 다 해 놓고 보고만 못
 끝낸 경우가 실제로 있었는데, 로그는 0바이트라 사람이 매번 `git status` 로 가려내야 했다.
 `orch resume` 은 그 목록을 다음 호출의 프롬프트에 넣어 준다 — 처음부터 다시 하거나
