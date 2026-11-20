@@ -77,6 +77,10 @@ orch verify    # 계획의 검증 명령을 돌린다
 보고만 못 끝냈을 수 있다. `orch resume` 은 그 목록을 다음 호출에 알려 주고,
 범위 검사도 그 변경까지 함께 잰다. 제한 시간은 `--timeout 역할=초` 로 바꾼다.
 
+**다시 부를 때는 추론 강도를 올린다.** 첫 호출은 도구의 기본 설정을 그대로 쓰고,
+재시도에만 `xhigh`·`max` 를 얹는다. 모델은 사다리가 아니라 `--model 역할=별칭` 으로 고른다.
+에이전트 로그 첫 줄에 무엇이 어떤 강도로 돌았는지 적힌다.
+
 **승인은 대신 누르지 않는다.** 계획과 리뷰는 사람이 읽는다. 자율 모드에서도 그 자리에서 선다.
 
 `orch`가 없으면 아래 절차를 손으로 따른다. 둘은 같은 참조 문서를 읽고 같은 일을 한다.
@@ -108,15 +112,58 @@ orch verify    # 계획의 검증 명령을 돌린다
 grep -q '^\.orchestrate/$' .git/info/exclude || echo '.orchestrate/' >> .git/info/exclude
 ```
 
-번호를 붙여 순서를 남긴다: `01-plan.md`, `02-prompt.txt`, `02-output.log`, `03-review.md`, `04-fix-plan.md`.
+작업마다 디렉터리를 하나 만들고 번호를 붙여 순서를 남긴다.
+
+```text
+.orchestrate/20261120-작업이름/
+├── 01-plan.md                 계획
+├── 02-implement-prompt.txt    구현에 넘긴 말
+├── 02-implement.log           구현 로그
+├── 03-review-prompt.txt       리뷰에 넘긴 말
+├── 03-review.log              리뷰 로그
+├── 04-fix-plan.md             반영할 지적만 추린 수정 계획
+└── 05-fix.log                 수정 로그
+```
+
+**런타임이 쓰는 이름과 같다.** 손으로 돌리다 `orch` 로 옮겨도 산출물을 그대로 읽는다.
 
 ## 넘기는 법
 
 산출물 파일 경로를 주고 **그것을 읽게** 한다. 프롬프트에 계획을 통째로 붙이지 않는다.
 
+**구현과 리뷰는 서로 다른 도구로 넘기고, 리뷰어에게는 쓰기 권한을 주지 않는다.**
+런타임의 기본 배치는 이렇다. 도구는 바꿔도 되고, 그 둘이 갈리기만 하면 된다.
+
+| 단계 | 도구 | 권한 | 프롬프트 → 로그 |
+| --- | --- | --- | --- |
+| 계획 | codex | 쓰기 | `01-plan-prompt.txt` → `01-plan.log` |
+| 구현 | claude | 쓰기 | `02-implement-prompt.txt` → `02-implement.log` |
+| 리뷰 | codex | **읽기 전용** | `03-review-prompt.txt` → `03-review.log` |
+| 수정 | claude | 쓰기 | `05-fix-prompt.txt` → `05-fix.log` |
+
+계획을 손으로 쓰면 계획 단계는 건너뛴다. 아래 `<작업>`은 작업 디렉터리 이름이다.
+
+구현을 넘긴다.
+
 ```bash
-codex exec -s workspace-write "$(cat .orchestrate/02-prompt.txt)" < /dev/null > .orchestrate/02-output.log 2>&1
+claude -p "$(cat .orchestrate/<작업>/02-implement-prompt.txt)" --allowed-tools Read Glob Grep Write Edit Bash < /dev/null > .orchestrate/<작업>/02-implement.log 2>&1
 ```
+
+리뷰를 넘긴다.
+
+```bash
+codex exec -s read-only "$(cat .orchestrate/<작업>/03-review-prompt.txt)" < /dev/null > .orchestrate/<작업>/03-review.log 2>&1
+```
+
+권한은 도구마다 거는 자리가 다르다.
+
+| | 쓰기 | 읽기 전용 |
+| --- | --- | --- |
+| codex | `-s workspace-write` | `-s read-only` |
+| claude | `--allowed-tools Read Glob Grep Write Edit Bash` | `--allowed-tools Read Glob Grep 'Bash(git diff:*)' 'Bash(git status:*)' 'Bash(git log:*)'` |
+
+**headless claude 는 도구를 명시하지 않으면 아무것도 못 한다** — 승인을 물을 사람이 없다.
+리뷰어의 쓰기를 막는 것도 프롬프트가 아니라 이 목록이다.
 
 `< /dev/null`을 빠뜨리면 멈춘다. 이유와 나머지 함정은 `references/gotchas.md`에 있다.
 

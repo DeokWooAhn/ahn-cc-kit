@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import signal
 import subprocess
 import time
@@ -41,6 +42,16 @@ READ_ONLY_CLAUDE_TOOLS = (
     "Bash(git log:*)",
 )
 WRITE_CLAUDE_TOOLS = ("Read", "Glob", "Grep", "Write", "Edit", "Bash")
+
+# 재시도 때 올려 잡을 추론 강도. 두 CLI 가 같은 등급 이름을 받는다 —
+# claude --effort 는 low·medium·high·xhigh·max 를, codex 의
+# model_reasoning_effort 는 none·minimal·low·medium·high·xhigh·max 를 받는다.
+#
+# 바닥이 아니라 기본값 "위"에서 시작해야 한다. 2026-11-20 에 기록을 세어 보니
+# 사다리가 제자리걸음이었다 — codex 는 config.toml 이 이미 high 였고,
+# claude 는 기본 모델이 이미 오푸스라 --model opus 가 같은 자리였다.
+# high 는 흔한 기본값이라 사다리의 칸이 될 수 없다.
+EFFORT_LADDER = ("xhigh", "max")
 
 
 def default_timeout_seconds(role: str) -> int:
@@ -112,8 +123,31 @@ def read_prompt(path: Path) -> str:
     return text
 
 
+def log_header(command: list[str], request: AgentRequest, prompt: str | None) -> str:
+    """무엇이 어떤 강도로 돌았는지 로그 첫 줄에 남긴다.
+
+    codex 는 자기 배너에 모델과 강도를 찍지만 claude 는 아무것도 안 남긴다.
+    그래서 끝난 뒤에는 로그만 보고 어느 도구가 돌았는지 가릴 수 없었다.
+    프롬프트는 통째로 들어 있어 길므로 파일 이름으로 바꿔 적는다.
+    """
+    shown = [
+        f"@{Path(request.prompt_file).name}" if prompt is not None and arg == prompt else arg
+        for arg in command
+    ]
+    attempt = "첫 시도" if request.attempt <= 0 else f"재시도 {request.attempt}"
+    return (
+        f"# orch {request.role} · {attempt}\n"
+        f"# {shlex.join(shown)}\n"
+        "# ---\n"
+    )
+
+
 def run_command(
-    command: list[str], request: AgentRequest, *, watch_stall: bool = True
+    command: list[str],
+    request: AgentRequest,
+    *,
+    watch_stall: bool = True,
+    prompt: str | None = None,
 ) -> AgentResult:
     log_file = Path(request.log_file)
     log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -121,6 +155,12 @@ def run_command(
 
     try:
         with log_file.open("wb") as log:
+            # 에이전트 호출에만 머리말을 단다. 검증 로그는 그대로 리뷰 브리프에
+            # 실려서, 사람이 쓴 명령의 출력에 우리 줄을 섞으면 안 된다.
+            # 자식이 이어 쓰게 먼저 밀어낸다. flush 를 빠뜨리면 순서가 섞인다.
+            if prompt is not None:
+                log.write(log_header(command, request, prompt).encode("utf-8"))
+                log.flush()
             process = subprocess.Popen(
                 command,
                 cwd=str(request.cwd),
@@ -172,8 +212,9 @@ class Adapter:
     # 신호가 없는 것을 멈춤으로 읽는다. 그런 도구는 전체 제한 시간에 맡긴다.
     streams_output = True
 
-    # 재시도 때 올려 잡을 등급. 첫 시도는 비워 두어 도구의 기본 설정을 그대로 쓴다.
+    # 재시도 때 올려 잡을 추론 강도. 첫 시도는 비워 두어 도구의 기본 설정을 그대로 쓴다.
     # 판본 이름이 아니라 등급만 적어서, 모델이 새로 나와도 이 줄은 그대로 둔다.
+    # 모델은 사람이 `--model` 로 고른다. 사다리는 강도만 건드린다.
     ladder: tuple[str, ...] = ()
 
     def rung(self, attempt: int) -> str | None:
@@ -187,7 +228,10 @@ class Adapter:
     def run(self, request: AgentRequest) -> AgentResult:
         prompt = read_prompt(request.prompt_file)
         return run_command(
-            self.build_command(request, prompt), request, watch_stall=self.streams_output
+            self.build_command(request, prompt),
+            request,
+            watch_stall=self.streams_output,
+            prompt=prompt,
         )
 
 
@@ -197,7 +241,7 @@ class CodexAdapter(Adapter):
 
     name = "codex"
     # codex 의 -m 은 판본 이름만 받아 별칭이 없다. 모델 대신 추론 강도를 올린다.
-    ladder = ("high",)
+    ladder = EFFORT_LADDER
 
     def build_command(self, request: AgentRequest, prompt: str) -> list[str]:
         sandbox = "read-only" if request.read_only else "workspace-write"
@@ -219,15 +263,18 @@ class ClaudeAdapter(Adapter):
     # claude -p 는 끝날 때 한 번에 출력한다. 2026-11-17 CalcMoney 작업에서
     # 180초를 넘긴 리뷰가 stalled 로 끊겼다.
     streams_output = False
-    # --model 은 별칭을 받는다. 'opus' 는 판본이 아니라 "오푸스 계열의 최신"을
-    # 가리켜서, 모델이 새로 나와도 이 줄은 그대로 둔다.
-    ladder = ("opus",)
+    # 모델이 아니라 강도를 올린다. --model opus 는 기본값이 이미 오푸스면
+    # 같은 자리라서 재시도가 올라가지 않는다. --effort 에는 올릴 칸이 남아 있다.
+    # 잘못된 등급을 주면 claude 는 막지 않고 경고만 찍고 무시한다. 상수로만 둔다.
+    ladder = EFFORT_LADDER
 
     def build_command(self, request: AgentRequest, prompt: str) -> list[str]:
         command = [self.executable, "-p", prompt]
-        model = request.model or self.rung(request.attempt)
-        if model:
-            command.extend(["--model", model])
+        if request.model:
+            command.extend(["--model", request.model])
+        effort = self.rung(request.attempt)
+        if effort:
+            command.extend(["--effort", effort])
         command.append("--allowed-tools")
         command.extend(READ_ONLY_CLAUDE_TOOLS if request.read_only else WRITE_CLAUDE_TOOLS)
         return command

@@ -62,7 +62,8 @@ class NonInteractiveTest(PipelineTestCase):
         pipeline.step(settings)
 
         log = (settings.paths.root / "02-implement.log").read_text(encoding="utf-8")
-        self.assertEqual(log, "1")
+        # 에이전트 로그는 머리말로 시작한다. 명령 출력은 그 뒤에 붙는다.
+        self.assertTrue(log.endswith("1"))
 
     def test_the_reviewer_is_told_too(self) -> None:
         settings = self.settings({IMPLEMENTER: "echo 고침 >> a.txt", REVIEWER: self.MARK})
@@ -73,7 +74,7 @@ class NonInteractiveTest(PipelineTestCase):
         pipeline.step(settings)
 
         log = (settings.paths.root / "03-review.log").read_text(encoding="utf-8")
-        self.assertEqual(log, "1")
+        self.assertTrue(log.endswith("1"))
 
     def test_verify_commands_are_not_agents(self) -> None:
         # 검증 명령은 사람이 계획에 적은 셸 명령이다. 에이전트 환경을 씌우지 않는다.
