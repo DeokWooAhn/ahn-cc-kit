@@ -4,7 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import pipeline
+from . import ledger, pipeline
 from .errors import OrchestratorError
 from .pipeline import Settings, StepResult
 from .state import RunState, is_blocked
@@ -43,6 +43,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     _common(auto)
     auto.set_defaults(handler=_run)
+
+    stats = sub.add_parser("stats", help="호출 장부를 모아 역할·등급별로 센다")
+    stats.add_argument("task_id", nargs="?", help="주지 않으면 모든 작업을 모은다")
+    _common(stats)
+    stats.set_defaults(handler=_stats)
 
     for name, handler, help_text in (
         ("step", _step, "다음 한 걸음을 간다"),
@@ -202,6 +207,37 @@ def _init(args) -> int:
 
 def _step(args) -> int:
     return _report(pipeline.step(_resolve(args)))
+
+
+def _stats(args) -> int:
+    """장부를 모아 센다. 어디에 시간이 가는지 보려는 것이다."""
+    root = Path(args.repo) / args.orchestrate_dir
+    if args.task_id:
+        calls = ledger.read_task(root / args.task_id)
+        where = f"{root / args.task_id}"
+    else:
+        calls = ledger.read(root)
+        where = f"{root}"
+    if not calls:
+        print(f"장부가 비었다: {where}")
+        print("`orch` 로 돌린 호출이 아직 없거나, 장부를 넣기 전에 돈 작업뿐이다")
+        return EXIT_OK
+
+    tasks = len({call.task_id for call in calls})
+    total = sum(call.seconds for call in calls)
+    print(f"작업 {tasks}건 · 호출 {len(calls)}회 · 합계 {ledger.spoken(total)}")
+    print()
+    for line in ledger.table(ledger.summarize(calls)):
+        print(line)
+
+    default_rungs = sum(1 for call in calls if call.effort is None and call.kind == ledger.AGENT)
+    if default_rungs:
+        print()
+        print(
+            f"{ledger.TOOL_DEFAULT} 는 등급을 주지 않고 부른 {default_rungs}회다. "
+            "그 호출이 실제로 어느 등급이었는지는 런타임이 모른다"
+        )
+    return EXIT_OK
 
 
 def _run(args) -> int:

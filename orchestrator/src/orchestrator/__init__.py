@@ -20,6 +20,7 @@ from .errors import (
 from .errors import PipelineError, PluginDocsMissing
 from .failures import Failure, classify
 from .guards import GitSnapshot, GitViolation
+from .ledger import Call, Row
 from .policy import CommandVerdict, check_command
 from .prompts import PlanCheck, check_plan
 from .pipeline import Settings, StepResult, TaskPaths
@@ -32,8 +33,10 @@ __all__ = [
     "AgentResult",
     "ClaudeAdapter",
     "CommandVerdict",
+    "Call",
     "Failure",
     "PlanCheck",
+    "Row",
     "CodexAdapter",
     "GitCommandFailed",
     "PipelineError",

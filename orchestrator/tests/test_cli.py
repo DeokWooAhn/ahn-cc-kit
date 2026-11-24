@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from orchestrator import pipeline, prompts
+from orchestrator import ledger, pipeline, prompts
 from orchestrator.__main__ import EXIT_BLOCKED, EXIT_ERROR, EXIT_OK, main
 from orchestrator.pipeline import Settings
 from orchestrator.state import RunState
@@ -401,6 +401,72 @@ class CliTest(unittest.TestCase):
 
         self.assertIsNone(built.retry_limit)
         self.assertEqual(built.retry_limit_for(settings.paths.plan), 2)
+
+    def leave(self, task_id: str = TASK_ID, **overrides) -> None:
+        settings = self.settings(task_id)
+        settings.paths.root.mkdir(parents=True, exist_ok=True)
+        values = {
+            "at": "2026-11-20T01:00:00+00:00",
+            "task_id": task_id,
+            "role": "implementer",
+            "kind": ledger.AGENT,
+            "tool": "claude",
+            "effort": None,
+            "attempt": 0,
+            "outcome": "ok",
+            "seconds": 90.0,
+            "log_bytes": 1000,
+        }
+        values.update(overrides)
+        ledger.record(settings.paths.root, ledger.Call(**values))
+
+    def test_an_empty_ledger_says_so_instead_of_an_empty_table(self) -> None:
+        code, out, _ = self.run_cli("stats")
+
+        self.assertEqual(code, EXIT_OK)
+        self.assertIn("장부가 비었다", out)
+
+    def test_stats_counts_what_the_ledger_holds(self) -> None:
+        self.leave()
+
+        code, out, _ = self.run_cli("stats")
+
+        self.assertEqual(code, EXIT_OK)
+        self.assertIn("implementer", out)
+        self.assertIn("1분 30초", out)
+
+    def test_stats_gathers_every_task_by_default(self) -> None:
+        self.leave("20261120-하나")
+        self.leave("20261120-둘")
+
+        _, out, _ = self.run_cli("stats")
+
+        self.assertIn("작업 2건", out)
+
+    def test_a_task_id_narrows_it(self) -> None:
+        self.leave("20261120-하나")
+        self.leave("20261120-둘", role="reviewer")
+
+        _, out, _ = self.run_cli("stats", "20261120-둘")
+
+        self.assertIn("작업 1건", out)
+        self.assertIn("reviewer", out)
+        self.assertNotIn("implementer", out)
+
+    def test_stats_says_which_calls_took_the_tool_default(self) -> None:
+        self.leave(effort=None)
+
+        _, out, _ = self.run_cli("stats")
+
+        self.assertIn(ledger.TOOL_DEFAULT, out)
+        self.assertIn("런타임이 모른다", out)
+
+    def test_stats_needs_no_task_to_be_started(self) -> None:
+        # 다른 명령과 달리 상태 파일을 찾지 않는다. 지나간 기록만 읽는다.
+        code, _, err = self.run_cli("stats")
+
+        self.assertEqual(code, EXIT_OK)
+        self.assertEqual(err, "")
 
 
 if __name__ == "__main__":
